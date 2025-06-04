@@ -6,6 +6,6 @@
 
 struct Expr* Parser_parse(const struct Lexer *lexer) {
 
-    return shunting_yard(lexer);
+    return shunting_yard(lexer->token_tbl.elems, 0, lexer->token_tbl.size-1);
 
 }

@@ -2,6 +2,7 @@
 
 #include "bool.h"
 #include "ints.h"
+#include "vector_impl.h"
 
 enum TokenType {
 
@@ -12,6 +13,9 @@ enum TokenType {
     TokenType_MINUS,
     TokenType_MUL,
     TokenType_DIV,
+
+    TokenType_L_PAREN,
+    TokenType_R_PAREN,
 
     TokenType_INT_LIT
 
@@ -25,6 +29,11 @@ struct Token {
 
     unsigned line_num;
     unsigned column_num;
+
+    /* Start of the part of the source file that represents this token */
+    const char *src_start;
+    unsigned src_len;
+
     enum TokenType type;
     union TokenValue value;
 
@@ -38,16 +47,16 @@ struct TokenList {
 
 };
 
+/* Memsets value to all 0s */
 struct Token Token_create(unsigned line_num, unsigned column_num,
-        enum TokenType type); /* Memsets value to all 0s */
+        const char *src_start, unsigned src_len, enum TokenType type);
 struct Token Token_create_w_val(unsigned line_num, unsigned column_num,
-        enum TokenType type, union TokenValue value);
+        const char *src_start, unsigned src_len, enum TokenType type,
+        union TokenValue value);
 
 bool Token_is_operator(enum TokenType type);
 
-struct TokenList TokenList_init(void);
-void TokenList_push_back(struct TokenList *self, struct Token value);
-void TokenList_free(struct TokenList *self);
+m_declare_VectorImpl_funcs(TokenList, struct Token)
 
 unsigned Token_precedence(enum TokenType type);
 /* Does the token have left to right associativity? */

@@ -7,6 +7,21 @@
 #include <stddef.h>
 #include "safe_mem.h"
 
+#define m_define_VectorImpl_funcs(VecStruct, ElemType) \
+    m_define_VectorImpl_init(VecStruct) \
+    m_define_VectorImpl_free(VecStruct) \
+    m_define_VectorImpl_push_back(VecStruct, ElemType) \
+    m_define_VectorImpl_pop_back(VecStruct, ElemType) \
+    m_define_VectorImpl_back(VecStruct, ElemType) \
+
+#define m_declare_VectorImpl_funcs(VecStruct, ElemType) \
+    struct VecStruct VecStruct##_init(void); \
+    void VecStruct##_free(struct VecStruct *self); \
+    void VecStruct##_push_back(struct VecStruct *self, ElemType value); \
+    void VecStruct##_pop_back(struct VecStruct *self, \
+            void free_func(ElemType)); \
+    ElemType VecStruct##_back(struct VecStruct *self);
+
 #define m_define_VectorImpl_init(VecStruct) \
     struct VecStruct VecStruct##_init(void) { \
         struct VecStruct var; \
@@ -22,8 +37,8 @@
         m_free(self->elems); \
     }
 
-#define m_define_VectorImpl_push_back(VecStruct, ElemsType) \
-    void VecStruct##_push_back(struct VecStruct *self, ElemsType value) { \
+#define m_define_VectorImpl_push_back(VecStruct, ElemType) \
+    void VecStruct##_push_back(struct VecStruct *self, ElemType value) { \
         while (self->size+1 >= self->capacity) { \
             self->capacity = self->capacity >= 2 ? \
                 self->capacity*self->capacity : self->capacity+1; \
@@ -33,7 +48,16 @@
         self->elems[self->size++] = value; \
     }
 
-#define m_define_VectorImpl_pop_back(VecStruct) \
-    void VecStruct##_pop_back(struct VecStruct *self) { \
+/* optionally, free_func can be NULL, in which case no freeing is done */
+#define m_define_VectorImpl_pop_back(VecStruct, ElemType) \
+    void VecStruct##_pop_back(struct VecStruct *self, \
+            void free_func(ElemType)) { \
+        if (free_func) \
+            free_func(self->elems[self->size-1]); \
         --self->size; \
+    }
+
+#define m_define_VectorImpl_back(VecStruct, ElemType) \
+    ElemType VecStruct##_back(struct VecStruct *self) { \
+        return self->elems[self->size-1]; \
     }

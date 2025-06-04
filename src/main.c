@@ -42,7 +42,7 @@ void compile(char *src) {
     }
 #endif
 
-    {
+    if (!Lexer_error_occurred) {
         struct Expr *expr = Parser_parse(&lexer);
         printf("result = %u\n", Expr_evaluate(expr));
         Expr_free(expr);

@@ -1,18 +1,29 @@
 #include "token.h"
-#include "safe_mem.h"
 #include "vector_impl.h"
 #include <assert.h>
 #include <string.h>
-#include <stdio.h>
 
 struct Token Token_create(unsigned line_num, unsigned column_num,
-        enum TokenType type) {
+        const char *src_start, unsigned src_len, enum TokenType type) {
 
     struct Token token;
     token.line_num = line_num;
     token.column_num = column_num;
+    token.src_start = src_start;
+    token.src_len = src_len;
     token.type = type;
     memset(&token.value, 0, sizeof(token.value));
+    return token;
+
+}
+
+struct Token Token_create_w_val(unsigned line_num, unsigned column_num,
+        const char *src_start, unsigned src_len, enum TokenType type,
+        union TokenValue value) {
+
+    struct Token token = Token_create(line_num, column_num, src_start, src_len,
+            type);
+    token.value = value;
     return token;
 
 }
@@ -21,15 +32,6 @@ bool Token_is_operator(enum TokenType type) {
 
     return type == TokenType_PLUS || type == TokenType_MINUS ||
         type == TokenType_MUL || type == TokenType_DIV;
-
-}
-
-struct Token Token_create_w_val(unsigned line_num, unsigned column_num,
-        enum TokenType type, union TokenValue value) {
-
-    struct Token token = Token_create(line_num, column_num, type);
-    token.value = value;
-    return token;
 
 }
 
@@ -59,7 +61,4 @@ bool Token_l_to_right_asso(enum TokenType type) {
 
 }
 
-m_define_VectorImpl_init(TokenList)
-m_define_VectorImpl_free(TokenList)
-m_define_VectorImpl_push_back(TokenList, struct Token)
-m_define_VectorImpl_pop_back(TokenList)
+m_define_VectorImpl_funcs(TokenList, struct Token)

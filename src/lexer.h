@@ -1,14 +1,15 @@
 #pragma once
 
-#include "token.h"
 #include "bool.h"
+#include "token.h"
 
 struct Lexer {
 
-    bool error;
     struct TokenList token_tbl;
 
 };
+
+extern bool Lexer_error_occurred;
 
 struct Lexer Lexer_init(void);
 
