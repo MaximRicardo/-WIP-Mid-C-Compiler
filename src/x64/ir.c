@@ -4,15 +4,11 @@
 #include <string.h>
 #include <stdlib.h>
 
-unsigned n_gp_regs = 11;
-
 /* is the register currently holding a value? */
 bool gp_reg_used[] = {
     false,  /* ax */
     false,  /* bx */
     false,  /* cx */
-    /* DX has been removed to make implementing mul and div easier */
-    /*false,*/  /* dx */
     false,  /* r8 */
     false,  /* r9 */
     false,  /* r10 */
@@ -22,6 +18,8 @@ bool gp_reg_used[] = {
     false,  /* r14 */
     false,  /* r15 */
 };
+
+const unsigned n_gp_regs = sizeof(gp_reg_used)/sizeof(gp_reg_used[0]);
 
 struct GPReg {
 
@@ -128,6 +126,12 @@ static enum InstrType expr_to_instr_t(const struct Expr *expr) {
         else
             return InstrType_DIV;
 
+    case ExprType_MODULUS:
+        if (PrimitiveType_signed(Expr_type(expr)))
+            return InstrType_IMODULO;
+        else
+            return InstrType_MODULO;
+
     default:
         assert(false);
 
@@ -172,6 +176,7 @@ struct Instruction Instruction_init(void) {
     struct Instruction instr;
     instr.type = InstrType_INVALID;
     instr.instr_size = 0;
+    instr.offset = 0;
     instr.lhs = InstrOperand_init();
     instr.rhs = InstrOperand_init();
     return instr;
@@ -184,7 +189,6 @@ static enum InstrOperandType reg_idx_to_operand_t(unsigned idx) {
 
 }
 
-/* returns the register holding the result of the expression */
 static struct GPReg get_expr_instructions(struct InstrList *instrs,
         const struct Expr *expr) {
 
@@ -208,6 +212,14 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
         instr.rhs = InstrOperand_create_imm(InstrOperandType_IMM_32,
                 expr->int_value);
     }
+    else if (expr->expr_type == ExprType_IDENT) {
+        instr.type = InstrType_MOV_F_LOC;
+        instr.lhs = InstrOperand_create_imm(
+                reg_idx_to_operand_t(lhs_reg.reg_idx), 0
+                );
+        instr.rhs = InstrOperand_create_imm(InstrOperandType_REG_BP, 0);
+        instr.offset = expr->bp_offset;
+    }
     else {
         instr.type = expr_to_instr_t(expr);
         instr.lhs = InstrOperand_create_imm(
@@ -229,14 +241,49 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
 
 }
 
-struct InstrList Instruction_get_instructions(const struct TUNode *tu) {
+static void get_var_decl_instructions(struct InstrList *instrs,
+    const struct VarDeclNode *var_decl) {
+
+    unsigned i;
+    for (i = 0; i < var_decl->decls.size; i++) {
+        struct Instruction instr = Instruction_init();
+
+        if (var_decl->decls.elems[i].value) {
+            struct GPReg reg =
+                get_expr_instructions(instrs, var_decl->decls.elems[i].value);
+            instr.type = InstrType_PUSH;
+            instr.instr_size = InstrSize_64;
+            instr.lhs = InstrOperand_create_imm(
+                    reg_idx_to_operand_t(reg.reg_idx), 0);
+            free_reg(instrs, reg);
+        }
+        else {
+            instr.type = InstrType_SUB;
+            instr.instr_size = InstrSize_64;
+            instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_SP, 0);
+            instr.rhs = InstrOperand_create_imm(InstrOperandType_IMM_32, 4);
+        }
+
+        InstrList_push_back(instrs, instr);
+    }
+
+}
+
+struct InstrList IR_get_instructions(const struct TUNode *tu) {
 
     struct InstrList instrs = InstrList_init();
     unsigned i;
 
-    for (i = 0; i < tu->exprs.size; i++) {
+    for (i = 0; i < tu->nodes.size; i++) {
 
-        free_reg(&instrs, get_expr_instructions(&instrs, tu->exprs.elems[i]));
+        void *node_struct = tu->nodes.elems[i].node_struct;
+
+        if (tu->nodes.elems[i].type == ASTType_EXPR)
+            free_reg(&instrs, get_expr_instructions(&instrs,
+                        ((const struct ExprNode*)node_struct)->expr));
+        else if (tu->nodes.elems[i].type == ASTType_VAR_DECL)
+            get_var_decl_instructions(&instrs,
+                    (const struct VarDeclNode*)node_struct);
 
     }
 

@@ -3,11 +3,17 @@
 #include "../vector_impl.h"
 #include "../ast.h"
 
+/* when changing make sure to update:
+ *  expr_t_to_instr_t() in ir.c, type_is_reg in code_gen.c, instr_type_to_asm
+ *  in code_gen.c, regular_2_oper_instr in code_gen.c
+ */
 enum InstrType {
 
     InstrType_INVALID,
 
     InstrType_MOV,
+    InstrType_MOV_F_LOC,  /* example: mov rax, [rbx+8] */
+    InstrType_MOV_T_LOC,  /* example: mov [rbx+8], rax */
 
     /* binary operations */
     InstrType_ADD,
@@ -16,6 +22,8 @@ enum InstrType {
     InstrType_IMUL,
     InstrType_DIV,
     InstrType_IDIV,
+    InstrType_MODULO,
+    InstrType_IMODULO,
 
     /* stack operations */
     InstrType_PUSH,
@@ -32,8 +40,6 @@ enum InstrOperandType {
     InstrOperandType_REG_AX,
     InstrOperandType_REG_BX,
     InstrOperandType_REG_CX,
-    /* Removing DX for now to make mul and div easier to impl */
-    /* InstrOperandType_REG_DX,*/
     InstrOperandType_REG_R8,
     InstrOperandType_REG_R9,
     InstrOperandType_REG_R10,
@@ -42,10 +48,10 @@ enum InstrOperandType {
     InstrOperandType_REG_R13,
     InstrOperandType_REG_R14,
     InstrOperandType_REG_R15,
-    InstrOperandType_REGISTERS_END,
-
+    /* stack registers */
     InstrOperandType_REG_SP,
     InstrOperandType_REG_BP,
+    InstrOperandType_REGISTERS_END,
 
     /* immediates */
     InstrOperandType_IMM_8,
@@ -83,6 +89,7 @@ struct Instruction {
     struct InstrOperand lhs, rhs;
     enum InstrType type;
     enum InstrSize instr_size;
+    i32 offset;
 
 };
 
@@ -98,4 +105,4 @@ struct InstrList {
 
 m_declare_VectorImpl_funcs(InstrList, struct Instruction)
 
-struct InstrList Instruction_get_instructions(const struct TUNode *tu);
+struct InstrList IR_get_instructions(const struct TUNode *tu);

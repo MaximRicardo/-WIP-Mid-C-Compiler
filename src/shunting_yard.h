@@ -3,6 +3,7 @@
 #include "ast.h"
 #include "bool.h"
 #include "token.h"
+#include "parser.h"
 
 extern bool SY_error_occurred;
 
@@ -15,4 +16,5 @@ extern bool SY_error_occurred;
  * token_tbl->size.
  */
 struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
-        enum TokenType stop_type, u32 *end_idx);
+        enum TokenType stop_type, u32 *end_idx, const struct ParVarList *vars,
+        u32 bp);

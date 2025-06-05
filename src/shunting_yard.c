@@ -1,73 +1,14 @@
 #include "shunting_yard.h"
 #include "ast.h"
+#include "ints.h"
 #include "safe_mem.h"
 #include "token.h"
+#include "parser.h"
 #include <assert.h>
 #include <stddef.h>
 #include <stdio.h>
 
 bool SY_error_occurred = false;
-
-static enum ExprType tok_t_to_expr_t(enum TokenType type) {
-
-    switch (type) {
-
-    case TokenType_NONE:
-        return ExprType_INVALID;
-
-    case TokenType_PLUS:
-        return ExprType_PLUS;
-
-    case TokenType_MINUS:
-        return ExprType_MINUS;
-
-    case TokenType_MUL:
-        return ExprType_MUL;
-
-    case TokenType_DIV:
-        return ExprType_DIV;
-
-    case TokenType_INT_LIT:
-        return ExprType_INT_LIT;
-
-    case TokenType_L_PAREN:
-        return ExprType_PAREN;
-
-    default:
-        assert(false);
-
-    }
-
-}
-
-static enum TokenType expr_t_to_tok_t(enum ExprType type) {
-
-    switch (type) {
-
-    case ExprType_INVALID:
-        return TokenType_NONE;
-
-    case ExprType_PLUS:
-        return TokenType_PLUS;
-
-    case ExprType_MINUS:
-        return TokenType_MINUS;
-
-    case ExprType_MUL:
-        return TokenType_MUL;
-
-    case ExprType_DIV:
-        return TokenType_DIV;
-
-    case ExprType_INT_LIT:
-        return TokenType_INT_LIT;
-
-    case ExprType_PAREN:
-        return TokenType_L_PAREN;
-
-    }
-
-}
 
 /* Moves the operator at the top of the operator queue over to the output
  * queue */
@@ -157,7 +98,8 @@ static void read_r_paren(struct ExprPtrList *output_queue,
 }
 
 struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
-        enum TokenType stop_type, u32 *end_idx) {
+        enum TokenType stop_type, u32 *end_idx,
+        const struct ParVarList *vars, u32 bp) {
 
     struct ExprPtrList output_queue = ExprPtrList_init();
     struct ExprPtrList operator_stack = ExprPtrList_init();
@@ -175,17 +117,37 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
         else if (token_tbl->elems[i].type == TokenType_L_PAREN) {
             struct Expr *expr = safe_malloc(sizeof(*expr));
             *expr = Expr_create_w_tok(token_tbl->elems[i], NULL, NULL,
-                    PrimType_INVALID, PrimType_INVALID, 0, ExprType_PAREN);
+                    PrimType_INVALID, PrimType_INVALID, 0, 0, ExprType_PAREN);
             ExprPtrList_push_back(&operator_stack, expr);
         }
         else if (token_tbl->elems[i].type == TokenType_R_PAREN) {
             read_r_paren(&output_queue, &operator_stack, &token_tbl->elems[i]);
         }
+        else if (token_tbl->elems[i].type == TokenType_IDENT) {
+            struct Expr *expr = safe_malloc(sizeof(*expr));
+            char *name = Token_src(&token_tbl->elems[i]);
+            u32 var_idx = ParVarList_find_var(vars, name);
+            if (var_idx == m_u32_max) {
+                fprintf(stderr,
+                        "undeclared identifier '%s'. line %u, column %u\n",
+                        name, token_tbl->elems[i].line_num,
+                        token_tbl->elems[i].column_num);
+                SY_error_occurred = true;
+                m_free(name);
+                m_free(expr);
+                continue;
+            }
+            m_free(name);
+            *expr = Expr_create_w_tok(token_tbl->elems[i], NULL, NULL,
+                    vars->elems[var_idx].type, PrimType_INVALID, 0,
+                    vars->elems[var_idx].stack_pos-bp, ExprType_IDENT);
+            ExprPtrList_push_back(&output_queue, expr);
+        }
         else {
             struct Expr *expr = safe_malloc(sizeof(*expr));
             *expr = Expr_create_w_tok(token_tbl->elems[i], NULL, NULL,
                     PrimType_INT, PrimType_INVALID,
-                    token_tbl->elems[i].value.int_value, ExprType_INT_LIT);
+                    token_tbl->elems[i].value.int_value, 0, ExprType_INT_LIT);
             ExprPtrList_push_back(&output_queue, expr);
         }
 

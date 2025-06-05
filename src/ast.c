@@ -1,6 +1,7 @@
 #include "ast.h"
 #include "bool.h"
 #include "safe_mem.h"
+#include "token.h"
 #include "type_sizes.h"
 #include "vector_impl.h"
 #include <assert.h>
@@ -44,16 +45,31 @@ enum PrimitiveType PrimitiveType_promote(enum PrimitiveType type) {
 struct ASTNode ASTNode_init(void) {
 
     struct ASTNode node;
-    node.type = AstType_INVALID;
+    node.type = ASTType_INVALID;
+    node.node_struct = NULL;
     return node;
 
 }
 
-struct ASTNode ASTNode_create(enum ASTNodeType type) {
+struct ASTNode ASTNode_create(enum ASTNodeType type, void *node_struct) {
 
     struct ASTNode node;
     node.type = type;
+    node.node_struct = node_struct;
     return node;
+
+}
+
+void ASTNode_free(struct ASTNode node) {
+
+    if (node.node_struct) {
+        if (node.type == ASTType_EXPR)
+            ExprNode_free_w_self((struct ExprNode*)node.node_struct);
+        else if (node.type == ASTType_VAR_DECL)
+            VarDeclNode_free_w_self(((struct VarDeclNode*)node.node_struct));
+        else
+            assert(false);
+    }
 
 }
 
@@ -68,6 +84,7 @@ struct Expr Expr_init(void) {
     expr.rhs = NULL;
     expr.expr_type = ExprType_INVALID;
     expr.int_value = 0;
+    expr.bp_offset = 0;
     return expr;
 
 }
@@ -75,7 +92,8 @@ struct Expr Expr_init(void) {
 struct Expr Expr_create(unsigned line_num, unsigned column_num,
         const char *src_start, unsigned src_len, struct Expr *lhs,
         struct Expr *rhs, enum PrimitiveType lhs_type,
-        enum PrimitiveType rhs_type, u32 int_value, enum ExprType expr_type) {
+        enum PrimitiveType rhs_type, u32 int_value, i32 bp_offset,
+        enum ExprType expr_type) {
 
     struct Expr expr;
     expr.line_num = line_num;
@@ -87,6 +105,7 @@ struct Expr Expr_create(unsigned line_num, unsigned column_num,
     expr.lhs_type = lhs_type;
     expr.rhs_type = rhs_type;
     expr.int_value = int_value;
+    expr.bp_offset = bp_offset;
     expr.expr_type = expr_type;
     return expr;
 
@@ -94,10 +113,12 @@ struct Expr Expr_create(unsigned line_num, unsigned column_num,
 
 struct Expr Expr_create_w_tok(struct Token token, struct Expr *lhs,
         struct Expr *rhs, enum PrimitiveType lhs_type,
-        enum PrimitiveType rhs_type, u32 int_value, enum ExprType expr_type) {
+        enum PrimitiveType rhs_type, u32 int_value, i32 bp_offset,
+        enum ExprType expr_type) {
 
     return Expr_create(token.line_num, token.column_num, token.src_start,
-            token.src_len, lhs, rhs, lhs_type, rhs_type, int_value, expr_type);
+            token.src_len, lhs, rhs, lhs_type, rhs_type, int_value, bp_offset,
+            expr_type);
 
 }
 
@@ -165,47 +186,182 @@ u32 Expr_evaluate(const struct Expr *self) {
 
 }
 
-struct ExprStmt ExprStmt_init(void) {
+struct ExprNode ExprNode_init(void) {
 
-    struct ExprStmt expr_stmt;
-    expr_stmt.expr = NULL;
-    return expr_stmt;
+    struct ExprNode expr_node;
+    expr_node.expr = NULL;
+    return expr_node;
 
 }
 
-struct ExprStmt ExprStmt_create(struct Expr *expr) {
+struct ExprNode ExprNode_create(struct Expr *expr) {
 
-    struct ExprStmt expr_stmt;
-    expr_stmt.expr = expr;
-    return expr_stmt;
+    struct ExprNode expr_node;
+    expr_node.expr = expr;
+    return expr_node;
+
+}
+
+void ExprNode_free_w_self(struct ExprNode *self) {
+
+    Expr_recur_free_w_self(self->expr);
+    m_free(self);
 
 }
 
 struct TUNode TUNode_init(void) {
 
     struct TUNode tu;
-    tu.exprs = ExprPtrList_init();
+    tu.nodes = ASTNodeList_init();
     return tu;
 
 }
 
-struct TUNode TUNode_create(struct ExprPtrList exprs) {
+struct TUNode TUNode_create(struct ASTNodeList nodes) {
 
     struct TUNode tu;
-    tu.exprs = exprs;
+    tu.nodes = nodes;
     return tu;
 
 }
 
 void TUNode_free_w_self(struct TUNode *self) {
 
-    while (self->exprs.size > 0) {
-        ExprPtrList_pop_back(&self->exprs, Expr_recur_free_w_self);
+    while (self->nodes.size > 0) {
+        ASTNodeList_pop_back(&self->nodes, ASTNode_free);
     }
 
-    ExprPtrList_free(&self->exprs);
+    ASTNodeList_free(&self->nodes);
     m_free(self);
 
 }
 
+enum ExprType tok_t_to_expr_t(enum TokenType type) {
+
+    switch (type) {
+
+    case TokenType_NONE:
+        return ExprType_INVALID;
+
+    case TokenType_PLUS:
+        return ExprType_PLUS;
+
+    case TokenType_MINUS:
+        return ExprType_MINUS;
+
+    case TokenType_MUL:
+        return ExprType_MUL;
+
+    case TokenType_MODULUS:
+        return ExprType_MODULUS;
+
+    case TokenType_DIV:
+        return ExprType_DIV;
+
+    case TokenType_INT_LIT:
+        return ExprType_INT_LIT;
+
+    case TokenType_L_PAREN:
+        return ExprType_PAREN;
+
+    case TokenType_IDENT:
+        return ExprType_IDENT;
+
+    default:
+        assert(false);
+
+    }
+
+}
+
+enum TokenType expr_t_to_tok_t(enum ExprType type) {
+
+    switch (type) {
+
+    case ExprType_INVALID:
+        return TokenType_NONE;
+
+    case ExprType_PLUS:
+        return TokenType_PLUS;
+
+    case ExprType_MINUS:
+        return TokenType_MINUS;
+
+    case ExprType_MUL:
+        return TokenType_MUL;
+
+    case ExprType_DIV:
+        return TokenType_DIV;
+    
+    case ExprType_MODULUS:
+        return TokenType_MODULUS;
+
+    case ExprType_INT_LIT:
+        return TokenType_INT_LIT;
+
+    case ExprType_PAREN:
+        return TokenType_L_PAREN;
+
+    case ExprType_IDENT:
+        return TokenType_IDENT;
+
+    }
+
+}
+
+struct Declarator Declarator_init(void) {
+
+    struct Declarator decl;
+    decl.value = NULL;
+    decl.ident = NULL;
+    return decl;
+
+}
+
+struct Declarator Declarator_create(struct Expr *value, char *ident) {
+
+    struct Declarator decl;
+    decl.value = value;
+    decl.ident = ident;
+    return decl;
+
+}
+
+void Declarator_free(struct Declarator decl) {
+
+    Expr_recur_free_w_self(decl.value);
+    m_free(decl.ident);
+
+}
+
+struct VarDeclNode VarDeclNode_init(void) {
+
+    struct VarDeclNode node;
+    node.decls = DeclList_init();
+    node.type = PrimType_INVALID;
+    return node;
+
+}
+
+struct VarDeclNode VarDeclNode_create(struct DeclList decls,
+        enum PrimitiveType type) {
+
+    struct VarDeclNode node;
+    node.decls = decls;
+    node.type = type;
+    return node;
+
+}
+
+void VarDeclNode_free_w_self(struct VarDeclNode *self) {
+
+    while (self->decls.size > 0)
+        DeclList_pop_back(&self->decls, Declarator_free);
+    DeclList_free(&self->decls);
+    m_free(self);
+
+}
+
+m_define_VectorImpl_funcs(ASTNodeList, struct ASTNode)
+m_define_VectorImpl_funcs(DeclList, struct Declarator)
 m_define_VectorImpl_funcs(ExprPtrList, struct Expr*)

@@ -1,5 +1,4 @@
 #include "lexer.h"
-#include "safe_mem.h"
 #include "token.h"
 #include <assert.h>
 #include <ctype.h>
@@ -69,11 +68,10 @@ struct Lexer Lexer_lex(const char *src) {
     for (src_i = 0; src[src_i] != '\0'; src_i++,column_num++) {
 
         if (isspace(src[src_i])) {
-            /* Do nothing */
-        }
-        else if (src[src_i] == '\n') {
-            ++line_num;
-            column_num = 0;
+            if (src[src_i] == '\n') {
+                ++line_num;
+                column_num = 0;
+            }
         }
         else if (src[src_i] == '/' && src[src_i+1] == '/') {
             ++line_num;
@@ -106,6 +104,12 @@ struct Lexer Lexer_lex(const char *src) {
         else if (src[src_i] == '/')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, TokenType_DIV));
+        else if (src[src_i] == '%')
+            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+                        &src[src_i], 1, TokenType_MODULUS));
+        else if (src[src_i] == '=')
+            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+                        &src[src_i], 1, TokenType_EQUAL));
 
         else if (src[src_i] == '(')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
@@ -128,23 +132,18 @@ struct Lexer Lexer_lex(const char *src) {
             column_num += chars_moved-1;
         }
 
+        else if (valid_ident_start_char(src[src_i])) {
+            unsigned len = get_identifier_len(&src[src_i]);
+            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+                        &src[src_i], len, TokenType_IDENT));
+            src_i += len-1;
+            column_num += len-1;
+        }
+
         else {
-            bool is_identifier = valid_ident_start_char(src[src_i]);
             Lexer_error_occurred = true;
-            if (!is_identifier)
-                fprintf(stderr, "unknown token '%c'. line %u, column %u.\n",
-                        src[src_i], line_num, column_num);
-            else {
-                unsigned ident_len = get_identifier_len(&src[src_i]);
-                char *ident = safe_malloc((ident_len+1)*sizeof(*ident));
-                strncpy(ident, &src[src_i], ident_len);
-                ident[ident_len] = '\0';
-                fprintf(stderr, "unknown token '%s'. line %u, column %u.\n",
-                        ident, line_num, column_num);
-                m_free(ident);
-                column_num += ident_len-1;
-                src_i += ident_len-1;
-            }
+            fprintf(stderr, "unknown token '%c'. line %u, column %u.\n",
+                    src[src_i], line_num, column_num);
         }
 
     }
