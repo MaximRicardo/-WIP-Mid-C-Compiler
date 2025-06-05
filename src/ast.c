@@ -2,9 +2,16 @@
 #include "bool.h"
 #include "safe_mem.h"
 #include "type_sizes.h"
+#include "vector_impl.h"
 #include <assert.h>
 #include <stddef.h>
 #include <stdio.h>
+
+bool PrimitiveType_signed(enum PrimitiveType type) {
+
+    return type == PrimType_INT;
+
+}
 
 unsigned PrimitiveType_size(enum PrimitiveType type) {
 
@@ -94,21 +101,21 @@ struct Expr Expr_create_w_tok(struct Token token, struct Expr *lhs,
 
 }
 
-void Expr_free(struct Expr *self) {
+void Expr_recur_free_w_self(struct Expr *self) {
 
     if (!self)
         return;
 
     if (self->lhs)
-        Expr_free(self->lhs);
+        Expr_recur_free_w_self(self->lhs);
     if (self->rhs)
-        Expr_free(self->rhs);
+        Expr_recur_free_w_self(self->rhs);
 
     m_free(self);
 
 }
 
-enum PrimitiveType Expr_type(struct Expr *self) {
+enum PrimitiveType Expr_type(const struct Expr *self) {
 
     if (self->rhs) {
         enum PrimitiveType lhs_prom = PrimitiveType_promote(self->lhs_type);
@@ -126,7 +133,7 @@ enum PrimitiveType Expr_type(struct Expr *self) {
 
 }
 
-u32 Expr_evaluate(struct Expr *self) {
+u32 Expr_evaluate(const struct Expr *self) {
 
     u32 lhs_val = self->lhs ? Expr_evaluate(self->lhs) :
         !self->rhs ? self->int_value : 0;
@@ -173,3 +180,32 @@ struct ExprStmt ExprStmt_create(struct Expr *expr) {
     return expr_stmt;
 
 }
+
+struct TUNode TUNode_init(void) {
+
+    struct TUNode tu;
+    tu.exprs = ExprPtrList_init();
+    return tu;
+
+}
+
+struct TUNode TUNode_create(struct ExprPtrList exprs) {
+
+    struct TUNode tu;
+    tu.exprs = exprs;
+    return tu;
+
+}
+
+void TUNode_free_w_self(struct TUNode *self) {
+
+    while (self->exprs.size > 0) {
+        ExprPtrList_pop_back(&self->exprs, Expr_recur_free_w_self);
+    }
+
+    ExprPtrList_free(&self->exprs);
+    m_free(self);
+
+}
+
+m_define_VectorImpl_funcs(ExprPtrList, struct Expr*)

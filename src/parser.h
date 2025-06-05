@@ -3,4 +3,6 @@
 #include "ast.h"
 #include "lexer.h"
 
-struct Expr* Parser_parse(const struct Lexer *lexer);
+extern bool Parser_error_occurred;
+
+struct TUNode* Parser_parse(const struct Lexer *lexer);

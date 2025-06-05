@@ -1,25 +1,12 @@
 #include "shunting_yard.h"
 #include "ast.h"
-#include "lexer.h"
 #include "safe_mem.h"
 #include "token.h"
-#include "vector_impl.h"
 #include <assert.h>
 #include <stddef.h>
 #include <stdio.h>
 
 bool SY_error_occurred = false;
-
-struct SYList {
-
-    /* Array of pointers to expressions, not a 2D array */
-    struct Expr **elems;
-    u32 size;
-    u32 capacity;
-
-};
-
-m_define_VectorImpl_funcs(SYList, struct Expr*)
 
 static enum ExprType tok_t_to_expr_t(enum TokenType type) {
 
@@ -84,8 +71,8 @@ static enum TokenType expr_t_to_tok_t(enum ExprType type) {
 
 /* Moves the operator at the top of the operator queue over to the output
  * queue */
-static void move_operator_to_out_queue(struct SYList *output_queue,
-        struct SYList *operator_stack) {
+static void move_operator_to_out_queue(struct ExprPtrList *output_queue,
+        struct ExprPtrList *operator_stack) {
 
     /* The operator takes the second upper-most and upper-most elements on the
      * output queue as its left and right operands respectively */
@@ -103,10 +90,10 @@ static void move_operator_to_out_queue(struct SYList *output_queue,
     /* Remove the lhs and rhs from the queue and replace them with the
      * operator. Later on the operator can then act as an operand for the next
      * operator to be pushed to the output queue */
-    SYList_pop_back(output_queue, NULL);
-    SYList_pop_back(output_queue, NULL);
-    SYList_push_back(output_queue, operator);
-    SYList_pop_back(operator_stack, NULL);
+    ExprPtrList_pop_back(output_queue, NULL);
+    ExprPtrList_pop_back(output_queue, NULL);
+    ExprPtrList_push_back(output_queue, operator);
+    ExprPtrList_pop_back(operator_stack, NULL);
 
 }
 
@@ -114,8 +101,8 @@ static void move_operator_to_out_queue(struct SYList *output_queue,
  * check_below_operators  - Checks whether any previous operators in the
  *    operator stack should be popped first.
  */
-static void push_operator_to_queue(struct SYList *output_queue,
-        struct SYList *operator_stack, enum TokenType operator_type) {
+static void push_operator_to_queue(struct ExprPtrList *output_queue,
+        struct ExprPtrList *operator_stack, enum TokenType operator_type) {
 
     struct Expr *expr = safe_malloc(sizeof(*expr));
     *expr = Expr_init();
@@ -126,9 +113,9 @@ static void push_operator_to_queue(struct SYList *output_queue,
      * there is another operator below o2, it now becomes the new o2 and the
      * process repeats. */
     while (operator_stack->size > 0 &&
-            SYList_back(operator_stack)->expr_type != ExprType_PAREN) {
+            ExprPtrList_back(operator_stack)->expr_type != ExprType_PAREN) {
         enum TokenType o2_tok_type = expr_t_to_tok_t(
-                SYList_back(operator_stack)->expr_type
+                ExprPtrList_back(operator_stack)->expr_type
             );
         unsigned o1_prec = Token_precedence(operator_type);
         unsigned o2_prec = Token_precedence(o2_tok_type);
@@ -144,73 +131,81 @@ static void push_operator_to_queue(struct SYList *output_queue,
         move_operator_to_out_queue(output_queue, operator_stack);
     }
 
-    SYList_push_back(operator_stack, expr);
+    ExprPtrList_push_back(operator_stack, expr);
 
 }
 
 /* Reading a right parenthesis works by sending out all the operators that have
  * been inserted to the operator stack between the left parenthesis and the
  * right one in LIFO order */
-static void read_r_paren(struct SYList *output_queue,
-        struct SYList *operator_stack, const struct Token *r_paren_tok) {
+static void read_r_paren(struct ExprPtrList *output_queue,
+        struct ExprPtrList *operator_stack, const struct Token *r_paren_tok) {
 
     while (operator_stack->size > 0 &&
-            SYList_back(operator_stack)->expr_type != ExprType_PAREN) {
+            ExprPtrList_back(operator_stack)->expr_type != ExprType_PAREN) {
         move_operator_to_out_queue(output_queue, operator_stack);
     }
 
     if (operator_stack->size == 0) {
         fprintf(stderr, "parenthesis mismatch. line %u, column %u\n",
                 r_paren_tok->line_num, r_paren_tok->column_num);
+        SY_error_occurred = true;
     }
     else
-        SYList_pop_back(operator_stack, Expr_free);
+        ExprPtrList_pop_back(operator_stack, Expr_recur_free_w_self);
 
 }
 
-struct Expr* shunting_yard(const struct Token *tokens, u32 lower_bound,
-        u32 upper_bound) {
+struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
+        enum TokenType stop_type, u32 *end_idx) {
 
-    struct SYList output_queue = SYList_init();
-    struct SYList operator_stack = SYList_init();
+    struct ExprPtrList output_queue = ExprPtrList_init();
+    struct ExprPtrList operator_stack = ExprPtrList_init();
     unsigned i;
 
     SY_error_occurred = false;
 
-    for (i = lower_bound; i <= upper_bound; i++) {
+    for (i = start_idx; i < token_tbl->size &&
+            token_tbl->elems[i].type != stop_type; i++) {
 
-        if (Token_is_operator(tokens[i].type)) {
+        if (Token_is_operator(token_tbl->elems[i].type)) {
             push_operator_to_queue(&output_queue, &operator_stack,
-                    tokens[i].type);
+                    token_tbl->elems[i].type);
         }
-        else if (tokens[i].type == TokenType_L_PAREN) {
+        else if (token_tbl->elems[i].type == TokenType_L_PAREN) {
             struct Expr *expr = safe_malloc(sizeof(*expr));
-            *expr = Expr_create_w_tok(tokens[i], NULL, NULL, PrimType_INVALID,
-                    PrimType_INVALID, 0, ExprType_PAREN);
-            SYList_push_back(&operator_stack, expr);
+            *expr = Expr_create_w_tok(token_tbl->elems[i], NULL, NULL,
+                    PrimType_INVALID, PrimType_INVALID, 0, ExprType_PAREN);
+            ExprPtrList_push_back(&operator_stack, expr);
         }
-        else if (tokens[i].type == TokenType_R_PAREN) {
-            read_r_paren(&output_queue, &operator_stack, &tokens[i]);
+        else if (token_tbl->elems[i].type == TokenType_R_PAREN) {
+            read_r_paren(&output_queue, &operator_stack, &token_tbl->elems[i]);
         }
         else {
             struct Expr *expr = safe_malloc(sizeof(*expr));
-            *expr = Expr_create_w_tok(tokens[i], NULL, NULL, PrimType_INT,
-                    PrimType_INVALID, tokens[i].value.int_value,
-                    ExprType_INT_LIT);
-            SYList_push_back(&output_queue, expr);
+            *expr = Expr_create_w_tok(token_tbl->elems[i], NULL, NULL,
+                    PrimType_INT, PrimType_INVALID,
+                    token_tbl->elems[i].value.int_value, ExprType_INT_LIT);
+            ExprPtrList_push_back(&output_queue, expr);
         }
 
     }
+
+    if (end_idx)
+        *end_idx = i;
+
+    if (i == start_idx)
+        return NULL;
 
     while (operator_stack.size > 0) {
         move_operator_to_out_queue(&output_queue, &operator_stack);
     }
-    SYList_free(&operator_stack);
+    ExprPtrList_free(&operator_stack);
 
     assert(output_queue.size == 1);
     {
         struct Expr *expr = output_queue.elems[0];
-        SYList_free(&output_queue);
+        ExprPtrList_free(&output_queue);
         return expr;
     }
 

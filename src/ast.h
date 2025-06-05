@@ -2,6 +2,7 @@
 
 #include "ints.h"
 #include "token.h"
+#include "vector_impl.h"
 
 enum PrimitiveType {
 
@@ -11,6 +12,7 @@ enum PrimitiveType {
 
 };
 
+bool PrimitiveType_signed(enum PrimitiveType type);
 unsigned PrimitiveType_size(enum PrimitiveType type);
 enum PrimitiveType PrimitiveType_promote(enum PrimitiveType type);
 
@@ -75,9 +77,20 @@ struct Expr Expr_create(unsigned line_num, unsigned column_num,
 struct Expr Expr_create_w_tok(struct Token token, struct Expr *lhs,
         struct Expr *rhs, enum PrimitiveType lhs_type,
         enum PrimitiveType rhs_type, u32 int_value, enum ExprType expr_type);
-void Expr_free(struct Expr *self);
-enum PrimitiveType Expr_type(struct Expr *self);
-u32 Expr_evaluate(struct Expr *expr);
+/* Also frees self */
+void Expr_recur_free_w_self(struct Expr *self);
+enum PrimitiveType Expr_type(const struct Expr *self);
+u32 Expr_evaluate(const struct Expr *expr);
+
+struct ExprPtrList {
+
+    struct Expr **elems;
+    u32 size;
+    u32 capacity;
+
+};
+
+m_declare_VectorImpl_funcs(ExprPtrList, struct Expr*)
 
 struct ExprStmt {
 
@@ -87,3 +100,13 @@ struct ExprStmt {
 
 struct ExprStmt ExprStmt_init(void);
 struct ExprStmt ExprStmt_create(struct Expr *expr);
+
+struct TUNode {
+
+    struct ExprPtrList exprs;
+
+};
+
+struct TUNode TUNode_init(void);
+struct TUNode TUNode_create(struct ExprPtrList exprs);
+void TUNode_free_w_self(struct TUNode *self);

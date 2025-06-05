@@ -1,0 +1,5 @@
+The IR is allowed to use the following registers for instructions:
+    AX, BX, CX, R8, R9, R10, R11, R12, R13, R14, R15
+The rest of the registers can be used by code_gen whenever it needs extra
+registers for something. For example, SI is used to temporarily hold the immediate right
+operand in divisions like 5/3.

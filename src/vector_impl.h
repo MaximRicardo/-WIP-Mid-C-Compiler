@@ -31,6 +31,7 @@
         return var; \
     }
 
+/* DOESN'T FREE ALL THE INDIVIDUAL ELEMENTS! */
 #define m_define_VectorImpl_free(VecStruct) \
     void VecStruct##_free(struct VecStruct *self) { \
         self->capacity = 0; \

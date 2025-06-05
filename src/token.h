@@ -8,6 +8,8 @@ enum TokenType {
 
     TokenType_NONE,
 
+    TokenType_SEMICOLON,
+
     /* Binary operators */
     TokenType_PLUS,
     TokenType_MINUS,

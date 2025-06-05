@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "ast.h"
+#include "code_gen.h"
 #include "file_io.h"
 #include "ints.h"
 #include "safe_mem.h"
@@ -27,7 +28,7 @@ static char *read_file(char *file_path) {
 
 }
 
-void compile(char *src) {
+void compile(char *src, FILE *output) {
 
     struct Lexer lexer = Lexer_lex(src);
 
@@ -43,9 +44,13 @@ void compile(char *src) {
 #endif
 
     if (!Lexer_error_occurred) {
-        struct Expr *expr = Parser_parse(&lexer);
-        printf("result = %u\n", Expr_evaluate(expr));
-        Expr_free(expr);
+        struct TUNode *tu = Parser_parse(&lexer);
+
+        if (!Parser_error_occurred) {
+            CodeGen_generate(output, tu);
+        }
+
+        TUNode_free_w_self(tu);
     }
 
     Lexer_free(&lexer);
@@ -55,6 +60,7 @@ void compile(char *src) {
 int main(int argc, char *argv[]) {
 
     char *src = NULL;
+    FILE *output = NULL;
 
     m_build_bug_on(sizeof(i32) != 4);
     m_build_bug_on(sizeof(u32) != 4);
@@ -75,9 +81,15 @@ int main(int argc, char *argv[]) {
 
     puts(src);
 
-    compile(src);
+    if (argc >= 3) {
+        output = fopen(argv[2], "w");
+    }
+
+    compile(src, output);
 
     m_free(src);
+    if (output)
+        fclose(output);
 
     return 0;
 
