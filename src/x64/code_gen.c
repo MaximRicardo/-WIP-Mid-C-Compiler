@@ -41,6 +41,8 @@ const char *instr_type_to_asm[] = {
     "mov",
     "mov",
 
+    "lea",
+
     "add",
     "sub",
     "mul",
@@ -118,6 +120,23 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
         fprintf(output, ", %s\n",
                 reg_names[type_to_reg(instr->rhs.type)][instr->instr_size]
                 );
+    }
+
+    else if (instr->type == InstrType_LEA) {
+        assert(type_is_reg(instr->lhs.type));
+
+        fprintf(output, "lea %s",
+                reg_names[type_to_reg(instr->lhs.type)][instr->instr_size]);
+
+        if (type_is_reg(instr->rhs.type)) {
+            fprintf(output, ", [%s+%d]\n",
+                    reg_names[type_to_reg(instr->rhs.type)][InstrSize_64],
+                    instr->offset);
+        }
+        else {
+            fprintf(output, ", [%d+%d]\n", instr->rhs.value.imm,
+                    instr->offset);
+        }
     }
 
     else if (regular_2_oper_instr(instr->type)) {
@@ -263,7 +282,7 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
         fprintf(output, "mov al, 0\n");
         fprintf(output, "mov rdi, msg\n");
         fprintf(output, "mov rsi, rbx\n");
-        fprintf(output, "call printf\n\n");
+        fprintf(output, "call printf\n");
         fprintf(output, "mov rsp, rbx\n");
     }
 

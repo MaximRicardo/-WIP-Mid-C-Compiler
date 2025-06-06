@@ -26,9 +26,9 @@ mov rbp, rsp
 
 sub rsp, 0
 
-mov eax, [rbp+64]
+lea eax, [rbp+64]
 
-add eax, 5
+mov [rax+0], ebp
 
 mov rsp, rbp
 
@@ -90,12 +90,18 @@ add eax, 10
 
 mov [rbp+-4], eax
 
-mov eax, [rbp+8]
+lea eax, [rbp+8]
 
 mov ebx, [rbp+8]
 
+mov ecx, [rbp+8]
+
+xchg rax, rbx
 cdq
-idiv ebx
+idiv ecx
+mov ebx, edx
+
+mov [rax+0], ebp
 
 mov rbx, rsp
 and rsp, -16
@@ -104,7 +110,6 @@ mov al, 0
 mov rdi, msg
 mov rsi, rbx
 call printf
-
 mov rsp, rbx
 
 mov rsp, rbp
@@ -123,7 +128,6 @@ mov al, 0
 mov rdi, msg
 mov rsi, rbx
 call printf
-
 mov rsp, rbx
 
 mov rsp, rbp

@@ -283,6 +283,9 @@ enum ExprType tok_t_to_expr_t(enum TokenType type) {
     case TokenType_IDENT:
         return ExprType_IDENT;
 
+    case TokenType_EQUAL:
+        return ExprType_EQUAL;
+
     default:
         assert(false);
 
@@ -323,6 +326,9 @@ enum TokenType expr_t_to_tok_t(enum ExprType type) {
 
     case ExprType_IDENT:
         return TokenType_IDENT;
+
+    case ExprType_EQUAL:
+        return TokenType_EQUAL;
 
     }
 

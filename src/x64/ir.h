@@ -15,6 +15,8 @@ enum InstrType {
     InstrType_MOV_F_LOC,  /* example: mov rax, [rbx+8] */
     InstrType_MOV_T_LOC,  /* example: mov [rbx+8], rax */
 
+    InstrType_LEA,
+
     /* binary operations */
     InstrType_ADD,
     InstrType_SUB,

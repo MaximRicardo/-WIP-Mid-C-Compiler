@@ -67,6 +67,7 @@ enum ExprType {
     ExprType_MUL,
     ExprType_DIV,
     ExprType_MODULUS,
+    ExprType_EQUAL,
     ExprType_COMMA,
 
     /* Only used in the shunting yard algorithm */

@@ -199,20 +199,22 @@ static enum InstrOperandType reg_idx_to_operand_t(unsigned idx) {
 
 }
 
+/* load_reference is only used on identifier nodes, else it's ignored */
 static struct GPReg get_expr_instructions(struct InstrList *instrs,
-        const struct Expr *expr) {
+        const struct Expr *expr, bool load_reference) {
 
     struct Instruction instr = Instruction_init();
 
     struct GPReg lhs_reg = GPReg_init(), rhs_reg = GPReg_init();
 
     if (expr->lhs)
-        lhs_reg = get_expr_instructions(instrs, expr->lhs);
+        lhs_reg = get_expr_instructions(instrs, expr->lhs,
+                expr->expr_type == ExprType_EQUAL);
     else
         lhs_reg = alloc_reg(instrs);
 
     if (expr->rhs && expr->rhs->expr_type != ExprType_INT_LIT)
-        rhs_reg = get_expr_instructions(instrs, expr->rhs);
+        rhs_reg = get_expr_instructions(instrs, expr->rhs, false);
 
     instr.instr_size = InstrSize_32;
     if (expr->expr_type == ExprType_INT_LIT) {
@@ -223,12 +225,20 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
                 expr->int_value);
     }
     else if (expr->expr_type == ExprType_IDENT) {
-        instr.type = InstrType_MOV_F_LOC;
+        instr.type = load_reference ? InstrType_LEA : InstrType_MOV_F_LOC;
         instr.lhs = InstrOperand_create_imm(
                 reg_idx_to_operand_t(lhs_reg.reg_idx), 0
                 );
         instr.rhs = InstrOperand_create_imm(InstrOperandType_REG_BP, 0);
         instr.offset = expr->bp_offset;
+    }
+    else if (expr->expr_type == ExprType_EQUAL) {
+        instr.type = InstrType_MOV_T_LOC;
+        instr.lhs = InstrOperand_create_imm(
+                reg_idx_to_operand_t(lhs_reg.reg_idx), 0
+                );
+        instr.rhs = InstrOperand_create_imm(InstrOperandType_REG_BP, 0);
+        instr.offset = 0;
     }
     else {
         instr.type = expr_to_instr_t(expr);
@@ -260,7 +270,8 @@ static void get_var_decl_instructions(struct InstrList *instrs,
 
         if (var_decl->decls.elems[i].value) {
             struct GPReg reg =
-                get_expr_instructions(instrs, var_decl->decls.elems[i].value);
+                get_expr_instructions(instrs, var_decl->decls.elems[i].value,
+                        false);
             instr.type = InstrType_MOV_T_LOC;
             instr.instr_size = InstrSize_32;
             instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_BP, 0);
@@ -405,7 +416,7 @@ static void get_block_instructions(struct InstrList *instrs,
 
         if (block->nodes.elems[i].type == ASTType_EXPR)
             free_reg(instrs, get_expr_instructions(instrs,
-                        ((const struct ExprNode*)node_struct)->expr));
+                        ((const struct ExprNode*)node_struct)->expr, false));
         else if (block->nodes.elems[i].type == ASTType_VAR_DECL)
             get_var_decl_instructions(instrs,
                     (const struct VarDeclNode*)node_struct);
