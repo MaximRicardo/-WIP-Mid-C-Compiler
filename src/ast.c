@@ -415,8 +415,7 @@ struct FuncDeclNode FuncDeclNode_create(struct VarDeclPtrList args,
 
 void FuncDeclNode_free_w_self(struct FuncDeclNode *self) {
 
-    unsigned i;
-    for (i = 0; i < self->args.size; i++) {
+    while (self->args.size > 0) {
         VarDeclPtrList_pop_back(&self->args, VarDeclNode_free_w_self);
     }
     VarDeclPtrList_free(&self->args);

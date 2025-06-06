@@ -21,7 +21,7 @@ static void move_operator_to_out_queue(struct ExprPtrList *output_queue,
     struct Expr *rhs = output_queue->elems[output_queue->size-1];
 
     struct Expr *operator =
-        operator_stack->elems[operator_stack->size-1];
+        ExprPtrList_back(operator_stack);
 
     operator->lhs = lhs;
     operator->rhs = rhs;
@@ -43,11 +43,11 @@ static void move_operator_to_out_queue(struct ExprPtrList *output_queue,
  *    operator stack should be popped first.
  */
 static void push_operator_to_queue(struct ExprPtrList *output_queue,
-        struct ExprPtrList *operator_stack, enum TokenType operator_type) {
+        struct ExprPtrList *operator_stack, struct Token op_tok) {
 
     struct Expr *expr = safe_malloc(sizeof(*expr));
-    *expr = Expr_init();
-    expr->expr_type = tok_t_to_expr_t(operator_type);
+    *expr = Expr_create_w_tok(op_tok, NULL, NULL, PrimType_INVALID,
+            PrimType_INVALID, 0, 0, tok_t_to_expr_t(op_tok.type));
 
     /* If the operator o2 at the top of the stack has greater precedence than
      * the current operator o1, o2 must be moved to the output queue. Then if
@@ -58,12 +58,12 @@ static void push_operator_to_queue(struct ExprPtrList *output_queue,
         enum TokenType o2_tok_type = expr_t_to_tok_t(
                 ExprPtrList_back(operator_stack)->expr_type
             );
-        unsigned o1_prec = Token_precedence(operator_type);
+        unsigned o1_prec = Token_precedence(op_tok.type);
         unsigned o2_prec = Token_precedence(o2_tok_type);
 
         /* Remember, precedence levels in c are reversed, so 1 is the highest
          * level and 15 is the lowest. */
-        if (!(o2_prec < o1_prec || (Token_l_to_right_asso(operator_type) &&
+        if (!(o2_prec < o1_prec || (Token_l_to_right_asso(op_tok.type) &&
                  o2_prec == o1_prec)))
             break;
 
@@ -112,7 +112,7 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
 
         if (Token_is_operator(token_tbl->elems[i].type)) {
             push_operator_to_queue(&output_queue, &operator_stack,
-                    token_tbl->elems[i].type);
+                    token_tbl->elems[i]);
         }
         else if (token_tbl->elems[i].type == TokenType_L_PAREN) {
             struct Expr *expr = safe_malloc(sizeof(*expr));

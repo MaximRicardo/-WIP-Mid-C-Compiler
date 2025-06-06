@@ -110,23 +110,33 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
 
     else if (instr->type == InstrType_MOV_T_LOC) {
         assert(type_is_reg(instr->lhs.type));
-        assert(type_is_reg(instr->rhs.type));
 
-        fprintf(output, "mov [%s+%d]",
-                reg_names[type_to_reg(instr->lhs.type)][InstrSize_64],
-                instr->offset
-                );
+        if (type_is_reg(instr->rhs.type)) {
+            fprintf(output, "mov [%s+%d]",
+                    reg_names[type_to_reg(instr->lhs.type)][InstrSize_64],
+                    instr->offset
+                    );
 
-        fprintf(output, ", %s\n",
-                reg_names[type_to_reg(instr->rhs.type)][instr->instr_size]
-                );
+            fprintf(output, ", %s\n",
+                    reg_names[type_to_reg(instr->rhs.type)][instr->instr_size]
+                    );
+        }
+        else {
+            fprintf(output, "mov %s [%s+%d]",
+                    size_specifier[instr->instr_size],
+                    reg_names[type_to_reg(instr->lhs.type)][InstrSize_64],
+                    instr->offset
+                    );
+
+            fprintf(output, ", %u\n", instr->rhs.value.imm);
+        }
     }
 
     else if (instr->type == InstrType_LEA) {
         assert(type_is_reg(instr->lhs.type));
 
         fprintf(output, "lea %s",
-                reg_names[type_to_reg(instr->lhs.type)][instr->instr_size]);
+                reg_names[type_to_reg(instr->lhs.type)][InstrSize_64]);
 
         if (type_is_reg(instr->rhs.type)) {
             fprintf(output, ", [%s+%d]\n",
@@ -239,6 +249,10 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
                     si_names[instr->instr_size]);
         }
 
+        if (instr->lhs.type != InstrOperandType_REG_AX)
+            fprintf(output, "xchg rax, %s\n",
+                    reg_names[type_to_reg(instr->lhs.type)][InstrSize_64]);
+
         /* the remainder is in DX */
         fprintf(output, "mov %s, %s\n",
                 reg_names[type_to_reg(instr->lhs.type)][instr->instr_size],
@@ -276,14 +290,14 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
     }
 
     else if (instr->type == InstrType_DEBUG_RAX) {
-        fprintf(output, "mov rbx, rsp\n");
+        fprintf(output, "mov r15, rsp\n");
         fprintf(output, "and rsp, -16\n");
         fprintf(output, "mov rbx, rax\n");
         fprintf(output, "mov al, 0\n");
         fprintf(output, "mov rdi, msg\n");
         fprintf(output, "mov rsi, rbx\n");
         fprintf(output, "call printf\n");
-        fprintf(output, "mov rsp, rbx\n");
+        fprintf(output, "mov rsp, r15\n");
     }
 
     else {

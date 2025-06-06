@@ -159,7 +159,7 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
 
     ParVarList_push_back(&vars, ParserVar_create(
                 Token_src(&lexer->token_tbl.elems[v_decl_idx+1]), PrimType_INT,
-                decl.bp_offset));
+                decl.bp_offset+bp));
     if (!is_func_param)
         *sp -= var_size;
     else
@@ -171,9 +171,6 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
               lexer->token_tbl.elems[*end_idx].type == TokenType_R_PAREN)))) {
         fprintf(stderr, "missing semicolon. line %u.\n",
                 lexer->token_tbl.elems[v_decl_idx].line_num);
-        printf("err on %u, %u\n",
-                lexer->token_tbl.elems[*end_idx].line_num,
-                lexer->token_tbl.elems[*end_idx].column_num);
         Parser_error_occurred = true;
     }
 
@@ -209,8 +206,6 @@ static void parse_func_decl(const struct Lexer *lexer, struct BlockNode *block,
             break;
         }
 
-        printf("%u, %u\n", lexer->token_tbl.elems[arg_decl_end_idx].line_num,
-                lexer->token_tbl.elems[arg_decl_end_idx].column_num);
         assert(lexer->token_tbl.elems[arg_decl_end_idx].type == TokenType_COMMA);
 
         m_free(type_spec_src);
@@ -283,13 +278,14 @@ static struct BlockNode* parse(const struct Lexer *lexer, u32 bp,
                     TokenType_L_PAREN) {
                 u32 old_sp = sp;
                 struct VarDeclNode *var_decl = parse_var_decl(lexer, start_idx,
-                        &prev_end_idx, bp, &sp, false, 0);
+                        &prev_end_idx, bp, &sp, false, NULL);
                 ASTNodeList_push_back(&block->nodes,
                         ASTNode_create(
                             lexer->token_tbl.elems[start_idx].line_num,
                             lexer->token_tbl.elems[start_idx].column_num,
                             ASTType_VAR_DECL, var_decl));
-                block->var_bytes += old_sp-sp;
+                block->var_bytes = round_up(block->var_bytes + old_sp-sp, 8);
+                sp = round_down(sp, 8);
             }
             else if (lexer->token_tbl.elems[start_idx+2].type ==
                     TokenType_L_PAREN) {

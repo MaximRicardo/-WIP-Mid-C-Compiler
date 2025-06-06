@@ -1,6 +1,7 @@
 #include "ir.h"
 #include <assert.h>
 #include <limits.h>
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -237,7 +238,12 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
         instr.lhs = InstrOperand_create_imm(
                 reg_idx_to_operand_t(lhs_reg.reg_idx), 0
                 );
-        instr.rhs = InstrOperand_create_imm(InstrOperandType_REG_BP, 0);
+        if (expr->rhs->expr_type != ExprType_INT_LIT)
+            instr.rhs = InstrOperand_create_imm(
+                    reg_idx_to_operand_t(rhs_reg.reg_idx), 0);
+        else
+            instr.rhs = InstrOperand_create_imm(InstrOperandType_IMM_32,
+                    expr->rhs->int_value);
         instr.offset = 0;
     }
     else {
