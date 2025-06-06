@@ -28,6 +28,9 @@ struct GPReg {
 
 };
 
+static void get_block_instructions(struct InstrList *instrs,
+        const struct BlockNode *block);
+
 static struct GPReg GPReg_init(void) {
 
     struct GPReg reg;
@@ -179,7 +182,14 @@ struct Instruction Instruction_init(void) {
     instr.offset = 0;
     instr.lhs = InstrOperand_init();
     instr.rhs = InstrOperand_init();
+    instr.string = NULL;
     return instr;
+
+}
+
+void Instruction_free(struct Instruction instr) {
+
+    m_free(instr.string);
 
 }
 
@@ -251,17 +261,13 @@ static void get_var_decl_instructions(struct InstrList *instrs,
         if (var_decl->decls.elems[i].value) {
             struct GPReg reg =
                 get_expr_instructions(instrs, var_decl->decls.elems[i].value);
-            instr.type = InstrType_PUSH;
-            instr.instr_size = InstrSize_64;
-            instr.lhs = InstrOperand_create_imm(
+            instr.type = InstrType_MOV_T_LOC;
+            instr.instr_size = InstrSize_32;
+            instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_BP, 0);
+            instr.rhs = InstrOperand_create_imm(
                     reg_idx_to_operand_t(reg.reg_idx), 0);
+            instr.offset = var_decl->decls.elems[i].bp_offset;
             free_reg(instrs, reg);
-        }
-        else {
-            instr.type = InstrType_SUB;
-            instr.instr_size = InstrSize_64;
-            instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_SP, 0);
-            instr.rhs = InstrOperand_create_imm(InstrOperandType_IMM_32, 4);
         }
 
         InstrList_push_back(instrs, instr);
@@ -269,23 +275,165 @@ static void get_var_decl_instructions(struct InstrList *instrs,
 
 }
 
-struct InstrList IR_get_instructions(const struct TUNode *tu) {
+static void push_callee_saved_regs(struct InstrList *instrs) {
 
-    struct InstrList instrs = InstrList_init();
+    struct Instruction push_instr = Instruction_init();
+    push_instr.type = InstrType_PUSH;
+    push_instr.instr_size = InstrSize_64;
+
+    push_instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_BX, 0);
+    InstrList_push_back(instrs, push_instr);
+    push_instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_DI, 0);
+    InstrList_push_back(instrs, push_instr);
+    push_instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_SI, 0);
+    InstrList_push_back(instrs, push_instr);
+    push_instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_R12, 0);
+    InstrList_push_back(instrs, push_instr);
+    push_instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_R13, 0);
+    InstrList_push_back(instrs, push_instr);
+    push_instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_R14, 0);
+    InstrList_push_back(instrs, push_instr);
+    push_instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_R15, 0);
+    InstrList_push_back(instrs, push_instr);
+
+}
+
+static void pop_callee_saved_regs(struct InstrList *instrs) {
+
+    struct Instruction pop_instr = Instruction_init();
+    pop_instr.type = InstrType_POP;
+    pop_instr.instr_size = InstrSize_64;
+
+    pop_instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_R15, 0);
+    InstrList_push_back(instrs, pop_instr);
+    pop_instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_R14, 0);
+    InstrList_push_back(instrs, pop_instr);
+    pop_instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_R13, 0);
+    InstrList_push_back(instrs, pop_instr);
+    pop_instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_R12, 0);
+    InstrList_push_back(instrs, pop_instr);
+    pop_instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_SI, 0);
+    InstrList_push_back(instrs, pop_instr);
+    pop_instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_DI, 0);
+    InstrList_push_back(instrs, pop_instr);
+    pop_instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_BX, 0);
+    InstrList_push_back(instrs, pop_instr);
+
+}
+
+static void create_stack_frame(struct InstrList *instrs, u32 var_bytes) {
+
+    struct Instruction push_instr = Instruction_init();
+    struct Instruction mov_instr = Instruction_init();
+    struct Instruction alloc_instr = Instruction_init();
+
+    push_instr.type = InstrType_PUSH;
+    push_instr.instr_size = InstrSize_64;
+    push_instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_BP, 0);
+
+    mov_instr.type = InstrType_MOV;
+    mov_instr.instr_size = InstrSize_64;
+    mov_instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_BP, 0);
+    mov_instr.rhs = InstrOperand_create_imm(InstrOperandType_REG_SP, 0);
+
+    alloc_instr.type = InstrType_SUB;
+    alloc_instr.instr_size = InstrSize_64;
+    alloc_instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_SP, 0);
+    alloc_instr.rhs =
+        InstrOperand_create_imm(InstrOperandType_IMM_32, var_bytes);
+
+    InstrList_push_back(instrs, push_instr);
+    InstrList_push_back(instrs, mov_instr);
+    InstrList_push_back(instrs, alloc_instr);
+
+}
+
+static void destroy_stack_frame(struct InstrList *instrs) {
+
+    struct Instruction mov_instr = Instruction_init();
+    struct Instruction push_instr = Instruction_init();
+
+    mov_instr.type = InstrType_MOV;
+    mov_instr.instr_size = InstrSize_64;
+    mov_instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_SP, 0);
+    mov_instr.rhs = InstrOperand_create_imm(InstrOperandType_REG_BP, 0);
+
+    push_instr.type = InstrType_POP;
+    push_instr.instr_size = InstrSize_64;
+    push_instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_BP, 0);
+
+    InstrList_push_back(instrs, mov_instr);
+    InstrList_push_back(instrs, push_instr);
+
+}
+
+static void get_func_decl_instructions(struct InstrList *instrs,
+        const struct FuncDeclNode *func) {
+
+    struct Instruction label_instr = Instruction_init();
+    struct Instruction ret_instr = Instruction_init();
+
+    if (!func->body)
+        return;
+
+    label_instr.type = InstrType_LABEL;
+    label_instr.string =
+        safe_malloc((strlen(func->name)+1)*sizeof(*label_instr.string));
+    strcpy(label_instr.string, func->name);
+    InstrList_push_back(instrs, label_instr);
+
+    push_callee_saved_regs(instrs);
+    create_stack_frame(instrs, func->body->var_bytes);
+
+    get_block_instructions(instrs, func->body);
+
+    destroy_stack_frame(instrs);
+    pop_callee_saved_regs(instrs);
+    ret_instr.type = InstrType_RET;
+    InstrList_push_back(instrs, ret_instr);
+
+}
+
+static void get_block_instructions(struct InstrList *instrs,
+        const struct BlockNode *block) {
+
     unsigned i;
 
-    for (i = 0; i < tu->nodes.size; i++) {
+    for (i = 0; i < block->nodes.size; i++) {
 
-        void *node_struct = tu->nodes.elems[i].node_struct;
+        void *node_struct = block->nodes.elems[i].node_struct;
 
-        if (tu->nodes.elems[i].type == ASTType_EXPR)
-            free_reg(&instrs, get_expr_instructions(&instrs,
+        if (block->nodes.elems[i].type == ASTType_EXPR)
+            free_reg(instrs, get_expr_instructions(instrs,
                         ((const struct ExprNode*)node_struct)->expr));
-        else if (tu->nodes.elems[i].type == ASTType_VAR_DECL)
-            get_var_decl_instructions(&instrs,
+        else if (block->nodes.elems[i].type == ASTType_VAR_DECL)
+            get_var_decl_instructions(instrs,
                     (const struct VarDeclNode*)node_struct);
+        else if (block->nodes.elems[i].type == ASTType_FUNC)
+            get_func_decl_instructions(instrs,
+                    (const struct FuncDeclNode*)node_struct);
+        else if (block->nodes.elems[i].type == ASTType_BLOCK) {
+            const struct BlockNode *new_block =
+                block->nodes.elems[i].node_struct;
+            create_stack_frame(instrs, new_block->var_bytes);
+            get_block_instructions(instrs, new_block);
+            destroy_stack_frame(instrs);
+        }
+        else if (block->nodes.elems[i].type == ASTType_DEBUG_RAX) {
+            struct Instruction debug_instr = Instruction_init();
+            debug_instr.type = InstrType_DEBUG_RAX;
+            InstrList_push_back(instrs, debug_instr);
+        }
 
     }
+
+}
+
+struct InstrList IR_get_instructions(const struct BlockNode *ast) {
+
+    struct InstrList instrs = InstrList_init();
+
+    get_block_instructions(&instrs, ast);
 
     return instrs;
 

@@ -33,13 +33,17 @@ bool Token_is_operator(enum TokenType type) {
 
     return type == TokenType_PLUS || type == TokenType_MINUS ||
         type == TokenType_MUL || type == TokenType_DIV ||
-        type == TokenType_MODULUS || type == TokenType_EQUAL;
+        type == TokenType_MODULUS || type == TokenType_EQUAL ||
+        type == TokenType_COMMA;
 
 }
 
 unsigned Token_precedence(enum TokenType type) {
 
     switch (type) {
+
+    case TokenType_COMMA:
+        return 15;
 
     case TokenType_EQUAL:
         return 14;

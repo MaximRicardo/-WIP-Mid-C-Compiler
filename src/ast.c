@@ -45,15 +45,20 @@ enum PrimitiveType PrimitiveType_promote(enum PrimitiveType type) {
 struct ASTNode ASTNode_init(void) {
 
     struct ASTNode node;
+    node.line_num = 0;
+    node.column_num = 0;
     node.type = ASTType_INVALID;
     node.node_struct = NULL;
     return node;
 
 }
 
-struct ASTNode ASTNode_create(enum ASTNodeType type, void *node_struct) {
+struct ASTNode ASTNode_create(unsigned line_num, unsigned column_num,
+        enum ASTNodeType type, void *node_struct) {
 
     struct ASTNode node;
+    node.line_num = line_num;
+    node.column_num = column_num;
     node.type = type;
     node.node_struct = node_struct;
     return node;
@@ -64,9 +69,15 @@ void ASTNode_free(struct ASTNode node) {
 
     if (node.node_struct) {
         if (node.type == ASTType_EXPR)
-            ExprNode_free_w_self((struct ExprNode*)node.node_struct);
+            ExprNode_free_w_self(node.node_struct);
         else if (node.type == ASTType_VAR_DECL)
-            VarDeclNode_free_w_self(((struct VarDeclNode*)node.node_struct));
+            VarDeclNode_free_w_self(node.node_struct);
+        else if (node.type == ASTType_FUNC)
+            FuncDeclNode_free_w_self(node.node_struct);
+        else if (node.type == ASTType_BLOCK)
+            BlockNode_free_w_self(node.node_struct);
+        else if (node.type == ASTType_DEBUG_RAX)
+            m_free(node.node_struct);
         else
             assert(false);
     }
@@ -209,23 +220,25 @@ void ExprNode_free_w_self(struct ExprNode *self) {
 
 }
 
-struct TUNode TUNode_init(void) {
+struct BlockNode BlockNode_init(void) {
 
-    struct TUNode tu;
-    tu.nodes = ASTNodeList_init();
-    return tu;
-
-}
-
-struct TUNode TUNode_create(struct ASTNodeList nodes) {
-
-    struct TUNode tu;
-    tu.nodes = nodes;
-    return tu;
+    struct BlockNode block;
+    block.nodes = ASTNodeList_init();
+    block.var_bytes = 0;
+    return block;
 
 }
 
-void TUNode_free_w_self(struct TUNode *self) {
+struct BlockNode BlockNode_create(struct ASTNodeList nodes, u32 var_bytes) {
+
+    struct BlockNode block;
+    block.nodes = nodes;
+    block.var_bytes = var_bytes;
+    return block;
+
+}
+
+void BlockNode_free_w_self(struct BlockNode *self) {
 
     while (self->nodes.size > 0) {
         ASTNodeList_pop_back(&self->nodes, ASTNode_free);
@@ -257,6 +270,9 @@ enum ExprType tok_t_to_expr_t(enum TokenType type) {
 
     case TokenType_DIV:
         return ExprType_DIV;
+
+    case TokenType_COMMA:
+        return ExprType_COMMA;
 
     case TokenType_INT_LIT:
         return ExprType_INT_LIT;
@@ -296,6 +312,9 @@ enum TokenType expr_t_to_tok_t(enum ExprType type) {
     case ExprType_MODULUS:
         return TokenType_MODULUS;
 
+    case ExprType_COMMA:
+        return TokenType_COMMA;
+
     case ExprType_INT_LIT:
         return TokenType_INT_LIT;
 
@@ -314,15 +333,18 @@ struct Declarator Declarator_init(void) {
     struct Declarator decl;
     decl.value = NULL;
     decl.ident = NULL;
+    decl.bp_offset = 0;
     return decl;
 
 }
 
-struct Declarator Declarator_create(struct Expr *value, char *ident) {
+struct Declarator Declarator_create(struct Expr *value, char *ident,
+        u32 bp_offset) {
 
     struct Declarator decl;
     decl.value = value;
     decl.ident = ident;
+    decl.bp_offset = bp_offset;
     return decl;
 
 }
@@ -362,6 +384,45 @@ void VarDeclNode_free_w_self(struct VarDeclNode *self) {
 
 }
 
+struct FuncDeclNode FuncDeclNode_init(void) {
+
+    struct FuncDeclNode func_decl;
+    func_decl.args = VarDeclPtrList_init();
+    func_decl.ret_type = PrimType_INVALID;
+    func_decl.body = NULL;
+    func_decl.name = NULL;
+    return func_decl;
+
+}
+
+struct FuncDeclNode FuncDeclNode_create(struct VarDeclPtrList args,
+        enum PrimitiveType ret_type, struct BlockNode *body, char *name) {
+
+    struct FuncDeclNode func_decl;
+    func_decl.args = args;
+    func_decl.ret_type = ret_type;
+    func_decl.body = body;
+    func_decl.name = name;
+    return func_decl;
+
+}
+
+void FuncDeclNode_free_w_self(struct FuncDeclNode *self) {
+
+    unsigned i;
+    for (i = 0; i < self->args.size; i++) {
+        VarDeclPtrList_pop_back(&self->args, VarDeclNode_free_w_self);
+    }
+    VarDeclPtrList_free(&self->args);
+
+    m_free(self->name);
+    if (self->body)
+        BlockNode_free_w_self(self->body);
+    m_free(self);
+
+}
+
 m_define_VectorImpl_funcs(ASTNodeList, struct ASTNode)
 m_define_VectorImpl_funcs(DeclList, struct Declarator)
+m_define_VectorImpl_funcs(VarDeclPtrList, struct VarDeclNode*)
 m_define_VectorImpl_funcs(ExprPtrList, struct Expr*)

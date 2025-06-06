@@ -3,8 +3,8 @@
 /* The architecture to use */
 #include "x64/code_gen.h"
 
-void CodeGen_generate(FILE *output, const struct TUNode *tu) {
+void CodeGen_generate(FILE *output, const struct BlockNode *ast) {
 
-    CodeGenArch_generate(output, tu);
+    CodeGenArch_generate(output, ast);
 
 }

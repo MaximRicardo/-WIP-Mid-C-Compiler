@@ -3,46 +3,101 @@
 extern printf
 
 section .text
-
 global main
-main:
+func:
+
 push rbx
+
 push rdi
+
 push rsi
+
 push r12
+
 push r13
+
 push r14
+
 push r15
+
 push rbp
+
 mov rbp, rsp
-mov eax, 5
 
-add eax, 8
+sub rsp, 0
 
-mov ebx, 123
+mov eax, [rbp+64]
 
-xchg rax, rbx
-mov edx, 94
-imul edx
-xchg rax, rbx
+add eax, 5
 
-imul ebx
+mov rsp, rbp
 
-cdq
-mov esi, 4
-idiv esi
+pop rbp
+
+pop r15
+
+pop r14
+
+pop r13
+
+pop r12
+
+pop rsi
+
+pop rdi
+
+pop rbx
+
+ret
+
+main:
+
+push rbx
+
+push rdi
+
+push rsi
+
+push r12
+
+push r13
+
+push r14
+
+push r15
+
+push rbp
+
+mov rbp, rsp
+
+sub rsp, 4
 
 mov eax, 10
 
 add eax, 5
 
-push rax
+mov [rbp+-4], eax
 
-mov eax, [rbp+-8]
+push rbp
 
-mov edx, 5
-imul edx
+mov rbp, rsp
 
+sub rsp, 4
+
+mov eax, [rbp+8]
+
+add eax, 10
+
+mov [rbp+-4], eax
+
+mov eax, [rbp+8]
+
+mov ebx, [rbp+8]
+
+cdq
+idiv ebx
+
+mov rbx, rsp
 and rsp, -16
 mov rbx, rax
 mov al, 0
@@ -50,16 +105,47 @@ mov rdi, msg
 mov rsi, rbx
 call printf
 
+mov rsp, rbx
+
 mov rsp, rbp
+
 pop rbp
+
+mov eax, [rbp+-4]
+
+mov edx, 5
+imul edx
+
+mov rbx, rsp
+and rsp, -16
+mov rbx, rax
+mov al, 0
+mov rdi, msg
+mov rsi, rbx
+call printf
+
+mov rsp, rbx
+
+mov rsp, rbp
+
+pop rbp
+
 pop r15
+
 pop r14
+
 pop r13
+
 pop r12
+
 pop rsi
+
 pop rdi
+
 pop rbx
+
 ret
+
 
 section .rodata
 msg: db `result = %d\n\0`

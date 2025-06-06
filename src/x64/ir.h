@@ -4,7 +4,7 @@
 #include "../ast.h"
 
 /* when changing make sure to update:
- *  expr_t_to_instr_t() in ir.c, type_is_reg in code_gen.c, instr_type_to_asm
+ *  expr_t_to_instr_t() in ir.c, instr_type_to_asm
  *  in code_gen.c, regular_2_oper_instr in code_gen.c
  */
 enum InstrType {
@@ -27,7 +27,13 @@ enum InstrType {
 
     /* stack operations */
     InstrType_PUSH,
-    InstrType_POP
+    InstrType_POP,
+    InstrType_CALL,
+    InstrType_RET,
+
+    InstrType_LABEL,
+
+    InstrType_DEBUG_RAX
 
 };
 
@@ -51,6 +57,11 @@ enum InstrOperandType {
     /* stack registers */
     InstrOperandType_REG_SP,
     InstrOperandType_REG_BP,
+    /* index registers */
+    InstrOperandType_REG_SI,
+    InstrOperandType_REG_DI,
+    /* misc. */
+    InstrOperandType_REG_DX,
     InstrOperandType_REGISTERS_END,
 
     /* immediates */
@@ -90,10 +101,12 @@ struct Instruction {
     enum InstrType type;
     enum InstrSize instr_size;
     i32 offset;
+    char *string;
 
 };
 
 struct Instruction Instruction_init(void);
+void Instruction_free(struct Instruction instr);
 
 struct InstrList {
 
@@ -105,4 +118,4 @@ struct InstrList {
 
 m_declare_VectorImpl_funcs(InstrList, struct Instruction)
 
-struct InstrList IR_get_instructions(const struct TUNode *tu);
+struct InstrList IR_get_instructions(const struct BlockNode *ast);

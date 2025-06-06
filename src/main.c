@@ -28,9 +28,11 @@ static char *read_file(char *file_path) {
 
 }
 
-void compile(char *src, FILE *output) {
+void compile(char *src, FILE *output, bool *error_occurred) {
 
     struct Lexer lexer = Lexer_lex(src);
+
+    *error_occurred = false;
 
 #ifdef m_print_tokens
     u32 i;
@@ -44,14 +46,18 @@ void compile(char *src, FILE *output) {
 #endif
 
     if (!Lexer_error_occurred) {
-        struct TUNode *tu = Parser_parse(&lexer);
+        struct BlockNode *ast = Parser_parse(&lexer);
 
-        if (!Parser_error_occurred) {
-            CodeGen_generate(output, tu);
+        if (!Parser_error_occurred && output) {
+            CodeGen_generate(output, ast);
         }
+        else
+            *error_occurred = true;
 
-        TUNode_free_w_self(tu);
+        BlockNode_free_w_self(ast);
     }
+    else
+        *error_occurred = true;
 
     Lexer_free(&lexer);
 
@@ -61,6 +67,7 @@ int main(int argc, char *argv[]) {
 
     char *src = NULL;
     FILE *output = NULL;
+    bool error_occurred = false;
 
     m_build_bug_on(sizeof(i32) != 4);
     m_build_bug_on(sizeof(u32) != 4);
@@ -83,14 +90,19 @@ int main(int argc, char *argv[]) {
 
     if (argc >= 3) {
         output = fopen(argv[2], "w");
+        if (!output) {
+            fprintf(stderr, "can't open file '%s': %s\n", argv[2],
+                    strerror(errno));
+            return 1;
+        }
     }
 
-    compile(src, output);
+    compile(src, output, &error_occurred);
 
     m_free(src);
     if (output)
         fclose(output);
 
-    return 0;
+    return error_occurred != false;
 
 }

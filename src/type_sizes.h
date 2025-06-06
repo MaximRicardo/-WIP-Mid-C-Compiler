@@ -7,6 +7,8 @@
 
 #define m_TypeSize_int 4
 
-/* All variables on the stack are assumed to take up a multiple of this many
- * bytes on the stack */
-#define m_TypeSize_var_stack_size 8
+/* how many bytes it takes to make a new stack frame */
+#define m_TypeSize_stack_frame_size 8
+
+/* not counting the base pointer */
+#define m_TypeSize_callee_saved_regs_stack_size (8*7)

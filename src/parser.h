@@ -32,4 +32,4 @@ u32 ParVarList_find_var(const struct ParVarList *self, char *name);
 
 extern bool Parser_error_occurred;
 
-struct TUNode* Parser_parse(const struct Lexer *lexer);
+struct BlockNode* Parser_parse(const struct Lexer *lexer);

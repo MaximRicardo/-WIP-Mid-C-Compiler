@@ -1,3 +1,15 @@
-((5 + 8) * (123*94))/4;
-int x = 10+5;
-x*5;
+int func(int x) {
+    x+5;
+}
+
+int main(int argc) {
+    int x = 10+5;
+    {
+        int y = x+10;
+        y/x;
+        :;
+    }
+    x*5;
+    :;
+    return 0;
+}

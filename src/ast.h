@@ -21,19 +21,24 @@ enum ASTNodeType {
     ASTType_INVALID,
 
     ASTType_EXPR,
-    ASTType_VAR_DECL
+    ASTType_VAR_DECL,
+    ASTType_FUNC,
+    ASTType_BLOCK,
+    ASTType_DEBUG_RAX
 
 };
 
 struct ASTNode {
 
+    unsigned line_num, column_num;
     enum ASTNodeType type;
     void *node_struct;
 
 };
 
 struct ASTNode ASTNode_init(void);
-struct ASTNode ASTNode_create(enum ASTNodeType type, void *node_struct);
+struct ASTNode ASTNode_create(unsigned line_num, unsigned column_num,
+        enum ASTNodeType type, void *node_struct);
 void ASTNode_free(struct ASTNode node);
 
 struct ASTNodeList {
@@ -62,6 +67,7 @@ enum ExprType {
     ExprType_MUL,
     ExprType_DIV,
     ExprType_MODULUS,
+    ExprType_COMMA,
 
     /* Only used in the shunting yard algorithm */
     ExprType_PAREN,
@@ -129,11 +135,13 @@ struct Declarator {
 
     struct Expr *value;
     char *ident;
+    u32 bp_offset;
 
 };
 
 struct Declarator Declarator_init(void);
-struct Declarator Declarator_create(struct Expr *value, char *ident);
+struct Declarator Declarator_create(struct Expr *value, char *ident,
+        u32 bp_offset);
 void Declarator_free(struct Declarator decl);
 
 struct DeclList {
@@ -158,15 +166,48 @@ struct VarDeclNode VarDeclNode_create(struct DeclList decls,
         enum PrimitiveType type);
 void VarDeclNode_free_w_self(struct VarDeclNode *self);
 
-struct TUNode {
+struct VarDeclPtrList {
 
-    struct ASTNodeList nodes;
+    struct VarDeclNode **elems;
+    u32 size;
+    u32 capacity;
 
 };
 
-struct TUNode TUNode_init(void);
-struct TUNode TUNode_create(struct ASTNodeList nodes);
-void TUNode_free_w_self(struct TUNode *self);
+m_declare_VectorImpl_funcs(VarDeclPtrList, struct VarDeclNode*)
+
+struct FuncDeclNode {
+
+    struct VarDeclPtrList args;
+    enum PrimitiveType ret_type;
+    struct BlockNode *body;
+    char *name;
+
+};
+
+struct FuncDeclNode FuncDeclNode_init(void);
+struct FuncDeclNode FuncDeclNode_create(struct VarDeclPtrList args,
+        enum PrimitiveType ret_type, struct BlockNode *body, char *name);
+void FuncDeclNode_free_w_self(struct FuncDeclNode *self);
+
+struct BlockNode {
+
+    struct ASTNodeList nodes;
+    /* the total number of bytes the function must allocate for its vars */
+    u32 var_bytes;
+
+};
+
+struct BlockNode BlockNode_init(void);
+struct BlockNode BlockNode_create(struct ASTNodeList nodes, u32 var_bytes);
+void BlockNode_free_w_self(struct BlockNode *self);
+
+struct DebugPrintRAX {
+
+    /* empty structs are a GNU extension */
+    int _ignore;
+
+};
 
 enum ExprType tok_t_to_expr_t(enum TokenType type);
 enum TokenType expr_t_to_tok_t(enum ExprType type);

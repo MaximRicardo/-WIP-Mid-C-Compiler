@@ -17,6 +17,9 @@ const char *reg_names[][4] = {
     {"r15b", "r15w", "r15d", "r15"},
     {"spl", "sp", "esp", "rsp"},
     {"bpl", "bp", "ebp", "rbp"},
+    {"sil", "si", "esi", "rsi"},
+    {"dil", "di", "edi", "rdi"},
+    {"dl", "dx", "edx", "rdx"},
 };
 
 const char *dx_names[] = {
@@ -49,6 +52,10 @@ const char *instr_type_to_asm[] = {
 
     "push",
     "pop",
+    "call",
+    "ret",
+
+    "LABEL INSTRUCTION",
 };
 
 /* used in stuff like pushing an immediate */
@@ -235,6 +242,31 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
                 reg_names[type_to_reg(instr->lhs.type)][instr->instr_size]);
     }
 
+    else if (instr->type == InstrType_CALL) {
+        assert(instr->string);
+        fprintf(output, "call %s\n", instr->string);
+    }
+
+    else if (instr->type == InstrType_RET) {
+        fprintf(output, "ret\n");
+    }
+
+    else if (instr->type == InstrType_LABEL) {
+        assert(instr->string);
+        fprintf(output, "%s:\n", instr->string);
+    }
+
+    else if (instr->type == InstrType_DEBUG_RAX) {
+        fprintf(output, "mov rbx, rsp\n");
+        fprintf(output, "and rsp, -16\n");
+        fprintf(output, "mov rbx, rax\n");
+        fprintf(output, "mov al, 0\n");
+        fprintf(output, "mov rdi, msg\n");
+        fprintf(output, "mov rsi, rbx\n");
+        fprintf(output, "call printf\n\n");
+        fprintf(output, "mov rsp, rbx\n");
+    }
+
     else {
         fprintf(stderr, "invalid instruction %d.\n", instr->type);
         assert(false);
@@ -242,51 +274,27 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
 
 }
 
-void CodeGenArch_generate(FILE *output, const struct TUNode *tu) {
+void CodeGenArch_generate(FILE *output, const struct BlockNode *ast) {
 
-    struct InstrList instrs = IR_get_instructions(tu);
+    struct InstrList instrs = IR_get_instructions(ast);
     unsigned i;
 
     fprintf(output, "[BITS 64]\n\n");
     fprintf(output, "extern printf\n");
     fprintf(output, "\nsection .text\n");
-    fprintf(output, "\nglobal main\nmain:\n");
-    fprintf(output, "push rbx\n");
-    fprintf(output, "push rdi\n");
-    fprintf(output, "push rsi\n");
-    fprintf(output, "push r12\n");
-    fprintf(output, "push r13\n");
-    fprintf(output, "push r14\n");
-    fprintf(output, "push r15\n");
-    fprintf(output, "push rbp\n");
-    fprintf(output, "mov rbp, rsp\n");
+    fprintf(output, "global main\n");
 
     for (i = 0; i < instrs.size; i++) {
         write_instr(output, &instrs.elems[i]);
         fprintf(output, "\n");
     }
 
-    fprintf(output, "and rsp, -16\n");
-    fprintf(output, "mov rbx, rax\n");
-    fprintf(output, "mov al, 0\n");
-    fprintf(output, "mov rdi, msg\n");
-    fprintf(output, "mov rsi, rbx\n");
-    fprintf(output, "call printf\n\n");
-
-    fprintf(output, "mov rsp, rbp\n");
-    fprintf(output, "pop rbp\n");
-    fprintf(output, "pop r15\n");
-    fprintf(output, "pop r14\n");
-    fprintf(output, "pop r13\n");
-    fprintf(output, "pop r12\n");
-    fprintf(output, "pop rsi\n");
-    fprintf(output, "pop rdi\n");
-    fprintf(output, "pop rbx\n");
-    fprintf(output, "ret\n");
-
     fprintf(output, "\nsection .rodata\n");
     fprintf(output, "msg: db `result = %%d\\n\\0`\n");
 
+    while (instrs.size > 0) {
+        InstrList_pop_back(&instrs, Instruction_free);
+    }
     InstrList_free(&instrs);
 
 }

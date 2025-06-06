@@ -110,6 +110,9 @@ struct Lexer Lexer_lex(const char *src) {
         else if (src[src_i] == '=')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, TokenType_EQUAL));
+        else if (src[src_i] == ',')
+            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+                        &src[src_i], 1, TokenType_COMMA));
 
         else if (src[src_i] == '(')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
@@ -117,6 +120,12 @@ struct Lexer Lexer_lex(const char *src) {
         else if (src[src_i] == ')')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, TokenType_R_PAREN));
+        else if (src[src_i] == '{')
+            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+                        &src[src_i], 1, TokenType_L_CURLY));
+        else if (src[src_i] == '}')
+            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+                        &src[src_i], 1, TokenType_R_CURLY));
 
         else if (isdigit(src[src_i])) {
             /* An integer literal */
@@ -139,6 +148,10 @@ struct Lexer Lexer_lex(const char *src) {
             src_i += len-1;
             column_num += len-1;
         }
+
+        else if (src[src_i] == ':')
+            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+                        &src[src_i], 1, TokenType_DEBUG_PRINT_RAX));
 
         else {
             Lexer_error_occurred = true;

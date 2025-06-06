@@ -21,15 +21,20 @@ enum TokenType {
     TokenType_DIV,
     TokenType_MODULUS,
     TokenType_EQUAL,
+    TokenType_COMMA,
 
     TokenType_L_PAREN,
     TokenType_R_PAREN,
+    TokenType_L_CURLY,
+    TokenType_R_CURLY,
 
     TokenType_INT_LIT,
 
     TokenType_IDENT,
 
-    TokenType_INT_T_SPEC
+    TokenType_INT_T_SPEC,
+
+    TokenType_DEBUG_PRINT_RAX
 
 };
 
