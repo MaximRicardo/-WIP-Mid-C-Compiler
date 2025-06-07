@@ -7,6 +7,8 @@
 #include <assert.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 bool PrimitiveType_signed(enum PrimitiveType type) {
 
@@ -187,6 +189,10 @@ enum PrimitiveType Expr_type(const struct Expr *self) {
         /* Actually not yet cuz i haven't added any types other than int yet */
         return lhs_prom;
     }
+    else if (self->expr_type == ExprType_FUNC_CALL) {
+        /* TEMPORARY SOLUTION. WILL NOT WORK AFTER ADDING MORE DATA TYPES */
+        return PrimType_INT;
+    }
     else {
         return PrimitiveType_promote(self->lhs_type);
     }
@@ -222,6 +228,16 @@ u32 Expr_evaluate(const struct Expr *self) {
         assert(false);
 
     }
+
+}
+
+char* Expr_src(const struct Expr *self) {
+
+    char *str = malloc((self->src_len+1)*sizeof(*str));
+    strncpy(str, self->src_start, self->src_len);
+    str[self->src_len] = '\0';
+
+    return str;
 
 }
 

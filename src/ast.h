@@ -128,6 +128,7 @@ struct Expr Expr_create_w_tok(struct Token token, struct Expr *lhs,
 void Expr_recur_free_w_self(struct Expr *self);
 enum PrimitiveType Expr_type(const struct Expr *self);
 u32 Expr_evaluate(const struct Expr *expr);
+char* Expr_src(const struct Expr *expr); /* same as Token_src */
 
 m_declare_VectorImpl_funcs(ExprPtrList, struct Expr*)
 

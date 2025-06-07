@@ -105,13 +105,47 @@ pop rbp
 
 sub rsp, 8
 
-mov ebx, 5
+mov rax, rbx
+
+sub rsp, 8
+
+mov ecx, 100
+
+mov [rsp+0], ecx
+
+mov ecx, 2
+
+mov [rsp+4], ecx
+
+call func
+
+add rsp, 8
+
+xchg rax, rbx
+
+not ebx
 
 mov [rsp+0], ebx
 
-mov ecx, 10
+mov rax, rbx
+
+sub rsp, 8
+
+mov ecx, 2
+
+mov [rsp+0], ecx
+
+mov ecx, 5
 
 mov [rsp+4], ecx
+
+call func
+
+add rsp, 8
+
+xchg rax, rbx
+
+mov [rsp+4], ebx
 
 call func
 

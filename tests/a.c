@@ -9,6 +9,6 @@ int main(int argc) {
         int y = x+10;
         x = x+y;
     }
-    func(5, 10);
+    func(~func(100,2), func(2, 5));
     :;
 }
