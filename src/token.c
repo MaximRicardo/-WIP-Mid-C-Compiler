@@ -29,12 +29,24 @@ struct Token Token_create_w_val(unsigned line_num, unsigned column_num,
 
 }
 
-bool Token_is_operator(enum TokenType type) {
+bool Token_is_unary_operator(enum TokenType type) {
+
+    return type == TokenType_BITWISE_NOT;
+
+}
+
+bool Token_is_bin_operator(enum TokenType type) {
 
     return type == TokenType_PLUS || type == TokenType_MINUS ||
         type == TokenType_MUL || type == TokenType_DIV ||
         type == TokenType_MODULUS || type == TokenType_EQUAL ||
         type == TokenType_COMMA;
+
+}
+
+bool Token_is_operator(enum TokenType type) {
+
+    return Token_is_unary_operator(type) || Token_is_bin_operator(type);
 
 }
 
@@ -56,6 +68,9 @@ unsigned Token_precedence(enum TokenType type) {
     case TokenType_DIV:
     case TokenType_MODULUS:
         return 3;
+
+    case TokenType_BITWISE_NOT:
+        return 2;
 
     default:
         assert(false);

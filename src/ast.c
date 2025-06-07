@@ -2,7 +2,7 @@
 #include "bool.h"
 #include "safe_mem.h"
 #include "token.h"
-#include "type_sizes.h"
+#include "backend_dependent/type_sizes.h"
 #include "vector_impl.h"
 #include <assert.h>
 #include <stddef.h>
@@ -84,6 +84,27 @@ void ASTNode_free(struct ASTNode node) {
 
 }
 
+bool ExprType_is_bin_operator(enum ExprType expr) {
+
+    return Token_is_bin_operator(expr_t_to_tok_t(expr));
+
+}
+
+bool ExprType_is_unary_operator(enum ExprType expr) {
+
+    return Token_is_unary_operator(expr_t_to_tok_t(expr));
+
+}
+
+bool ExprType_is_operator(enum ExprType expr) {
+
+    return Token_is_operator(expr_t_to_tok_t(expr));
+
+}
+
+bool ExprType_is_unary_operator(enum ExprType expr);
+bool ExprType_is_operator(enum ExprType expr);
+
 struct Expr Expr_init(void) {
 
     struct Expr expr;
@@ -93,6 +114,9 @@ struct Expr Expr_init(void) {
     expr.src_len = 0;
     expr.lhs = NULL;
     expr.rhs = NULL;
+    expr.lhs_type = PrimType_INVALID;
+    expr.rhs_type = PrimType_INVALID;
+    expr.args = ExprPtrList_init();
     expr.expr_type = ExprType_INVALID;
     expr.int_value = 0;
     expr.bp_offset = 0;
@@ -103,8 +127,8 @@ struct Expr Expr_init(void) {
 struct Expr Expr_create(unsigned line_num, unsigned column_num,
         const char *src_start, unsigned src_len, struct Expr *lhs,
         struct Expr *rhs, enum PrimitiveType lhs_type,
-        enum PrimitiveType rhs_type, u32 int_value, i32 bp_offset,
-        enum ExprType expr_type) {
+        enum PrimitiveType rhs_type, struct ExprPtrList args, u32 int_value,
+        i32 bp_offset, enum ExprType expr_type) {
 
     struct Expr expr;
     expr.line_num = line_num;
@@ -115,6 +139,7 @@ struct Expr Expr_create(unsigned line_num, unsigned column_num,
     expr.rhs = rhs;
     expr.lhs_type = lhs_type;
     expr.rhs_type = rhs_type;
+    expr.args = args;
     expr.int_value = int_value;
     expr.bp_offset = bp_offset;
     expr.expr_type = expr_type;
@@ -124,12 +149,12 @@ struct Expr Expr_create(unsigned line_num, unsigned column_num,
 
 struct Expr Expr_create_w_tok(struct Token token, struct Expr *lhs,
         struct Expr *rhs, enum PrimitiveType lhs_type,
-        enum PrimitiveType rhs_type, u32 int_value, i32 bp_offset,
-        enum ExprType expr_type) {
+        enum PrimitiveType rhs_type, struct ExprPtrList args, u32 int_value,
+        i32 bp_offset, enum ExprType expr_type) {
 
     return Expr_create(token.line_num, token.column_num, token.src_start,
-            token.src_len, lhs, rhs, lhs_type, rhs_type, int_value, bp_offset,
-            expr_type);
+            token.src_len, lhs, rhs, lhs_type, rhs_type, args, int_value,
+            bp_offset, expr_type);
 
 }
 
@@ -143,6 +168,9 @@ void Expr_recur_free_w_self(struct Expr *self) {
     if (self->rhs)
         Expr_recur_free_w_self(self->rhs);
 
+    while (self->args.size > 0)
+        ExprPtrList_pop_back(&self->args, Expr_recur_free_w_self);
+    ExprPtrList_free(&self->args);
     m_free(self);
 
 }
@@ -274,6 +302,12 @@ enum ExprType tok_t_to_expr_t(enum TokenType type) {
     case TokenType_COMMA:
         return ExprType_COMMA;
 
+    case TokenType_BITWISE_NOT:
+        return ExprType_BITWISE_NOT;
+
+    case TokenType_FUNC_CALL:
+        return ExprType_FUNC_CALL;
+
     case TokenType_INT_LIT:
         return ExprType_INT_LIT;
 
@@ -317,6 +351,12 @@ enum TokenType expr_t_to_tok_t(enum ExprType type) {
 
     case ExprType_COMMA:
         return TokenType_COMMA;
+
+    case ExprType_BITWISE_NOT:
+        return TokenType_BITWISE_NOT;
+
+    case ExprType_FUNC_CALL:
+        return TokenType_FUNC_CALL;
 
     case ExprType_INT_LIT:
         return TokenType_INT_LIT;

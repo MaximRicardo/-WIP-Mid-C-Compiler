@@ -5,7 +5,7 @@
 #include "ast.h"
 #include "code_gen.h"
 #include "file_io.h"
-#include "ints.h"
+#include "comp_dependent/ints.h"
 #include "safe_mem.h"
 #include "lexer.h"
 #include "parser.h"

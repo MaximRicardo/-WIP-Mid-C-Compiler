@@ -114,6 +114,10 @@ struct Lexer Lexer_lex(const char *src) {
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, TokenType_COMMA));
 
+        else if (src[src_i] == '~')
+            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+                        &src[src_i], 1, TokenType_BITWISE_NOT));
+
         else if (src[src_i] == '(')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, TokenType_L_PAREN));

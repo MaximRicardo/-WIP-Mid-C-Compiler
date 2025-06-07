@@ -43,6 +43,8 @@ const char *instr_type_to_asm[] = {
 
     "lea",
 
+    "xchg",
+
     "add",
     "sub",
     "mul",
@@ -51,6 +53,8 @@ const char *instr_type_to_asm[] = {
     "idiv",
     "div",
     "idiv",
+
+    "not",
 
     "push",
     "pop",
@@ -147,6 +151,21 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
             fprintf(output, ", [%d+%d]\n", instr->rhs.value.imm,
                     instr->offset);
         }
+    }
+
+    else if (instr->type == InstrType_XCHG) {
+        assert(type_is_reg(instr->lhs.type));
+        assert(type_is_reg(instr->rhs.type));
+
+        fprintf(output, "xchg %s, %s\n",
+                reg_names[type_to_reg(instr->lhs.type)][instr->instr_size],
+                reg_names[type_to_reg(instr->rhs.type)][instr->instr_size]);
+    }
+
+    else if (instr->is_unary) {
+        assert(type_is_reg(instr->lhs.type));
+        fprintf(output, "%s %s\n", instr_type_to_asm[instr->type],
+                reg_names[type_to_reg(instr->lhs.type)][instr->instr_size]);
     }
 
     else if (regular_2_oper_instr(instr->type)) {

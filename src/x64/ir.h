@@ -17,6 +17,8 @@ enum InstrType {
 
     InstrType_LEA,
 
+    InstrType_XCHG,
+
     /* binary operations */
     InstrType_ADD,
     InstrType_SUB,
@@ -26,6 +28,9 @@ enum InstrType {
     InstrType_IDIV,
     InstrType_MODULO,
     InstrType_IMODULO,
+
+    /* unary operations */
+    InstrType_BITWISE_NOT,
 
     /* stack operations */
     InstrType_PUSH,
@@ -97,10 +102,13 @@ enum InstrSize {
 
 };
 
+unsigned InstrSize_to_bytes(enum InstrSize size);
+
 struct Instruction {
 
     struct InstrOperand lhs, rhs;
     enum InstrType type;
+    bool is_unary;
     enum InstrSize instr_size;
     i32 offset;
     char *string;

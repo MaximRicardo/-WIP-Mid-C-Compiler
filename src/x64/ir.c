@@ -25,17 +25,16 @@ const unsigned n_gp_regs = sizeof(gp_reg_used)/sizeof(gp_reg_used[0]);
 struct GPReg {
 
     unsigned reg_idx;
+    enum InstrSize reg_size;
     bool prev_val_was_leaked;
 
 };
-
-static void get_block_instructions(struct InstrList *instrs,
-        const struct BlockNode *block);
 
 static struct GPReg GPReg_init(void) {
 
     struct GPReg reg;
     reg.reg_idx = UINT_MAX;
+    reg.reg_size = InstrSize_64;
     reg.prev_val_was_leaked = false;
     return reg;
 
@@ -53,6 +52,24 @@ static unsigned unused_reg(void) {
     return UINT_MAX;
 
 }
+
+static u32 round_up(u32 num, u32 multiple) {
+
+    u32 remainder;
+
+    if (multiple == 0)
+        return num;
+
+    remainder = num % multiple;
+    if (remainder == 0)
+        return num;
+
+    return num+multiple-remainder;
+
+}
+
+static void get_block_instructions(struct InstrList *instrs,
+        const struct BlockNode *block);
 
 static void leak_reg_to_stack(struct InstrList *instrs, unsigned reg_idx) {
 
@@ -108,6 +125,12 @@ static void free_reg(struct InstrList *instrs, struct GPReg reg) {
 
 }
 
+static unsigned operand_type_to_reg_idx(enum InstrOperandType type) {
+
+    return type-InstrOperandType_REGISTERS_START;
+
+}
+
 static enum InstrType expr_to_instr_t(const struct Expr *expr) {
 
     switch (expr->expr_type) {
@@ -135,6 +158,9 @@ static enum InstrType expr_to_instr_t(const struct Expr *expr) {
             return InstrType_IMODULO;
         else
             return InstrType_MODULO;
+
+    case ExprType_BITWISE_NOT:
+        return InstrType_BITWISE_NOT;
 
     default:
         assert(false);
@@ -175,10 +201,16 @@ struct InstrOperand InstrOperand_create_imm(enum InstrOperandType type,
 
 }
 
+unsigned InstrSize_to_bytes(enum InstrSize size) {
+    /* 2^size */
+    return 1 << size;
+}
+
 struct Instruction Instruction_init(void) {
 
     struct Instruction instr;
     instr.type = InstrType_INVALID;
+    instr.is_unary = false;
     instr.instr_size = 0;
     instr.offset = 0;
     instr.lhs = InstrOperand_init();
@@ -200,6 +232,182 @@ static enum InstrOperandType reg_idx_to_operand_t(unsigned idx) {
 
 }
 
+static void push_used_caller_saved_regs(struct InstrList *instrs) {
+
+    struct Instruction push_instr = Instruction_init();
+    push_instr.type = InstrType_PUSH;
+    push_instr.instr_size = InstrSize_64;
+
+    if (gp_reg_used[operand_type_to_reg_idx(InstrOperandType_REG_CX)]) {
+        push_instr.lhs =
+            InstrOperand_create_imm(InstrOperandType_REG_CX, 0);
+        InstrList_push_back(instrs, push_instr);
+    }
+
+    if (gp_reg_used[operand_type_to_reg_idx(InstrOperandType_REG_R8)]) {
+        push_instr.lhs =
+            InstrOperand_create_imm(InstrOperandType_REG_R8, 0);
+        InstrList_push_back(instrs, push_instr);
+    }
+
+    if (gp_reg_used[operand_type_to_reg_idx(InstrOperandType_REG_R9)]) {
+        push_instr.lhs =
+            InstrOperand_create_imm(InstrOperandType_REG_R9, 0);
+        InstrList_push_back(instrs, push_instr);
+    }
+
+    if (gp_reg_used[operand_type_to_reg_idx(InstrOperandType_REG_R10)]) {
+        push_instr.lhs =
+            InstrOperand_create_imm(InstrOperandType_REG_R10, 0);
+        InstrList_push_back(instrs, push_instr);
+    }
+
+    if (gp_reg_used[operand_type_to_reg_idx(InstrOperandType_REG_R11)]) {
+        push_instr.lhs =
+            InstrOperand_create_imm(InstrOperandType_REG_R11, 0);
+        InstrList_push_back(instrs, push_instr);
+    }
+
+}
+
+static void pop_used_caller_saved_regs(struct InstrList *instrs) {
+
+    struct Instruction pop_instr = Instruction_init();
+    pop_instr.type = InstrType_POP;
+    pop_instr.instr_size = InstrSize_64;
+
+    if (gp_reg_used[operand_type_to_reg_idx(InstrOperandType_REG_R11)]) {
+        pop_instr.lhs =
+            InstrOperand_create_imm(InstrOperandType_REG_R11, 0);
+        InstrList_push_back(instrs, pop_instr);
+    }
+
+    if (gp_reg_used[operand_type_to_reg_idx(InstrOperandType_REG_R10)]) {
+        pop_instr.lhs =
+            InstrOperand_create_imm(InstrOperandType_REG_R10, 0);
+        InstrList_push_back(instrs, pop_instr);
+    }
+
+    if (gp_reg_used[operand_type_to_reg_idx(InstrOperandType_REG_R9)]) {
+        pop_instr.lhs =
+            InstrOperand_create_imm(InstrOperandType_REG_R9, 0);
+        InstrList_push_back(instrs, pop_instr);
+    }
+
+    if (gp_reg_used[operand_type_to_reg_idx(InstrOperandType_REG_R8)]) {
+        pop_instr.lhs =
+            InstrOperand_create_imm(InstrOperandType_REG_R8, 0);
+        InstrList_push_back(instrs, pop_instr);
+    }
+
+    if (gp_reg_used[operand_type_to_reg_idx(InstrOperandType_REG_CX)]) {
+        pop_instr.lhs =
+            InstrOperand_create_imm(InstrOperandType_REG_CX, 0);
+        InstrList_push_back(instrs, pop_instr);
+    }
+
+}
+
+static struct GPReg get_expr_instructions(struct InstrList *instrs,
+        const struct Expr *expr, bool load_reference);
+
+static struct GPReg get_func_call_expr_instructions(struct InstrList *instrs,
+        const struct Expr *expr) {
+
+    u32 i;
+    u32 args_stack_space = 0;
+    u32 next_arg_offset = 0;
+    struct Instruction xchg_ret_reg_instr = Instruction_init();
+
+    struct GPReg ret_reg = alloc_reg(instrs);
+    ret_reg.reg_size = InstrSize_32;
+
+    /* the return value always goes in rax, so this is to keep the old value of
+     * rax if it is not to be overwritten, and also to make sure the return
+     * value goes in the correct register */
+    if (ret_reg.reg_idx != 0) {
+        xchg_ret_reg_instr.type = InstrType_XCHG;
+        xchg_ret_reg_instr.instr_size = InstrSize_64;
+        xchg_ret_reg_instr.lhs =
+            InstrOperand_create_imm(InstrOperandType_REG_AX, 0);
+        xchg_ret_reg_instr.rhs =
+            InstrOperand_create_imm(reg_idx_to_operand_t(ret_reg.reg_idx), 0);
+        InstrList_push_back(instrs, xchg_ret_reg_instr);
+
+        push_used_caller_saved_regs(instrs);
+    }
+
+    /* make space for every argument on the stack. this method is slightly more
+     * efficient and slightly easier to implement */
+    {
+        struct Instruction make_space_instr = Instruction_init();
+
+        for (i = 0; i < expr->args.size; i++) {
+            unsigned arg_size = PrimitiveType_size(
+                    Expr_type(expr->args.elems[i]));
+            /* alignment */
+            args_stack_space = round_up(args_stack_space, arg_size);
+            args_stack_space += arg_size;
+        }
+
+        make_space_instr.type = InstrType_SUB;
+        make_space_instr.instr_size = InstrSize_64;
+        make_space_instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_SP,
+                0);
+        make_space_instr.rhs = InstrOperand_create_imm(InstrOperandType_IMM_32,
+                args_stack_space);
+        InstrList_push_back(instrs, make_space_instr);
+    }
+
+    /* every argument gets loaded into the stack from bottom to top */
+    for (i = 0; i < expr->args.size; i++) {
+        struct GPReg arg_reg = get_expr_instructions(instrs,
+                expr->args.elems[i], false);
+        unsigned reg_size_bytes = InstrSize_to_bytes(arg_reg.reg_size);
+        struct Instruction instr = Instruction_init();
+        instr.type = InstrType_MOV_T_LOC;
+        instr.instr_size = arg_reg.reg_size;
+        instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_SP, 0);
+        instr.rhs = InstrOperand_create_imm(
+                reg_idx_to_operand_t(arg_reg.reg_idx), 0);
+
+        next_arg_offset = round_up(next_arg_offset, reg_size_bytes);
+        instr.offset = next_arg_offset;
+
+        InstrList_push_back(instrs, instr);
+        next_arg_offset += reg_size_bytes;
+    }
+
+    /* everything's prepared now */
+    {
+        struct Instruction func_call = Instruction_init();
+        func_call.type = InstrType_CALL;
+        func_call.string =
+            safe_malloc((expr->src_len+1)*sizeof(*func_call.string));
+        strncpy(func_call.string, expr->src_start, expr->src_len);
+        func_call.string[expr->src_len] = '\0';
+        InstrList_push_back(instrs, func_call);
+    }
+
+    /* clean up the stack and bring back the caller saved regs */
+    {
+        struct Instruction clean_up = Instruction_init();
+        clean_up.type = InstrType_ADD;
+        clean_up.instr_size = InstrSize_64;
+        clean_up.lhs = InstrOperand_create_imm(InstrOperandType_REG_SP, 0);
+        clean_up.rhs = InstrOperand_create_imm(InstrOperandType_IMM_32,
+                args_stack_space);
+        InstrList_push_back(instrs, clean_up);
+    }
+
+    pop_used_caller_saved_regs(instrs);
+
+    if (ret_reg.reg_idx != 0)
+        InstrList_push_back(instrs, xchg_ret_reg_instr);
+    return ret_reg;
+
+}
+
 /* load_reference is only used on identifier nodes, else it's ignored */
 static struct GPReg get_expr_instructions(struct InstrList *instrs,
         const struct Expr *expr, bool load_reference) {
@@ -207,6 +415,12 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
     struct Instruction instr = Instruction_init();
 
     struct GPReg lhs_reg = GPReg_init(), rhs_reg = GPReg_init();
+
+    if (expr->expr_type == ExprType_FUNC_CALL) {
+        return get_func_call_expr_instructions(instrs, expr);
+    }
+
+    instr.instr_size = InstrSize_32;
 
     if (expr->lhs)
         lhs_reg = get_expr_instructions(instrs, expr->lhs,
@@ -217,7 +431,6 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
     if (expr->rhs && expr->rhs->expr_type != ExprType_INT_LIT)
         rhs_reg = get_expr_instructions(instrs, expr->rhs, false);
 
-    instr.instr_size = InstrSize_32;
     if (expr->expr_type == ExprType_INT_LIT) {
         instr.type = InstrType_MOV;
         instr.lhs = InstrOperand_create_imm(
@@ -250,7 +463,10 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
         instr.type = expr_to_instr_t(expr);
         instr.lhs = InstrOperand_create_imm(
                 reg_idx_to_operand_t(lhs_reg.reg_idx), 0);
-        if (expr->rhs->expr_type != ExprType_INT_LIT)
+        if (!expr->rhs) {
+            instr.is_unary = true;
+        }
+        else if (expr->rhs->expr_type != ExprType_INT_LIT)
             instr.rhs = InstrOperand_create_imm(
                     reg_idx_to_operand_t(rhs_reg.reg_idx), 0);
         else
@@ -263,7 +479,11 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
 
     InstrList_push_back(instrs, instr);
 
-    return lhs_reg;
+    {
+        struct GPReg ret_reg = lhs_reg;
+        ret_reg.reg_size = instr.instr_size;
+        return ret_reg;
+    }
 
 }
 
@@ -300,10 +520,6 @@ static void push_callee_saved_regs(struct InstrList *instrs) {
 
     push_instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_BX, 0);
     InstrList_push_back(instrs, push_instr);
-    push_instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_DI, 0);
-    InstrList_push_back(instrs, push_instr);
-    push_instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_SI, 0);
-    InstrList_push_back(instrs, push_instr);
     push_instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_R12, 0);
     InstrList_push_back(instrs, push_instr);
     push_instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_R13, 0);
@@ -328,10 +544,6 @@ static void pop_callee_saved_regs(struct InstrList *instrs) {
     pop_instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_R13, 0);
     InstrList_push_back(instrs, pop_instr);
     pop_instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_R12, 0);
-    InstrList_push_back(instrs, pop_instr);
-    pop_instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_SI, 0);
-    InstrList_push_back(instrs, pop_instr);
-    pop_instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_DI, 0);
     InstrList_push_back(instrs, pop_instr);
     pop_instr.lhs = InstrOperand_create_imm(InstrOperandType_REG_BX, 0);
     InstrList_push_back(instrs, pop_instr);

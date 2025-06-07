@@ -1,11 +1,11 @@
 #pragma once
 
 #include "bool.h"
-#include "ints.h"
+#include "comp_dependent/ints.h"
 #include "vector_impl.h"
 
 /* when adding a new token make sure to update:
- *  Token_is_operator(), Token_precedence, ExprType
+ *  Token_is_unary_operator, Token_is_bin_operator, Token_precedence, ExprType
  */
 
 enum TokenType {
@@ -14,7 +14,7 @@ enum TokenType {
 
     TokenType_SEMICOLON,
 
-    /* Binary operators */
+    /* binary operators */
     TokenType_PLUS,
     TokenType_MINUS,
     TokenType_MUL,
@@ -22,6 +22,9 @@ enum TokenType {
     TokenType_MODULUS,
     TokenType_EQUAL,
     TokenType_COMMA,
+
+    /* unary operators */
+    TokenType_BITWISE_NOT,
 
     TokenType_L_PAREN,
     TokenType_R_PAREN,
@@ -31,6 +34,7 @@ enum TokenType {
     TokenType_INT_LIT,
 
     TokenType_IDENT,
+    TokenType_FUNC_CALL,
 
     TokenType_INT_T_SPEC,
 
@@ -71,6 +75,8 @@ struct Token Token_create_w_val(unsigned line_num, unsigned column_num,
         const char *src_start, unsigned src_len, enum TokenType type,
         union TokenValue value);
 
+bool Token_is_unary_operator(enum TokenType type);
+bool Token_is_bin_operator(enum TokenType type);
 bool Token_is_operator(enum TokenType type);
 
 m_declare_VectorImpl_funcs(TokenList, struct Token)

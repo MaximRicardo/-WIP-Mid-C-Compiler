@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ints.h"
+#include "comp_dependent/ints.h"
 #include "token.h"
 #include "vector_impl.h"
 
@@ -70,10 +70,26 @@ enum ExprType {
     ExprType_EQUAL,
     ExprType_COMMA,
 
-    /* Only used in the shunting yard algorithm */
+    /* Unary operators */
+    ExprType_BITWISE_NOT,
+
+    /* parentheses are only used in the shunting yard algorithm */
     ExprType_PAREN,
 
-    ExprType_IDENT
+    ExprType_IDENT,
+    ExprType_FUNC_CALL
+
+};
+
+bool ExprType_is_bin_operator(enum ExprType expr);
+bool ExprType_is_unary_operator(enum ExprType expr);
+bool ExprType_is_operator(enum ExprType expr);
+
+struct ExprPtrList {
+
+    struct Expr **elems;
+    u32 size;
+    u32 capacity;
 
 };
 
@@ -86,6 +102,7 @@ struct Expr {
 
     struct Expr *lhs, *rhs;
     enum PrimitiveType lhs_type, rhs_type;
+    struct ExprPtrList args; /* used by function calls */
 
     u32 int_value;
 
@@ -98,27 +115,19 @@ struct Expr {
 struct Expr Expr_init(void);
 struct Expr Expr_create(unsigned line_num, unsigned column_num,
         const char *src_start, unsigned src_len, struct Expr *lhs,
-        struct Expr *rhs, enum PrimitiveType lhs_type,
-        enum PrimitiveType rhs_type, u32 int_value, i32 bp_offset,
-        enum ExprType expr_type);
+        struct Expr *rhs, enum PrimitiveType lhs_type, 
+        enum PrimitiveType rhs_type, struct ExprPtrList args, u32 int_value,
+        i32 bp_offset, enum ExprType expr_type);
 /* Uses the passed, tok_t_to_expr_td column numbers aswell as src_start and
  * src_len. */
 struct Expr Expr_create_w_tok(struct Token token, struct Expr *lhs,
         struct Expr *rhs, enum PrimitiveType lhs_type,
-        enum PrimitiveType rhs_type, u32 int_value, i32 bp_offset,
-        enum ExprType expr_type);
+        enum PrimitiveType rhs_type, struct ExprPtrList args, u32 int_value,
+        i32 bp_offset, enum ExprType expr_type);
 /* Also frees self */
 void Expr_recur_free_w_self(struct Expr *self);
 enum PrimitiveType Expr_type(const struct Expr *self);
 u32 Expr_evaluate(const struct Expr *expr);
-
-struct ExprPtrList {
-
-    struct Expr **elems;
-    u32 size;
-    u32 capacity;
-
-};
 
 m_declare_VectorImpl_funcs(ExprPtrList, struct Expr*)
 

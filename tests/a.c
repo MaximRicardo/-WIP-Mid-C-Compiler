@@ -1,5 +1,5 @@
 int func(int x, int y) {
-    x=x+y;
+    x*y;
 }
 
 int main(int argc) {
@@ -9,6 +9,6 @@ int main(int argc) {
         int y = x+10;
         x = x+y;
     }
-    x*5;
+    func(5, 10);
     :;
 }

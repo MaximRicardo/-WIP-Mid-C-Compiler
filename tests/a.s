@@ -8,10 +8,6 @@ func:
 
 push rbx
 
-push rdi
-
-push rsi
-
 push r12
 
 push r13
@@ -26,15 +22,11 @@ mov rbp, rsp
 
 sub rsp, 0
 
-lea rax, [rbp+64]
+mov eax, [rbp+56]
 
-mov ebx, [rbp+64]
+mov ebx, [rbp+60]
 
-mov ecx, [rbp+68]
-
-add ebx, ecx
-
-mov [rax+0], ebx
+imul ebx
 
 mov rsp, rbp
 
@@ -48,10 +40,6 @@ pop r13
 
 pop r12
 
-pop rsi
-
-pop rdi
-
 pop rbx
 
 ret
@@ -59,10 +47,6 @@ ret
 main:
 
 push rbx
-
-push rdi
-
-push rsi
 
 push r12
 
@@ -119,10 +103,19 @@ mov rsp, rbp
 
 pop rbp
 
-mov eax, [rbp+-4]
+sub rsp, 8
 
-mov edx, 5
-imul edx
+mov ebx, 5
+
+mov [rsp+0], ebx
+
+mov ecx, 10
+
+mov [rsp+4], ecx
+
+call func
+
+add rsp, 8
 
 mov r15, rsp
 and rsp, -16
@@ -144,10 +137,6 @@ pop r14
 pop r13
 
 pop r12
-
-pop rsi
-
-pop rdi
 
 pop rbx
 
