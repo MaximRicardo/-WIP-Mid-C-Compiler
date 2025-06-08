@@ -15,9 +15,10 @@ Thus far the compiler has:
     function definitions
     function calls
     function prototyping
+    return statements
 
 Next thing I'ma implement:
-    return statements
+    void types
 
     Also, the compiler has a custom debugging keyword ':', which prints the
 value current stored in RAX.

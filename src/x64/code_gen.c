@@ -53,6 +53,7 @@ const char *instr_type_to_asm[] = {
     "idiv",
     "div",
     "idiv",
+    "and",
 
     "not",
 
@@ -92,7 +93,7 @@ static bool type_is_reg(enum InstrOperandType type) {
 static bool regular_2_oper_instr(enum InstrType type) {
 
     return type == InstrType_ADD || type == InstrType_SUB ||
-        type == InstrType_MOV;
+        type == InstrType_MOV || type == InstrType_AND;
 
 }
 
@@ -180,7 +181,8 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
                     reg_names[type_to_reg(instr->rhs.type)][instr->instr_size]
                     );
         else
-            fprintf(output, ", %d\n", instr->rhs.value.imm);
+            fprintf(output, ", %s %d\n", size_specifier[instr->instr_size],
+                    instr->rhs.value.imm);
     }
 
     else if (instr->type == InstrType_MUL || instr->type == InstrType_IMUL) {

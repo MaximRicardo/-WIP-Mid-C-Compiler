@@ -17,9 +17,9 @@
 bool Parser_error_occurred = false;
 struct ParVarList vars;
 
-static struct BlockNode* parse(const struct Lexer *lexer, u32 bp,
-        u32 start_idx, u32 *end_idx, unsigned n_blocks_deep,
-        bool *missing_r_curly);
+static struct BlockNode* parse(const struct Lexer *lexer,
+        struct FuncDeclNode *parent_func, u32 bp, u32 block_start_idx,
+        u32 *end_idx, unsigned n_blocks_deep, bool *missing_r_curly);
 
 static u32 round_down(u32 num, u32 multiple) {
 
@@ -406,7 +406,7 @@ static void parse_func_decl(const struct Lexer *lexer, struct BlockNode *block,
             Parser_error_occurred = false;
         }
 
-        func->body = parse(lexer, bp, args_end_idx+2, &func_end_idx, 1,
+        func->body = parse(lexer, func, bp, args_end_idx+2, &func_end_idx, 1,
                 &missing_r_curly);
         if (!missing_r_curly)
             check_if_missing_r_curly(lexer, args_end_idx+2, func_end_idx,
@@ -432,9 +432,49 @@ static void parse_func_decl(const struct Lexer *lexer, struct BlockNode *block,
 
 }
 
-static struct BlockNode* parse(const struct Lexer *lexer, u32 bp,
-        u32 block_start_idx, u32 *end_idx, unsigned n_blocks_deep,
-        bool *missing_r_curly) {
+static u32 parse_ret_stmt(const struct Lexer *lexer, struct BlockNode *block,
+        u32 bp, u32 ret_idx, struct FuncDeclNode *parent_func,
+        u32 n_stack_frames_deep) {
+
+    struct RetNode *ret_node = safe_malloc(sizeof(*ret_node));
+    u32 end_idx;
+
+    if (!parent_func) {
+        fprintf(stderr, "return statement outside of a function on line %u\n",
+                lexer->token_tbl.elems[ret_idx].line_num);
+        Parser_error_occurred = true;
+        return skip_to_token_type_alt(ret_idx, lexer->token_tbl,
+                TokenType_SEMICOLON);
+    }
+
+    *ret_node = RetNode_init();
+    ret_node->type = parent_func->ret_type;
+    ret_node->n_stack_frames_deep = n_stack_frames_deep;
+
+    if (ret_idx+1 < lexer->token_tbl.size &&
+            lexer->token_tbl.elems[ret_idx+1].type == TokenType_SEMICOLON) {
+        end_idx = ret_idx+1;
+    }
+    else {
+        enum TokenType stop_types[] = {TokenType_SEMICOLON};
+        ret_node->value = SY_shunting_yard(&lexer->token_tbl, ret_idx+1,
+                stop_types, sizeof(stop_types)/sizeof(stop_types[0]), &end_idx,
+                &vars, bp);
+    }
+
+    ASTNodeList_push_back(&block->nodes, ASTNode_create(
+                lexer->token_tbl.elems[ret_idx].line_num,
+                lexer->token_tbl.elems[ret_idx].column_num, ASTType_RETURN,
+                ret_node
+                ));
+
+    return end_idx;
+
+}
+
+static struct BlockNode* parse(const struct Lexer *lexer,
+        struct FuncDeclNode *parent_func, u32 bp, u32 block_start_idx,
+        u32 *end_idx, unsigned n_blocks_deep, bool *missing_r_curly) {
 
     /* used for bp offsets */
     u32 sp = bp;
@@ -454,7 +494,7 @@ static struct BlockNode* parse(const struct Lexer *lexer, u32 bp,
         char *token_src = Token_src(&lexer->token_tbl.elems[start_idx]);
 
         if (lexer->token_tbl.elems[start_idx].type == TokenType_L_CURLY) {
-            struct BlockNode *new_block = parse(lexer,
+            struct BlockNode *new_block = parse(lexer, parent_func,
                     sp-m_TypeSize_stack_frame_size, start_idx+1,
                     &prev_end_idx, n_blocks_deep+1, NULL);
             ASTNodeList_push_back(&block->nodes, ASTNode_create(
@@ -468,6 +508,11 @@ static struct BlockNode* parse(const struct Lexer *lexer, u32 bp,
             m_free(token_src);
             prev_end_idx = start_idx;
             break;
+        }
+        else if (strcmp(token_src, "return") == 0) {
+            prev_end_idx =
+                parse_ret_stmt(lexer, block, bp, start_idx, parent_func,
+                        n_blocks_deep);
         }
         else if (Ident_type_spec(token_src) != PrimType_INVALID) {
             if (start_idx+2 >= lexer->token_tbl.size ||
@@ -554,7 +599,7 @@ struct BlockNode* Parser_parse(const struct Lexer *lexer) {
     vars = ParVarList_init();
     Parser_error_occurred = false;
 
-    root = parse(lexer, bp, 0, NULL, 0, NULL);
+    root = parse(lexer, NULL, bp, 0, NULL, 0, NULL);
 
     assert(vars.size == 0);
     ParVarList_free(&vars);

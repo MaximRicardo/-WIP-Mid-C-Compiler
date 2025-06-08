@@ -82,6 +82,9 @@ void ASTNode_free(struct ASTNode node) {
             FuncDeclNode_free_w_self(node.node_struct);
         else if (node.type == ASTType_BLOCK)
             BlockNode_free_w_self(node.node_struct);
+        else if (node.type == ASTType_RETURN)
+            RetNode_free_w_self(node.node_struct);
+
         else if (node.type == ASTType_DEBUG_RAX)
             m_free(node.node_struct);
         else
@@ -491,6 +494,34 @@ void FuncDeclNode_free_w_self(struct FuncDeclNode *self) {
     m_free(self->name);
     if (self->body)
         BlockNode_free_w_self(self->body);
+    m_free(self);
+
+}
+
+struct RetNode RetNode_init(void) {
+
+    struct RetNode ret_node;
+    ret_node.value = NULL;
+    ret_node.type = PrimType_INVALID;
+    ret_node.n_stack_frames_deep = 0;
+    return ret_node;
+
+}
+
+struct RetNode RetNode_create(struct Expr *value, enum PrimitiveType type,
+        u32 n_stack_frames_deep) {
+
+    struct RetNode ret_node;
+    ret_node.value = value;
+    ret_node.type = type;
+    ret_node.n_stack_frames_deep = n_stack_frames_deep;
+    return ret_node;
+
+}
+
+void RetNode_free_w_self(struct RetNode *self) {
+
+    Expr_recur_free_w_self(self->value);
     m_free(self);
 
 }

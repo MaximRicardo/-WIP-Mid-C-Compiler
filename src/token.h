@@ -36,8 +36,6 @@ enum TokenType {
     TokenType_IDENT,
     TokenType_FUNC_CALL,
 
-    TokenType_INT_T_SPEC,
-
     TokenType_DEBUG_PRINT_RAX
 
 };

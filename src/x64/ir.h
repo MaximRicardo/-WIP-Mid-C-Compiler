@@ -28,6 +28,7 @@ enum InstrType {
     InstrType_IDIV,
     InstrType_MODULO,
     InstrType_IMODULO,
+    InstrType_AND,
 
     /* unary operations */
     InstrType_BITWISE_NOT,
@@ -72,8 +73,6 @@ enum InstrOperandType {
     InstrOperandType_REGISTERS_END,
 
     /* immediates */
-    InstrOperandType_IMM_8,
-    InstrOperandType_IMM_16,
     InstrOperandType_IMM_32
 
 };

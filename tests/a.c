@@ -1,4 +1,4 @@
-char func(int x, int z);
+int func(int x, int z);
 
 int main(int argc) {
     int x = 10+5;
@@ -7,10 +7,12 @@ int main(int argc) {
         int y = x+10;
         x = x+y;
     }
-    char c = func(4, 3);
+    char c = func(100, 3);
     :;
+
+    return 0;
 }
 
-char func(int x, int y) {
-    x*y;
+int func(int x, int y) {
+    return x*y;
 }

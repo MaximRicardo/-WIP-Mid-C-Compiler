@@ -20,11 +20,11 @@ push rbp
 
 mov rbp, rsp
 
-sub rsp, 16
+sub rsp, qword 16
 
-mov eax, 10
+mov eax, dword 10
 
-add eax, 5
+add eax, dword 5
 
 mov [rbp+-4], eax
 
@@ -41,11 +41,11 @@ push rbp
 
 mov rbp, rsp
 
-sub rsp, 8
+sub rsp, qword 8
 
 mov eax, [rbp+12]
 
-add eax, 10
+add eax, dword 10
 
 mov [rbp+-4], eax
 
@@ -63,19 +63,19 @@ mov rsp, rbp
 
 pop rbp
 
-sub rsp, 8
+sub rsp, qword 8
 
-mov ebx, 4
+mov ebx, dword 100
 
 mov [rsp+0], ebx
 
-mov ebx, 3
+mov ebx, dword 3
 
 mov [rsp+4], ebx
 
 call func
 
-add rsp, 8
+add rsp, qword 8
 
 mov [rbp+-9], al
 
@@ -87,6 +87,26 @@ mov rdi, msg
 mov rsi, rbx
 call printf
 mov rsp, r15
+
+mov eax, dword 0
+
+and rax, qword -1
+
+mov rsp, rbp
+
+pop rbp
+
+pop r15
+
+pop r14
+
+pop r13
+
+pop r12
+
+pop rbx
+
+ret
 
 mov rsp, rbp
 
@@ -120,13 +140,31 @@ push rbp
 
 mov rbp, rsp
 
-sub rsp, 0
+sub rsp, qword 0
 
 mov eax, [rbp+56]
 
 mov ebx, [rbp+60]
 
 imul ebx
+
+and rax, qword -1
+
+mov rsp, rbp
+
+pop rbp
+
+pop r15
+
+pop r14
+
+pop r13
+
+pop r12
+
+pop rbx
+
+ret
 
 mov rsp, rbp
 

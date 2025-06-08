@@ -25,6 +25,8 @@ enum ASTNodeType {
     ASTType_VAR_DECL,
     ASTType_FUNC,
     ASTType_BLOCK,
+    ASTType_RETURN,
+
     ASTType_DEBUG_RAX
 
 };
@@ -205,6 +207,19 @@ struct FuncDeclNode FuncDeclNode_init(void);
 struct FuncDeclNode FuncDeclNode_create(struct VarDeclPtrList args,
         enum PrimitiveType ret_type, struct BlockNode *body, char *name);
 void FuncDeclNode_free_w_self(struct FuncDeclNode *self);
+
+struct RetNode {
+
+    struct Expr *value;
+    enum PrimitiveType type;
+    unsigned n_stack_frames_deep;
+
+};
+
+struct RetNode RetNode_init(void);
+struct RetNode RetNode_create(struct Expr *value, enum PrimitiveType type,
+        u32 n_stack_frames_deep);
+void RetNode_free_w_self(struct RetNode *self);
 
 struct BlockNode {
 

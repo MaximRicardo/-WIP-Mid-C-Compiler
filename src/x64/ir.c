@@ -354,6 +354,20 @@ static void instr_reg_and_imm32(struct InstrList *instrs, enum InstrType type,
 
 }
 
+static void instr_reg(struct InstrList *instrs, enum InstrType type,
+        enum InstrSize size, enum InstrOperandType reg, i32 offset) {
+
+    struct Instruction instr = Instruction_init();
+
+    instr.type = type;
+    instr.instr_size = size;
+    instr.lhs = InstrOperand_create_imm(reg, 0);
+    instr.offset = offset;
+
+    InstrList_push_back(instrs, instr);
+
+}
+
 /*
 static void instr_imm32(struct InstrList *instrs, enum InstrType type,
         enum InstrSize size, u32 imm) {
@@ -666,6 +680,41 @@ static void get_func_decl_instructions(struct InstrList *instrs,
 
 }
 
+static void get_ret_stmt_instructions(struct InstrList *instrs,
+        const struct RetNode *ret_node) {
+
+    u32 i;
+
+    if (ret_node->value) {
+        struct GPReg reg =
+            get_expr_instructions(instrs, ret_node->value, false);
+        assert(reg.reg_idx == 0);
+        free_reg(instrs, reg);
+    }
+
+    if (PrimitiveType_size(ret_node->type) < 8) {
+        unsigned type_size = PrimitiveType_size(ret_node->type);
+        instr_reg_and_imm32(instrs, InstrType_AND, InstrSize_64,
+                InstrOperandType_REG_AX,
+                type_size == 4 ? m_u32_max : (1<<type_size*8)-1, 0);
+    }
+
+    /* destroy all the stack frames to get to the return address.
+     * this is a kinda ugly way of doing this but it's easy to implement so
+     * i'ma do it this way */
+    for (i = 0; i < ret_node->n_stack_frames_deep; i++) {
+        instr_reg_and_reg(instrs, InstrType_MOV, InstrSize_64,
+                InstrOperandType_REG_SP, InstrOperandType_REG_BP, 0);
+        instr_reg(instrs, InstrType_POP, InstrSize_64, InstrOperandType_REG_BP,
+                0);
+    }
+
+    pop_callee_saved_regs(instrs);
+
+    instr_only_type(instrs, InstrType_RET);
+
+}
+
 static void get_block_instructions(struct InstrList *instrs,
         const struct BlockNode *block) {
 
@@ -679,23 +728,27 @@ static void get_block_instructions(struct InstrList *instrs,
             free_reg(instrs, get_expr_instructions(instrs,
                         ((const struct ExprNode*)node_struct)->expr, false));
         else if (block->nodes.elems[i].type == ASTType_VAR_DECL)
-            get_var_decl_instructions(instrs,
-                    (const struct VarDeclNode*)node_struct);
+            get_var_decl_instructions(instrs, node_struct);
         else if (block->nodes.elems[i].type == ASTType_FUNC)
-            get_func_decl_instructions(instrs,
-                    (const struct FuncDeclNode*)node_struct);
+            get_func_decl_instructions(instrs, node_struct);
         else if (block->nodes.elems[i].type == ASTType_BLOCK) {
-            const struct BlockNode *new_block =
-                block->nodes.elems[i].node_struct;
-            create_stack_frame(instrs, new_block->var_bytes);
-            get_block_instructions(instrs, new_block);
+            create_stack_frame(instrs,
+                    ((const struct BlockNode*)node_struct)->var_bytes);
+            get_block_instructions(instrs, node_struct);
             destroy_stack_frame(instrs);
         }
+        else if (block->nodes.elems[i].type == ASTType_RETURN) {
+            get_ret_stmt_instructions(instrs, node_struct);
+        }
+
         else if (block->nodes.elems[i].type == ASTType_DEBUG_RAX) {
             struct Instruction debug_instr = Instruction_init();
             debug_instr.type = InstrType_DEBUG_RAX;
             InstrList_push_back(instrs, debug_instr);
         }
+
+        else
+            assert(false);
 
     }
 
