@@ -4,46 +4,6 @@ extern printf
 
 section .text
 global main
-func:
-
-push rbx
-
-push r12
-
-push r13
-
-push r14
-
-push r15
-
-push rbp
-
-mov rbp, rsp
-
-sub rsp, 0
-
-mov eax, [rbp+56]
-
-mov ebx, [rbp+60]
-
-imul ebx
-
-mov rsp, rbp
-
-pop rbp
-
-pop r15
-
-pop r14
-
-pop r13
-
-pop r12
-
-pop rbx
-
-ret
-
 main:
 
 push rbx
@@ -159,6 +119,46 @@ mov rdi, msg
 mov rsi, rbx
 call printf
 mov rsp, r15
+
+mov rsp, rbp
+
+pop rbp
+
+pop r15
+
+pop r14
+
+pop r13
+
+pop r12
+
+pop rbx
+
+ret
+
+func:
+
+push rbx
+
+push r12
+
+push r13
+
+push r14
+
+push r15
+
+push rbp
+
+mov rbp, rsp
+
+sub rsp, 0
+
+mov eax, [rbp+56]
+
+mov ebx, [rbp+60]
+
+imul ebx
 
 mov rsp, rbp
 

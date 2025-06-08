@@ -8,6 +8,8 @@
 extern bool SY_error_occurred;
 
 /*
+ * this function automatically stops at the first semicolon it finds,
+ * regardless of whether or not it's in parentheses.
  * stop_types   - Stop reading tokens after encountering a token with a type in
  *                stop_types. Doesn't stop if that token is inside another
  *                of parentheses.

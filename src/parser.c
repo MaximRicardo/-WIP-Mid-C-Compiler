@@ -45,20 +45,29 @@ static u32 round_up(u32 num, u32 multiple) {
 struct ParserVar ParserVar_init(void) {
 
     struct ParserVar var;
+    var.line_num = 0;
+    var.column_num = 0;
     var.name = NULL;
     var.type = PrimType_INVALID;
     var.stack_pos = 0;
+    var.args = NULL;
+    var.has_been_defined = false;
     return var;
 
 }
 
-struct ParserVar ParserVar_create(char *name, enum PrimitiveType type,
-        u32 stack_pos) {
+struct ParserVar ParserVar_create(unsigned line_num, unsigned column_num,
+        char *name, enum PrimitiveType type, u32 stack_pos,
+        struct VarDeclPtrList *args, bool has_been_defined) {
 
     struct ParserVar var;
+    var.line_num = line_num;
+    var.column_num = column_num;
     var.name = name;
     var.type = type;
     var.stack_pos = stack_pos;
+    var.args = args;
+    var.has_been_defined = has_been_defined;
     return var;
 
 }
@@ -150,10 +159,8 @@ static void check_if_missing_r_curly(const struct Lexer *lexer,
 static struct Expr* parse_expr(const struct Lexer *lexer, u32 start_idx,
         u32 *sy_end_idx, u32 bp) {
 
-    enum TokenType stop_types[] = {TokenType_SEMICOLON};
-    struct Expr *expr = SY_shunting_yard(&lexer->token_tbl, start_idx,
-            stop_types, sizeof(stop_types)/sizeof(stop_types[0]), sy_end_idx,
-            &vars, bp);
+    struct Expr *expr = SY_shunting_yard(&lexer->token_tbl, start_idx, NULL, 0,
+            sy_end_idx, &vars, bp);
     Parser_error_occurred |= SY_error_occurred;
 
     if (*sy_end_idx == lexer->token_tbl.size) {
@@ -169,7 +176,6 @@ static struct Expr* parse_expr(const struct Lexer *lexer, u32 start_idx,
 static struct Expr* var_decl_value(const struct Lexer *lexer, u32 v_decl_idx,
         u32 *semicolon_idx, u32 bp) {
 
-    enum TokenType stop_types[] = {TokenType_SEMICOLON};
     struct Expr *expr = NULL;
 
     if (v_decl_idx+3 >= lexer->token_tbl.size ||
@@ -189,8 +195,7 @@ static struct Expr* var_decl_value(const struct Lexer *lexer, u32 v_decl_idx,
         return NULL;
     }
 
-    expr = SY_shunting_yard(&lexer->token_tbl, v_decl_idx+3,
-            stop_types, sizeof(stop_types)/sizeof(stop_types[0]),
+    expr = SY_shunting_yard(&lexer->token_tbl, v_decl_idx+3, NULL, 0,
             semicolon_idx, &vars, bp);
     Parser_error_occurred |= SY_error_occurred;
 
@@ -231,8 +236,10 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
     DeclList_push_back(&var_decl->decls, decl);
 
     ParVarList_push_back(&vars, ParserVar_create(
+                lexer->token_tbl.elems[v_decl_idx].line_num,
+                lexer->token_tbl.elems[v_decl_idx].column_num,
                 Token_src(&lexer->token_tbl.elems[v_decl_idx+1]), PrimType_INT,
-                decl.bp_offset+bp));
+                decl.bp_offset+bp, NULL, false));
     if (!is_func_param)
         *sp -= var_size;
     else
@@ -252,20 +259,36 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
 
 }
 
-static void parse_func_decl(const struct Lexer *lexer, struct BlockNode *block,
-        u32 f_decl_idx, u32 *end_idx, u32 bp) {
+static bool func_prototypes_match(const struct Lexer *lexer,
+        u32 prev_func_decl_var_idx, struct FuncDeclNode *func,
+        u32 f_decl_tok_idx) {
 
-    struct FuncDeclNode *func = safe_malloc(sizeof(*func));
-    struct VarDeclPtrList args = VarDeclPtrList_init();
-    u32 arg_decl_idx = f_decl_idx+3;
+    char *func_name = Token_src(&lexer->token_tbl.elems[f_decl_tok_idx+1]);
+    u32 i;
+    bool not_matching = false;
+    not_matching |= vars.elems[prev_func_decl_var_idx].type != func->ret_type;
+    not_matching |= vars.elems[prev_func_decl_var_idx].args->size !=
+        func->args.size;
+    for (i = 0; !not_matching && i < func->args.size; i++) {
+        if (func->args.elems[i]->type !=
+                vars.elems[prev_func_decl_var_idx].args->elems[i]->type) {
+            not_matching = true;
+            break;
+        }
+    }
+
+    m_free(func_name);
+    return not_matching;
+
+}
+
+/* returns the right parenthesis of after the function arguments */
+static u32 parse_func_args(const struct Lexer *lexer, u32 arg_decl_start_idx,
+        struct VarDeclPtrList *args, u32 bp) {
+
+    u32 arg_decl_idx = arg_decl_start_idx;
     u32 arg_decl_end_idx = arg_decl_idx;
     u32 n_func_param_bytes = 0;
-    /* +1 to account for the addition of the function itself */
-    u32 old_vars_size = vars.size+1;
-
-    ParVarList_push_back(&vars, ParserVar_create(
-                Token_src(&lexer->token_tbl.elems[f_decl_idx+1]), PrimType_INT,
-                0));
 
     while (arg_decl_end_idx < lexer->token_tbl.size &&
             lexer->token_tbl.elems[arg_decl_end_idx].type !=
@@ -292,7 +315,7 @@ static void parse_func_decl(const struct Lexer *lexer, struct BlockNode *block,
 
         arg = parse_var_decl(lexer, arg_decl_idx, &arg_decl_end_idx, bp,
                 NULL, true, &n_func_param_bytes);
-        VarDeclPtrList_push_back(&args, arg);
+        VarDeclPtrList_push_back(args, arg);
 
         if (lexer->token_tbl.elems[arg_decl_end_idx].type == TokenType_R_PAREN) {
             m_free(type_spec_src);
@@ -321,25 +344,77 @@ static void parse_func_decl(const struct Lexer *lexer, struct BlockNode *block,
 
     }
 
+    return arg_decl_end_idx;
+
+}
+
+static void parse_func_decl(const struct Lexer *lexer, struct BlockNode *block,
+        u32 f_decl_idx, u32 *end_idx, u32 bp) {
+
+    struct FuncDeclNode *func = safe_malloc(sizeof(*func));
+    struct VarDeclPtrList args = VarDeclPtrList_init();
+    u32 old_vars_size = vars.size;
+    u32 args_end_idx;
+    char *func_name = Token_src(&lexer->token_tbl.elems[f_decl_idx+1]);
+
+    u32 prev_func_decl_var_idx;
+    prev_func_decl_var_idx = ParVarList_find_var(&vars, func_name);
+
+    if (prev_func_decl_var_idx == m_u32_max) { 
+        /* has no earlier prototype */
+        ParVarList_push_back(&vars, ParserVar_create(
+                    lexer->token_tbl.elems[f_decl_idx].line_num,
+                    lexer->token_tbl.elems[f_decl_idx].column_num,
+                    Token_src(&lexer->token_tbl.elems[f_decl_idx+1]),
+                    PrimType_INT, 0, &func->args, false));
+        ++old_vars_size;
+    }
+
+    args_end_idx = parse_func_args(lexer, f_decl_idx+3, &args, bp);
+
     *func = FuncDeclNode_create(args, PrimType_INT, NULL,
                     Token_src(&lexer->token_tbl.elems[f_decl_idx+1]));
 
-    if (arg_decl_end_idx+1 < lexer->token_tbl.size &&
-            lexer->token_tbl.elems[arg_decl_end_idx+1].type ==
-            TokenType_L_CURLY) {
+    if (prev_func_decl_var_idx != m_u32_max && func_prototypes_match(lexer,
+                prev_func_decl_var_idx, func, f_decl_idx)) {
+        fprintf(stderr, "function '%s' declaration on line %u, column %u,"
+                " does not match previous declaration on line %u,"
+                " column %u.\n", func_name,
+                lexer->token_tbl.elems[f_decl_idx].line_num,
+                lexer->token_tbl.elems[f_decl_idx].column_num,
+                vars.elems[prev_func_decl_var_idx].line_num,
+                vars.elems[prev_func_decl_var_idx].column_num);
+        Parser_error_occurred = true;
+    }
+
+    if (args_end_idx+1 < lexer->token_tbl.size &&
+            lexer->token_tbl.elems[args_end_idx+1].type == TokenType_L_CURLY) {
 
         u32 func_end_idx;
         bool missing_r_curly;
-        func->body = parse(lexer, bp, arg_decl_end_idx+2, &func_end_idx,
-                1, &missing_r_curly);
+
+        if (prev_func_decl_var_idx == m_u32_max) {
+            vars.elems[old_vars_size-1].has_been_defined = true;
+        }
+        else if (vars.elems[prev_func_decl_var_idx].has_been_defined) {
+            fprintf(stderr,
+                    "function '%s' has multiple definitions. first on line %u,"
+                    " then later on line %u.\n",
+                    func_name, vars.elems[prev_func_decl_var_idx].line_num,
+                    lexer->token_tbl.elems[f_decl_idx].line_num);
+            Parser_error_occurred = false;
+        }
+
+        func->body = parse(lexer, bp, args_end_idx+2, &func_end_idx, 1,
+                &missing_r_curly);
         if (!missing_r_curly)
-            check_if_missing_r_curly(lexer, arg_decl_end_idx+2, func_end_idx,
+            check_if_missing_r_curly(lexer, args_end_idx+2, func_end_idx,
                     false, NULL);
 
         *end_idx = func_end_idx;
     }
     else {
-        *end_idx = arg_decl_end_idx+1;
+        *end_idx = args_end_idx+1;
     }
 
     ASTNodeList_push_back(&block->nodes, ASTNode_create(
@@ -351,6 +426,8 @@ static void parse_func_decl(const struct Lexer *lexer, struct BlockNode *block,
         ParVarList_pop_back(&vars, ParserVar_free);
     }
     assert(vars.size == old_vars_size);
+
+    m_free(func_name);
 
 }
 

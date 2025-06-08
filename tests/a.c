@@ -1,6 +1,4 @@
-int func(int x, int y) {
-    x*y;
-}
+int func(int x, int z);
 
 int main(int argc) {
     int x = 10+5;
@@ -11,4 +9,8 @@ int main(int argc) {
     }
     func(~func(100,2), func(2, 5));
     :;
+}
+
+int func(int x, int y) {
+    x*y;
 }

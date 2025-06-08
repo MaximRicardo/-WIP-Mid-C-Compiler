@@ -42,22 +42,29 @@ static void move_operator_to_out_queue(struct ExprPtrList *output_queue,
     struct Expr *operator =
         ExprPtrList_back(operator_stack);
 
+    if (output_queue->size == 0) {
+        /* an error should have already occurred by now, so no need to print
+         * anything */
+        assert(SY_error_occurred);
+        ExprPtrList_pop_back(operator_stack, Expr_recur_free_w_self);
+        return;
+    }
+
     /* The operator takes the second upper-most and upper-most elements on the
      * output queue as its left and right operands respectively */
-    struct Expr *rhs = ExprType_is_bin_operator(operator->expr_type) ?
+    operator->rhs = ExprType_is_bin_operator(operator->expr_type) ?
         output_queue->elems[output_queue->size-1] : NULL;
-    struct Expr *lhs = output_queue->elems[output_queue->size-1-(rhs!=NULL)];
+    operator->lhs =
+        output_queue->elems[output_queue->size-1-(operator->rhs!=NULL)];
 
-    operator->lhs = lhs;
-    operator->rhs = rhs;
-    operator->lhs_type = Expr_type(lhs);
-    if (rhs)
-        operator->rhs_type = Expr_type(rhs);
+    operator->lhs_type = Expr_type(operator->lhs);
+    if (operator->rhs)
+        operator->rhs_type = Expr_type(operator->rhs);
 
     /* Remove the lhs and rhs from the queue and replace them with the
      * operator. Later on the operator can then act as an operand for the next
      * operator to be pushed to the output queue */
-    if (rhs)
+    if (operator->rhs)
         ExprPtrList_pop_back(output_queue, NULL);
     ExprPtrList_pop_back(output_queue, NULL);
     ExprPtrList_push_back(output_queue, operator);
@@ -207,7 +214,9 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
     SY_error_occurred = false;
 
     for (i = start_idx; i < token_tbl->size; i++) {
-        if (n_parens_deep == 0 &&
+        if (token_tbl->elems[i].type == TokenType_SEMICOLON)
+            break;
+        else if (n_parens_deep == 0 &&
                 type_is_in_array(token_tbl->elems[i].type, stop_types,
                     n_stop_types))
             break;

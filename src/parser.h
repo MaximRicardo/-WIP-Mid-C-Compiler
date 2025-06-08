@@ -6,15 +6,21 @@
 
 struct ParserVar {
 
+    unsigned line_num, column_num;
     char *name;
     enum PrimitiveType type;
     u32 stack_pos;
 
+    /* used by functions */
+    struct VarDeclPtrList *args;
+    bool has_been_defined;
+
 };
 
 struct ParserVar ParserVar_init(void);
-struct ParserVar ParserVar_create(char *name, enum PrimitiveType type,
-        u32 stack_pos);
+struct ParserVar ParserVar_create(unsigned line_num, unsigned column_num,
+        char *name, enum PrimitiveType type, u32 stack_pos,
+        struct VarDeclPtrList *args, bool has_been_defined);
 void ParserVar_free(struct ParserVar var);
 
 struct ParVarList {
