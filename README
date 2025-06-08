@@ -11,11 +11,13 @@ easier to bootstrap.
 
 Thus far the compiler has:
     variables
+    multiple variable types
     function definitions
     function calls
+    function prototyping
 
 Next thing I'ma implement:
-    function prototyping
+    return statements
 
     Also, the compiler has a custom debugging keyword ':', which prints the
 value current stored in RAX.
