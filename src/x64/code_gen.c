@@ -126,6 +126,7 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
                     );
         }
         else {
+            printf("instr size = %d\n", instr->instr_size);
             fprintf(output, "mov %s [%s+%d]",
                     size_specifier[instr->instr_size],
                     reg_names[type_to_reg(instr->lhs.type)][InstrSize_64],

@@ -57,9 +57,11 @@ static void move_operator_to_out_queue(struct ExprPtrList *output_queue,
     operator->lhs =
         output_queue->elems[output_queue->size-1-(operator->rhs!=NULL)];
 
-    operator->lhs_type = Expr_type(operator->lhs);
-    if (operator->rhs)
-        operator->rhs_type = Expr_type(operator->rhs);
+    operator->og_lhs_type = Expr_type(operator->lhs, false);
+    operator->lhs_type = Expr_type(operator->rhs, true);
+    if (operator->rhs) {
+        operator->rhs_type = Expr_type(operator->rhs, true);
+    }
 
     /* Remove the lhs and rhs from the queue and replace them with the
      * operator. Later on the operator can then act as an operand for the next

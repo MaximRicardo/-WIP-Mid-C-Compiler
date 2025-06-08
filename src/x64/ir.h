@@ -103,6 +103,7 @@ enum InstrSize {
 };
 
 unsigned InstrSize_to_bytes(enum InstrSize size);
+enum InstrSize InstrSize_bytes_to(unsigned bytes);
 
 struct Instruction {
 

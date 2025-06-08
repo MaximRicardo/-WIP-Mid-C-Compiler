@@ -20,7 +20,7 @@ push rbp
 
 mov rbp, rsp
 
-sub rsp, 8
+sub rsp, 16
 
 mov eax, 10
 
@@ -65,51 +65,19 @@ pop rbp
 
 sub rsp, 8
 
-mov rax, rbx
-
-sub rsp, 8
-
-mov ecx, 100
-
-mov [rsp+0], ecx
-
-mov ecx, 2
-
-mov [rsp+4], ecx
-
-call func
-
-add rsp, 8
-
-xchg rax, rbx
-
-not ebx
+mov ebx, 4
 
 mov [rsp+0], ebx
 
-mov rax, rbx
-
-sub rsp, 8
-
-mov ecx, 2
-
-mov [rsp+0], ecx
-
-mov ecx, 5
-
-mov [rsp+4], ecx
-
-call func
-
-add rsp, 8
-
-xchg rax, rbx
+mov ebx, 3
 
 mov [rsp+4], ebx
 
 call func
 
 add rsp, 8
+
+mov [rbp+-9], al
 
 mov r15, rsp
 and rsp, -16

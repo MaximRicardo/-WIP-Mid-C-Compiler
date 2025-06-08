@@ -4,7 +4,9 @@
 
 enum PrimitiveType Ident_type_spec(const char *ident) {
 
-    if (strcmp(ident, "int") == 0)
+    if (strcmp(ident, "char") == 0)
+        return PrimType_CHAR;
+    else if (strcmp(ident, "int") == 0)
         return PrimType_INT;
 
     return PrimType_INVALID;

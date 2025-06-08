@@ -5,6 +5,7 @@
 
 /* Widths are measured in bytes */
 
+#define m_TypeSize_char 1
 #define m_TypeSize_int 4
 
 /* how many bytes it takes to make a new stack frame */

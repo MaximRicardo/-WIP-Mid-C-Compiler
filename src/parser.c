@@ -209,10 +209,9 @@ static struct Expr* var_decl_value(const struct Lexer *lexer, u32 v_decl_idx,
  * sp                   - can be NULL if is_func_param is true.
  */
 static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
-        u32 v_decl_idx, u32 *end_idx, u32 bp, u32 *sp, bool is_func_param,
-        unsigned *n_func_param_bytes) {
+        enum PrimitiveType var_type, u32 v_decl_idx, u32 *end_idx, u32 bp,
+        u32 *sp, bool is_func_param, unsigned *n_func_param_bytes) {
 
-    enum PrimitiveType var_type = PrimType_INT;
     unsigned var_size = PrimitiveType_size(var_type);
     struct VarDeclNode *var_decl = safe_malloc(sizeof(*var_decl));
     struct Expr *expr = is_func_param ? NULL :
@@ -233,12 +232,13 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
     }
 
     *var_decl = VarDeclNode_init();
+    var_decl->type = var_type;
     DeclList_push_back(&var_decl->decls, decl);
 
     ParVarList_push_back(&vars, ParserVar_create(
                 lexer->token_tbl.elems[v_decl_idx].line_num,
                 lexer->token_tbl.elems[v_decl_idx].column_num,
-                Token_src(&lexer->token_tbl.elems[v_decl_idx+1]), PrimType_INT,
+                Token_src(&lexer->token_tbl.elems[v_decl_idx+1]), var_type,
                 decl.bp_offset+bp, NULL, false));
     if (!is_func_param)
         *sp -= var_size;
@@ -313,8 +313,9 @@ static u32 parse_func_args(const struct Lexer *lexer, u32 arg_decl_start_idx,
                     sizeof(stop_types)/sizeof(stop_types[0])) - 1;
         }
 
-        arg = parse_var_decl(lexer, arg_decl_idx, &arg_decl_end_idx, bp,
-                NULL, true, &n_func_param_bytes);
+        arg = parse_var_decl(lexer, Ident_type_spec(type_spec_src),
+                arg_decl_idx, &arg_decl_end_idx, bp, NULL, true,
+                &n_func_param_bytes);
         VarDeclPtrList_push_back(args, arg);
 
         if (lexer->token_tbl.elems[arg_decl_end_idx].type == TokenType_R_PAREN) {
@@ -349,7 +350,7 @@ static u32 parse_func_args(const struct Lexer *lexer, u32 arg_decl_start_idx,
 }
 
 static void parse_func_decl(const struct Lexer *lexer, struct BlockNode *block,
-        u32 f_decl_idx, u32 *end_idx, u32 bp) {
+        enum PrimitiveType func_type, u32 f_decl_idx, u32 *end_idx, u32 bp) {
 
     struct FuncDeclNode *func = safe_malloc(sizeof(*func));
     struct VarDeclPtrList args = VarDeclPtrList_init();
@@ -366,13 +367,13 @@ static void parse_func_decl(const struct Lexer *lexer, struct BlockNode *block,
                     lexer->token_tbl.elems[f_decl_idx].line_num,
                     lexer->token_tbl.elems[f_decl_idx].column_num,
                     Token_src(&lexer->token_tbl.elems[f_decl_idx+1]),
-                    PrimType_INT, 0, &func->args, false));
+                    func_type, 0, &func->args, false));
         ++old_vars_size;
     }
 
     args_end_idx = parse_func_args(lexer, f_decl_idx+3, &args, bp);
 
-    *func = FuncDeclNode_create(args, PrimType_INT, NULL,
+    *func = FuncDeclNode_create(args, func_type, NULL,
                     Token_src(&lexer->token_tbl.elems[f_decl_idx+1]));
 
     if (prev_func_decl_var_idx != m_u32_max && func_prototypes_match(lexer,
@@ -473,8 +474,9 @@ static struct BlockNode* parse(const struct Lexer *lexer, u32 bp,
                     lexer->token_tbl.elems[start_idx+2].type !=
                     TokenType_L_PAREN) {
                 u32 old_sp = sp;
-                struct VarDeclNode *var_decl = parse_var_decl(lexer, start_idx,
-                        &prev_end_idx, bp, &sp, false, NULL);
+                struct VarDeclNode *var_decl = parse_var_decl(lexer,
+                        Ident_type_spec(token_src), start_idx, &prev_end_idx,
+                        bp, &sp, false, NULL);
                 ASTNodeList_push_back(&block->nodes,
                         ASTNode_create(
                             lexer->token_tbl.elems[start_idx].line_num,
@@ -485,7 +487,8 @@ static struct BlockNode* parse(const struct Lexer *lexer, u32 bp,
             }
             else if (lexer->token_tbl.elems[start_idx+2].type ==
                     TokenType_L_PAREN) {
-                parse_func_decl(lexer, block, start_idx, &prev_end_idx, bp);
+                parse_func_decl(lexer, block, Ident_type_spec(token_src),
+                        start_idx, &prev_end_idx, bp);
             }
             else {
                 fprintf(stderr,

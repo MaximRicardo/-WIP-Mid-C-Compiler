@@ -20,6 +20,9 @@ unsigned PrimitiveType_size(enum PrimitiveType type) {
 
     switch (type) {
 
+    case PrimType_CHAR:
+        return m_TypeSize_char;
+
     case PrimType_INT:
         return m_TypeSize_int;
 
@@ -34,6 +37,7 @@ enum PrimitiveType PrimitiveType_promote(enum PrimitiveType type) {
 
     switch (type) {
 
+    case PrimType_CHAR:
     case PrimType_INT:
         return PrimType_INT;
 
@@ -116,6 +120,7 @@ struct Expr Expr_init(void) {
     expr.src_len = 0;
     expr.lhs = NULL;
     expr.rhs = NULL;
+    expr.og_lhs_type = PrimType_INVALID;
     expr.lhs_type = PrimType_INVALID;
     expr.rhs_type = PrimType_INVALID;
     expr.args = ExprPtrList_init();
@@ -139,8 +144,11 @@ struct Expr Expr_create(unsigned line_num, unsigned column_num,
     expr.src_len = src_len;
     expr.lhs = lhs;
     expr.rhs = rhs;
-    expr.lhs_type = lhs_type;
-    expr.rhs_type = rhs_type;
+    expr.og_lhs_type = lhs_type;
+    expr.lhs_type = lhs_type == PrimType_INVALID ? PrimType_INVALID :
+        PrimitiveType_promote(lhs_type);
+    expr.rhs_type = rhs_type == PrimType_INVALID ? PrimType_INVALID :
+        PrimitiveType_promote(rhs_type);
     expr.args = args;
     expr.int_value = int_value;
     expr.bp_offset = bp_offset;
@@ -177,13 +185,16 @@ void Expr_recur_free_w_self(struct Expr *self) {
 
 }
 
-enum PrimitiveType Expr_type(const struct Expr *self) {
+enum PrimitiveType Expr_type(const struct Expr *self, bool promote) {
 
     if (self->rhs) {
         enum PrimitiveType lhs_prom = PrimitiveType_promote(self->lhs_type);
         /*
         enum PrimitiveType rhs_prom = PrimitiveType_promote(self->rhs_type);
         */
+
+        /* it's impossible to not promote the operands in this case */
+        assert(promote);
 
         /* Time for C arithmetic type conversions! Yayyyy! */
         /* Actually not yet cuz i haven't added any types other than int yet */
@@ -194,7 +205,8 @@ enum PrimitiveType Expr_type(const struct Expr *self) {
         return PrimType_INT;
     }
     else {
-        return PrimitiveType_promote(self->lhs_type);
+        return promote ? PrimitiveType_promote(self->lhs_type) :
+            self->og_lhs_type;
     }
 
 }

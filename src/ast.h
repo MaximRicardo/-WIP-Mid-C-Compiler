@@ -8,6 +8,7 @@ enum PrimitiveType {
 
     PrimType_INVALID,
 
+    PrimType_CHAR,
     PrimType_INT
 
 };
@@ -102,6 +103,7 @@ struct Expr {
 
     struct Expr *lhs, *rhs;
     enum PrimitiveType lhs_type, rhs_type;
+    enum PrimitiveType og_lhs_type;  /* the unpromoted version of lhs */
     struct ExprPtrList args; /* used by function calls */
 
     u32 int_value;
@@ -113,10 +115,11 @@ struct Expr {
 };
 
 struct Expr Expr_init(void);
+/* automatically promotes the lhs and rhs types */
 struct Expr Expr_create(unsigned line_num, unsigned column_num,
         const char *src_start, unsigned src_len, struct Expr *lhs,
-        struct Expr *rhs, enum PrimitiveType lhs_type, 
-        enum PrimitiveType rhs_type, struct ExprPtrList args, u32 int_value,
+        struct Expr *rhs, enum PrimitiveType og_lhs_type, 
+        enum PrimitiveType og_rhs_type, struct ExprPtrList args, u32 int_value,
         i32 bp_offset, enum ExprType expr_type);
 /* Uses the passed, tok_t_to_expr_td column numbers aswell as src_start and
  * src_len. */
@@ -126,7 +129,9 @@ struct Expr Expr_create_w_tok(struct Token token, struct Expr *lhs,
         i32 bp_offset, enum ExprType expr_type);
 /* Also frees self */
 void Expr_recur_free_w_self(struct Expr *self);
-enum PrimitiveType Expr_type(const struct Expr *self);
+/* promote is mostly set to false by assignments operators to figure out how
+ * many bytes need to be assigned */
+enum PrimitiveType Expr_type(const struct Expr *self, bool promote);
 u32 Expr_evaluate(const struct Expr *expr);
 char* Expr_src(const struct Expr *expr); /* same as Token_src */
 
