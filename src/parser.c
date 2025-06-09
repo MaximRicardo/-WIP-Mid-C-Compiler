@@ -514,6 +514,105 @@ static u32 parse_ret_stmt(const struct Lexer *lexer, struct BlockNode *block,
 
 }
 
+u32 parse_if_stmt(const struct Lexer *lexer, struct BlockNode *block,
+        u32 n_blocks_deep, u32 if_idx, u32 bp,
+        struct FuncDeclNode *parent_func) {
+
+    struct IfNode *if_node = NULL;
+
+    u32 r_paren_idx;
+    u32 end_idx;
+    bool missing_r_curly;
+
+    if (if_idx+1 >= lexer->token_tbl.size ||
+            lexer->token_tbl.elems[if_idx+1].type != TokenType_L_PAREN) {
+        fprintf(stderr,
+                "expected parentheses after the if statement on line %u\n.",
+                lexer->token_tbl.elems[if_idx].line_num);
+        Parser_error_occurred = true;
+        return skip_to_token_type_alt(if_idx, lexer->token_tbl,
+                TokenType_SEMICOLON);
+    }
+
+    if_node = safe_malloc(sizeof(*if_node));
+    *if_node = IfNode_init();
+
+    {
+        enum TokenType sy_stop_types[] = {TokenType_R_PAREN};
+        if_node->expr = SY_shunting_yard(&lexer->token_tbl, if_idx+2,
+                sy_stop_types, sizeof(sy_stop_types)/sizeof(sy_stop_types[0]),
+                &r_paren_idx, &vars, bp);
+    }
+
+    if (r_paren_idx >= lexer->token_tbl.size) {
+        fprintf(stderr,
+                "expected a ')' after the condition expression on line %u,"
+                " column %u\n", lexer->token_tbl.elems[if_idx+1].line_num,
+                lexer->token_tbl.elems[if_idx+1].column_num);
+        Parser_error_occurred = true;
+        IfNode_free_w_self(if_node);
+        return skip_to_token_type_alt(if_idx, lexer->token_tbl,
+                TokenType_SEMICOLON);
+    }
+    else if (r_paren_idx+1 < lexer->token_tbl.size &&
+            lexer->token_tbl.elems[r_paren_idx+1].type ==
+            TokenType_SEMICOLON) {
+        /* idk why tf anyone would make an if statement without a body but here
+         * ya go ig */
+        ASTNodeList_push_back(&block->nodes, ASTNode_create(
+                    lexer->token_tbl.elems[if_idx].line_num,
+                    lexer->token_tbl.elems[if_idx].column_num,
+                    ASTType_IF_STMT, if_node
+                    ));
+        return r_paren_idx;
+    }
+    else if (r_paren_idx+2 >= lexer->token_tbl.size) {
+        fprintf(stderr,
+                "expected a block after the if statement on line %u.\n",
+                lexer->token_tbl.elems[if_idx+1].line_num);
+        Parser_error_occurred = true;
+        IfNode_free_w_self(if_node);
+        return skip_to_token_type_alt(if_idx, lexer->token_tbl,
+                TokenType_SEMICOLON);
+    }
+
+    if (lexer->token_tbl.elems[r_paren_idx+1].type == TokenType_L_CURLY) {
+        if_node->body = parse(lexer, parent_func, bp,
+                r_paren_idx+2, &end_idx, n_blocks_deep+1, &missing_r_curly);
+    }
+    else {
+        enum TokenType stop_types[] = {TokenType_SEMICOLON};
+        struct ExprNode *body_expr = safe_malloc(sizeof(*body_expr));
+
+        *body_expr = ExprNode_init();
+
+        missing_r_curly = false;
+
+        if_node->body = safe_malloc(sizeof(*if_node->body));
+        *if_node->body = BlockNode_init();
+        body_expr->expr = SY_shunting_yard(&lexer->token_tbl, r_paren_idx+1,
+                stop_types,
+                sizeof(stop_types)/sizeof(stop_types[0]), &end_idx, &vars, bp);
+
+        ASTNodeList_push_back(&if_node->body->nodes, ASTNode_create(
+                    body_expr->expr->line_num, body_expr->expr->column_num,
+                    ASTType_EXPR, body_expr
+                    ));
+    }
+
+    if (missing_r_curly)
+        Parser_error_occurred = true;
+
+    ASTNodeList_push_back(&block->nodes, ASTNode_create(
+                lexer->token_tbl.elems[if_idx].line_num,
+                lexer->token_tbl.elems[if_idx].column_num,
+                ASTType_IF_STMT, if_node
+                ));
+
+    return end_idx;
+
+}
+
 static struct BlockNode* parse(const struct Lexer *lexer,
         struct FuncDeclNode *parent_func, u32 bp, u32 block_start_idx,
         u32 *end_idx, unsigned n_blocks_deep, bool *missing_r_curly) {
@@ -586,6 +685,12 @@ static struct BlockNode* parse(const struct Lexer *lexer,
                 Parser_error_occurred = true;
             }
         }
+
+        else if (lexer->token_tbl.elems[start_idx].type == TokenType_IF_STMT) {
+            prev_end_idx = parse_if_stmt(lexer, block, n_blocks_deep,
+                    start_idx, bp, parent_func);
+        }
+
         else if (lexer->token_tbl.elems[start_idx].type ==
                 TokenType_DEBUG_PRINT_RAX) {
             struct DebugPrintRAX *debug_node =
@@ -596,6 +701,7 @@ static struct BlockNode* parse(const struct Lexer *lexer,
                         ASTType_DEBUG_RAX, debug_node));
             prev_end_idx = start_idx+1;
         }
+
         else {
             struct Expr *expr = parse_expr(
                     lexer, start_idx, &prev_end_idx, bp);

@@ -54,6 +54,7 @@ const char *instr_type_to_asm[] = {
     "div",
     "idiv",
     "and",
+    "cmp",
 
     "not",
 
@@ -61,6 +62,10 @@ const char *instr_type_to_asm[] = {
     "pop",
     "call",
     "ret",
+
+    "jmp",
+    "je",
+    "jne",
 
     "LABEL INSTRUCTION",
 };
@@ -93,7 +98,15 @@ static bool type_is_reg(enum InstrOperandType type) {
 static bool regular_2_oper_instr(enum InstrType type) {
 
     return type == InstrType_ADD || type == InstrType_SUB ||
-        type == InstrType_MOV || type == InstrType_AND;
+        type == InstrType_MOV || type == InstrType_AND ||
+        type == InstrType_CMP;
+
+}
+
+static bool branch_instr(enum InstrType type) {
+
+    return type == InstrType_JMP || type == InstrType_JE ||
+        type == InstrType_JNE;
 
 }
 
@@ -304,6 +317,11 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
 
     else if (instr->type == InstrType_RET) {
         fprintf(output, "ret\n");
+    }
+
+    else if (branch_instr(instr->type)) {
+        fprintf(output, "%s %s\n", instr_type_to_asm[instr->type],
+            instr->string);
     }
 
     else if (instr->type == InstrType_LABEL) {

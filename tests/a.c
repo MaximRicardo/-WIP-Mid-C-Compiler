@@ -10,6 +10,10 @@ int main(void) {
     }
     char c = func(100, 3);
     :;
+    if (1-1) {
+        5-10;
+        :;
+    }
 
     return 0;
 }

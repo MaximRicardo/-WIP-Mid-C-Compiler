@@ -5,6 +5,14 @@
 #include <string.h>
 #include <stdlib.h>
 
+/* the length of the labels the compiler generates for stuff like loops and
+ * if statements, not the labels used for function names and stuff.
+ * i don't think anyone's ever gonna have a TU so long that they're gonna need
+ * label names long than this */
+#define m_comp_label_name_capacity 1024
+
+unsigned long label_counter = 0;
+
 /* is the register currently holding a value? */
 bool gp_reg_used[] = {
     false,  /* ax */
@@ -693,7 +701,7 @@ static void get_ret_stmt_instructions(struct InstrList *instrs,
 
         if (PrimitiveType_size(ret_node->type) < 8) {
             unsigned type_size = PrimitiveType_size(ret_node->type);
-            instr_reg_and_imm32(instrs, InstrType_AND, InstrSize_64,
+            instr_reg_and_imm32(instrs, InstrType_AND, InstrSize_32,
                     InstrOperandType_REG_AX,
                     type_size == 4 ? m_u32_max : (1<<type_size*8)-1, 0);
         }
@@ -712,6 +720,41 @@ static void get_ret_stmt_instructions(struct InstrList *instrs,
     pop_callee_saved_regs(instrs);
 
     instr_only_type(instrs, InstrType_RET);
+
+}
+
+static void get_if_stmt_instructions(struct InstrList *instrs,
+        struct IfNode *if_node) {
+
+    struct GPReg expr_reg;
+    /* each instruction assumes it can free it's associated string, meaning
+     * each instruction will need to be given a different one */
+    char *label_name[2] = {NULL, NULL};
+    u32 i;
+
+    if (!if_node->body)
+        return;
+
+    for (i = 0; i < sizeof(label_name)/sizeof(label_name[0]); i++) {
+        label_name[i] =
+            safe_malloc(m_comp_label_name_capacity*sizeof(*label_name[i]));
+        sprintf(label_name[i], "_L%lu", label_counter);
+    }
+    ++label_counter;
+
+    expr_reg = get_expr_instructions(instrs, if_node->expr, false);
+
+    instr_reg_and_imm32(instrs, InstrType_CMP, expr_reg.reg_size,
+            reg_idx_to_operand_t(expr_reg.reg_idx), 0, 0);
+    instr_string(instrs, InstrType_JE, label_name[0]);
+
+    free_reg(instrs, expr_reg);
+
+    create_stack_frame(instrs, if_node->body->var_bytes);
+    get_block_instructions(instrs, if_node->body);
+    destroy_stack_frame(instrs);
+
+    instr_string(instrs, InstrType_LABEL, label_name[1]);
 
 }
 
@@ -739,6 +782,9 @@ static void get_block_instructions(struct InstrList *instrs,
         }
         else if (block->nodes.elems[i].type == ASTType_RETURN) {
             get_ret_stmt_instructions(instrs, node_struct);
+        }
+        else if (block->nodes.elems[i].type == ASTType_IF_STMT) {
+            get_if_stmt_instructions(instrs, node_struct);
         }
 
         else if (block->nodes.elems[i].type == ASTType_DEBUG_RAX) {

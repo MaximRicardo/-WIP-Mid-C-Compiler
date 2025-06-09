@@ -36,6 +36,11 @@ enum TokenType {
     TokenType_IDENT,
     TokenType_FUNC_CALL,
 
+    /* keywords
+     * type specifiers aren't included here cuz they're detected during parsing
+     * instead of during lexing */
+    TokenType_IF_STMT,
+
     TokenType_DEBUG_PRINT_RAX
 
 };

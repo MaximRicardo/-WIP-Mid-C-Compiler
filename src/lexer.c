@@ -57,6 +57,17 @@ static unsigned get_identifier_len(const char *ident_start) {
 
 }
 
+/* returns TokenType_NONE if the identifier isn't a keyword */
+static enum TokenType identifier_keyword(const char *ident_start,
+        u32 ident_len) {
+
+    if (strncmp(ident_start, "if", ident_len) == 0)
+        return TokenType_IF_STMT;
+    else
+        return TokenType_NONE;
+
+}
+
 struct Lexer Lexer_lex(const char *src) {
 
     struct TokenList token_tbl = TokenList_init();
@@ -147,8 +158,17 @@ struct Lexer Lexer_lex(const char *src) {
 
         else if (valid_ident_start_char(src[src_i])) {
             unsigned len = get_identifier_len(&src[src_i]);
-            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], len, TokenType_IDENT));
+
+            enum TokenType keyword_type = identifier_keyword(&src[src_i], len);
+
+            if (keyword_type != TokenType_NONE) {
+                TokenList_push_back(&token_tbl, Token_create(line_num,
+                            column_num, &src[src_i], len, keyword_type));
+            }
+            else {
+                TokenList_push_back(&token_tbl, Token_create(line_num,
+                            column_num, &src[src_i], len, TokenType_IDENT));
+            }
             src_i += len-1;
             column_num += len-1;
         }

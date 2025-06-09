@@ -15,6 +15,7 @@ enum ASTNodeType {
     ASTType_FUNC,
     ASTType_BLOCK,
     ASTType_RETURN,
+    ASTType_IF_STMT,
 
     ASTType_DEBUG_RAX
 
@@ -42,6 +43,18 @@ struct ASTNodeList {
 };
 
 m_declare_VectorImpl_funcs(ASTNodeList, struct ASTNode)
+
+struct BlockNode {
+
+    struct ASTNodeList nodes;
+    /* the total number of bytes the function must allocate for its vars */
+    u32 var_bytes;
+
+};
+
+struct BlockNode BlockNode_init(void);
+struct BlockNode BlockNode_create(struct ASTNodeList nodes, u32 var_bytes);
+void BlockNode_free_w_self(struct BlockNode *self);
 
 /* when adding a new type make sure to update:
  *  expr_t_to_tok_t, tok_t_to_expr_t
@@ -219,17 +232,16 @@ struct RetNode RetNode_create(struct Expr *value, enum PrimitiveType type,
         u32 n_stack_frames_deep);
 void RetNode_free_w_self(struct RetNode *self);
 
-struct BlockNode {
+struct IfNode {
 
-    struct ASTNodeList nodes;
-    /* the total number of bytes the function must allocate for its vars */
-    u32 var_bytes;
+    struct Expr *expr;
+    struct BlockNode *body;
 
 };
 
-struct BlockNode BlockNode_init(void);
-struct BlockNode BlockNode_create(struct ASTNodeList nodes, u32 var_bytes);
-void BlockNode_free_w_self(struct BlockNode *self);
+struct IfNode IfNode_init(void);
+struct IfNode IfNode_create(struct Expr *expr, struct BlockNode *body);
+void IfNode_free_w_self(struct IfNode *self);
 
 struct DebugPrintRAX {
 

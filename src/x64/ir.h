@@ -29,6 +29,7 @@ enum InstrType {
     InstrType_MODULO,
     InstrType_IMODULO,
     InstrType_AND,
+    InstrType_CMP,
 
     /* unary operations */
     InstrType_BITWISE_NOT,
@@ -38,6 +39,11 @@ enum InstrType {
     InstrType_POP,
     InstrType_CALL,
     InstrType_RET,
+
+    /* branching */
+    InstrType_JMP,
+    InstrType_JE,
+    InstrType_JNE,
 
     InstrType_LABEL,
 

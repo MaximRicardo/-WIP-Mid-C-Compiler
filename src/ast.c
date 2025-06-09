@@ -45,6 +45,8 @@ void ASTNode_free(struct ASTNode node) {
             BlockNode_free_w_self(node.node_struct);
         else if (node.type == ASTType_RETURN)
             RetNode_free_w_self(node.node_struct);
+        else if (node.type == ASTType_IF_STMT)
+            IfNode_free_w_self(node.node_struct);
 
         else if (node.type == ASTType_DEBUG_RAX)
             m_free(node.node_struct);
@@ -522,6 +524,32 @@ struct RetNode RetNode_create(struct Expr *value, enum PrimitiveType type,
 void RetNode_free_w_self(struct RetNode *self) {
 
     Expr_recur_free_w_self(self->value);
+    m_free(self);
+
+}
+
+struct IfNode IfNode_init(void) {
+
+    struct IfNode node;
+    node.expr = NULL;
+    node.body = NULL;
+    return node;
+
+}
+
+struct IfNode IfNode_create(struct Expr *expr, struct BlockNode *body) {
+
+    struct IfNode node;
+    node.expr = expr;
+    node.body = body;
+    return node;
+
+}
+
+void IfNode_free_w_self(struct IfNode *self) {
+
+    Expr_recur_free_w_self(self->expr);
+    BlockNode_free_w_self(self->body);
     m_free(self);
 
 }
