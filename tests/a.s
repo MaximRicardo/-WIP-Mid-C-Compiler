@@ -88,6 +88,12 @@ mov rsi, rbx
 call printf
 mov rsp, r15
 
+sub rsp, qword 0
+
+call foo
+
+add rsp, qword 0
+
 mov eax, dword 0
 
 and rax, qword -1
@@ -149,6 +155,56 @@ mov ebx, [rbp+60]
 imul ebx
 
 and rax, qword -1
+
+mov rsp, rbp
+
+pop rbp
+
+pop r15
+
+pop r14
+
+pop r13
+
+pop r12
+
+pop rbx
+
+ret
+
+mov rsp, rbp
+
+pop rbp
+
+pop r15
+
+pop r14
+
+pop r13
+
+pop r12
+
+pop rbx
+
+ret
+
+foo:
+
+push rbx
+
+push r12
+
+push r13
+
+push r14
+
+push r15
+
+push rbp
+
+mov rbp, rsp
+
+sub rsp, qword 0
 
 mov rsp, rbp
 

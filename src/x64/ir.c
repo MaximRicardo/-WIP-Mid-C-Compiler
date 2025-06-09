@@ -690,13 +690,13 @@ static void get_ret_stmt_instructions(struct InstrList *instrs,
             get_expr_instructions(instrs, ret_node->value, false);
         assert(reg.reg_idx == 0);
         free_reg(instrs, reg);
-    }
 
-    if (PrimitiveType_size(ret_node->type) < 8) {
-        unsigned type_size = PrimitiveType_size(ret_node->type);
-        instr_reg_and_imm32(instrs, InstrType_AND, InstrSize_64,
-                InstrOperandType_REG_AX,
-                type_size == 4 ? m_u32_max : (1<<type_size*8)-1, 0);
+        if (PrimitiveType_size(ret_node->type) < 8) {
+            unsigned type_size = PrimitiveType_size(ret_node->type);
+            instr_reg_and_imm32(instrs, InstrType_AND, InstrSize_64,
+                    InstrOperandType_REG_AX,
+                    type_size == 4 ? m_u32_max : (1<<type_size*8)-1, 0);
+        }
     }
 
     /* destroy all the stack frames to get to the return address.

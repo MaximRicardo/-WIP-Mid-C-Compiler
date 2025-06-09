@@ -2,51 +2,12 @@
 #include "bool.h"
 #include "safe_mem.h"
 #include "token.h"
-#include "backend_dependent/type_sizes.h"
 #include "vector_impl.h"
 #include <assert.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-bool PrimitiveType_signed(enum PrimitiveType type) {
-
-    return type == PrimType_INT;
-
-}
-
-unsigned PrimitiveType_size(enum PrimitiveType type) {
-
-    switch (type) {
-
-    case PrimType_CHAR:
-        return m_TypeSize_char;
-
-    case PrimType_INT:
-        return m_TypeSize_int;
-
-    case PrimType_INVALID:
-        assert(false);
-
-    }
-
-}
-
-enum PrimitiveType PrimitiveType_promote(enum PrimitiveType type) {
-
-    switch (type) {
-
-    case PrimType_CHAR:
-    case PrimType_INT:
-        return PrimType_INT;
-
-    case PrimType_INVALID:
-        assert(false);
-
-    }
-
-}
 
 struct ASTNode ASTNode_init(void) {
 

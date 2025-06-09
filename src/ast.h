@@ -3,19 +3,8 @@
 #include "comp_dependent/ints.h"
 #include "token.h"
 #include "vector_impl.h"
-
-enum PrimitiveType {
-
-    PrimType_INVALID,
-
-    PrimType_CHAR,
-    PrimType_INT
-
-};
-
-bool PrimitiveType_signed(enum PrimitiveType type);
-unsigned PrimitiveType_size(enum PrimitiveType type);
-enum PrimitiveType PrimitiveType_promote(enum PrimitiveType type);
+#include "prim_type.h"
+#include "parser_var.h"
 
 enum ASTNodeType {
 
@@ -136,6 +125,9 @@ void Expr_recur_free_w_self(struct Expr *self);
 enum PrimitiveType Expr_type(const struct Expr *self, bool promote);
 u32 Expr_evaluate(const struct Expr *expr);
 char* Expr_src(const struct Expr *expr); /* same as Token_src */
+/* checks if there are any errors in the expression that the shunting yard
+ * function couldn't catch */
+bool Expr_verify(const struct Expr *expr, const struct ParVarList *vars);
 
 m_declare_VectorImpl_funcs(ExprPtrList, struct Expr*)
 

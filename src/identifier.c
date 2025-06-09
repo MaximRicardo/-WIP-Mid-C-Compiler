@@ -8,6 +8,8 @@ enum PrimitiveType Ident_type_spec(const char *ident) {
         return PrimType_CHAR;
     else if (strcmp(ident, "int") == 0)
         return PrimType_INT;
+    else if (strcmp(ident, "void") == 0)
+        return PrimType_VOID;
 
     return PrimType_INVALID;
 

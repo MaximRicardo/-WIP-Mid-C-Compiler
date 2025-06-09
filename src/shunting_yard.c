@@ -159,6 +159,8 @@ static u32 read_func_call(const struct TokenList *token_tbl, u32 f_call_idx,
         return skip_to_token_type_alt(f_call_idx, *token_tbl, TokenType_R_PAREN);
     }
     m_free(name);
+
+
     expr = safe_malloc(sizeof(*expr));
     *expr = Expr_create_w_tok(token_tbl->elems[f_call_idx], NULL, NULL,
             PrimType_INVALID, PrimType_INVALID, ExprPtrList_init(), 0, 0,
@@ -311,6 +313,7 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
     if (output_queue.size == 1) {
         struct Expr *expr = output_queue.elems[0];
         ExprPtrList_free(&output_queue);
+        SY_error_occurred |= Expr_verify(expr, vars);
         return expr;
     }
     else {

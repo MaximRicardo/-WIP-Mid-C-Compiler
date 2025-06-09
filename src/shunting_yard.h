@@ -3,7 +3,7 @@
 #include "ast.h"
 #include "bool.h"
 #include "token.h"
-#include "parser.h"
+#include "parser_var.h"
 
 extern bool SY_error_occurred;
 

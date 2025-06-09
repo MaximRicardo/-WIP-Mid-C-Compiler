@@ -1,0 +1,18 @@
+#pragma once
+
+#include "bool.h"
+
+enum PrimitiveType {
+
+    PrimType_INVALID,
+
+    PrimType_CHAR,
+    PrimType_INT,
+
+    PrimType_VOID
+
+};
+
+bool PrimitiveType_signed(enum PrimitiveType type);
+unsigned PrimitiveType_size(enum PrimitiveType type);
+enum PrimitiveType PrimitiveType_promote(enum PrimitiveType type);
