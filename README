@@ -18,7 +18,7 @@ Thus far the compiler has:
     return statements
 
 Next thing I'ma implement:
-    void types
+    function argument error checking
 
     Also, the compiler has a custom debugging keyword ':', which prints the
 value current stored in RAX.
