@@ -88,12 +88,6 @@ mov rsi, rbx
 call printf
 mov rsp, r15
 
-sub rsp, qword 0
-
-call foo
-
-add rsp, qword 0
-
 mov eax, dword 0
 
 and rax, qword -1

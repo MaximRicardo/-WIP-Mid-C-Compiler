@@ -10,6 +10,7 @@ struct ParserVar ParserVar_init(void) {
     var.type = PrimType_INVALID;
     var.stack_pos = 0;
     var.args = NULL;
+    var.void_args = false;
     var.has_been_defined = false;
     return var;
 
@@ -17,7 +18,7 @@ struct ParserVar ParserVar_init(void) {
 
 struct ParserVar ParserVar_create(unsigned line_num, unsigned column_num,
         char *name, enum PrimitiveType type, u32 stack_pos,
-        struct VarDeclPtrList *args, bool has_been_defined) {
+        struct VarDeclPtrList *args, bool void_args, bool has_been_defined) {
 
     struct ParserVar var;
     var.line_num = line_num;
@@ -26,6 +27,7 @@ struct ParserVar ParserVar_create(unsigned line_num, unsigned column_num,
     var.type = type;
     var.stack_pos = stack_pos;
     var.args = args;
+    var.void_args = void_args;
     var.has_been_defined = has_been_defined;
     return var;
 

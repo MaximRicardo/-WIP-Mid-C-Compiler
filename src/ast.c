@@ -422,10 +422,47 @@ void VarDeclNode_free_w_self(struct VarDeclNode *self) {
 
 }
 
+bool VarDeclPtrList_equivalent(const struct VarDeclPtrList *self,
+        const struct VarDeclPtrList *other) {
+
+    u32 i;
+
+    if (self->size != other->size)
+        return false;
+
+    for (i = 0; i < self->size; i++) {
+        if (self->elems[i]->type != other->elems[i]->type) {
+            return false;
+        }
+    }
+
+    return true;
+
+}
+
+bool VarDeclPtrList_equivalent_expr(const struct VarDeclPtrList *self,
+        const struct ExprPtrList *other) {
+
+    u32 i;
+
+    if (self->size != other->size)
+        return false;
+
+    for (i = 0; i < self->size; i++) {
+        if (self->elems[i]->type != Expr_type(other->elems[i], true)) {
+            return false;
+        }
+    }
+
+    return true;
+
+}
+
 struct FuncDeclNode FuncDeclNode_init(void) {
 
     struct FuncDeclNode func_decl;
     func_decl.args = VarDeclPtrList_init();
+    func_decl.void_args = false;
     func_decl.ret_type = PrimType_INVALID;
     func_decl.body = NULL;
     func_decl.name = NULL;
@@ -434,10 +471,12 @@ struct FuncDeclNode FuncDeclNode_init(void) {
 }
 
 struct FuncDeclNode FuncDeclNode_create(struct VarDeclPtrList args,
-        enum PrimitiveType ret_type, struct BlockNode *body, char *name) {
+        bool void_args, enum PrimitiveType ret_type, struct BlockNode *body,
+        char *name) {
 
     struct FuncDeclNode func_decl;
     func_decl.args = args;
+    func_decl.void_args = void_args;
     func_decl.ret_type = ret_type;
     func_decl.body = body;
     func_decl.name = name;

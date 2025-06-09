@@ -184,11 +184,16 @@ struct VarDeclPtrList {
 
 };
 
+bool VarDeclPtrList_equivalent(const struct VarDeclPtrList *self,
+        const struct VarDeclPtrList *other);
+bool VarDeclPtrList_equivalent_expr(const struct VarDeclPtrList *self,
+        const struct ExprPtrList *other);
 m_declare_VectorImpl_funcs(VarDeclPtrList, struct VarDeclNode*)
 
 struct FuncDeclNode {
 
     struct VarDeclPtrList args;
+    bool void_args;
     enum PrimitiveType ret_type;
     struct BlockNode *body;
     char *name;
@@ -197,7 +202,8 @@ struct FuncDeclNode {
 
 struct FuncDeclNode FuncDeclNode_init(void);
 struct FuncDeclNode FuncDeclNode_create(struct VarDeclPtrList args,
-        enum PrimitiveType ret_type, struct BlockNode *body, char *name);
+        bool void_args, enum PrimitiveType ret_type, struct BlockNode *body,
+        char *name);
 void FuncDeclNode_free_w_self(struct FuncDeclNode *self);
 
 struct RetNode {

@@ -14,6 +14,7 @@ struct ParserVar {
 
     /* used by functions */
     struct VarDeclPtrList *args;
+    bool void_args; /* int func(void), for example. */
     bool has_been_defined;
 
 };
@@ -21,7 +22,7 @@ struct ParserVar {
 struct ParserVar ParserVar_init(void);
 struct ParserVar ParserVar_create(unsigned line_num, unsigned column_num,
         char *name, enum PrimitiveType type, u32 stack_pos,
-        struct VarDeclPtrList *args, bool has_been_defined);
+        struct VarDeclPtrList *args, bool void_args, bool has_been_defined);
 void ParserVar_free(struct ParserVar var);
 
 struct ParVarList {

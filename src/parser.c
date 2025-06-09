@@ -222,7 +222,7 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
                 lexer->token_tbl.elems[v_decl_idx].line_num,
                 lexer->token_tbl.elems[v_decl_idx].column_num,
                 Token_src(&lexer->token_tbl.elems[v_decl_idx+1]), var_type,
-                decl.bp_offset+bp, NULL, false));
+                decl.bp_offset+bp, NULL, false, false));
     if (!is_func_param)
         *sp -= var_size;
     else
@@ -252,6 +252,8 @@ static bool func_prototypes_match(const struct Lexer *lexer,
     not_matching |= vars.elems[prev_func_decl_var_idx].type != func->ret_type;
     not_matching |= vars.elems[prev_func_decl_var_idx].args->size !=
         func->args.size;
+    not_matching |= vars.elems[prev_func_decl_var_idx].void_args !=
+        func->void_args;
     for (i = 0; !not_matching && i < func->args.size; i++) {
         if (func->args.elems[i]->type !=
                 vars.elems[prev_func_decl_var_idx].args->elems[i]->type) {
@@ -281,7 +283,7 @@ static bool is_unnamed_void_var(const struct Lexer *lexer, u32 type_spec_idx) {
 
 /* returns the right parenthesis of after the function arguments */
 static u32 parse_func_args(const struct Lexer *lexer, u32 arg_decl_start_idx,
-        struct VarDeclPtrList *args, u32 bp) {
+        struct VarDeclPtrList *args, bool *void_args, u32 bp) {
 
     u32 arg_decl_idx = arg_decl_start_idx;
     u32 arg_decl_end_idx = arg_decl_idx;
@@ -290,6 +292,7 @@ static u32 parse_func_args(const struct Lexer *lexer, u32 arg_decl_start_idx,
     /* if the function arguments start with an unnamed void variable, that
      * means the function takes no arguments */
     if (is_unnamed_void_var(lexer, arg_decl_idx)) {
+        *void_args = true;
         arg_decl_end_idx = arg_decl_idx+1;
         if (arg_decl_end_idx >= lexer->token_tbl.size ||
                 lexer->token_tbl.elems[arg_decl_end_idx].type !=
@@ -299,6 +302,9 @@ static u32 parse_func_args(const struct Lexer *lexer, u32 arg_decl_start_idx,
         else {
             return arg_decl_end_idx;
         }
+    }
+    else {
+        *void_args = false;
     }
 
     while (arg_decl_end_idx < lexer->token_tbl.size &&
@@ -367,6 +373,7 @@ static void parse_func_decl(const struct Lexer *lexer, struct BlockNode *block,
 
     struct FuncDeclNode *func = safe_malloc(sizeof(*func));
     struct VarDeclPtrList args = VarDeclPtrList_init();
+    bool void_args = false;
     u32 old_vars_size = vars.size;
     u32 args_end_idx;
     char *func_name = Token_src(&lexer->token_tbl.elems[f_decl_idx+1]);
@@ -375,16 +382,18 @@ static void parse_func_decl(const struct Lexer *lexer, struct BlockNode *block,
     prev_func_decl_var_idx = ParVarList_find_var(&vars, func_name);
 
     if (prev_func_decl_var_idx == m_u32_max) { 
-        /* has no earlier prototype */
+        /* has no earlier declaration */
         ParVarList_push_back(&vars, ParserVar_create(
                     lexer->token_tbl.elems[f_decl_idx].line_num,
                     lexer->token_tbl.elems[f_decl_idx].column_num,
                     Token_src(&lexer->token_tbl.elems[f_decl_idx+1]),
-                    func_type, 0, &func->args, false));
+                    func_type, 0, &func->args, void_args, false));
         ++old_vars_size;
     }
 
-    args_end_idx = parse_func_args(lexer, f_decl_idx+3, &args, bp);
+    args_end_idx = parse_func_args(lexer, f_decl_idx+3, &args, &void_args, bp);
+    vars.elems[old_vars_size-1].void_args = void_args;
+
     if (args_end_idx == m_u32_max) {
         fprintf(stderr,
                 "expected ')' to finish the list of arguments for '%s'."
@@ -398,7 +407,7 @@ static void parse_func_decl(const struct Lexer *lexer, struct BlockNode *block,
         return;
     }
 
-    *func = FuncDeclNode_create(args, func_type, NULL,
+    *func = FuncDeclNode_create(args, void_args, func_type, NULL,
                     Token_src(&lexer->token_tbl.elems[f_decl_idx+1]));
 
     if (prev_func_decl_var_idx != m_u32_max && func_prototypes_match(lexer,
