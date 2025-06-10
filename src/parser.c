@@ -18,8 +18,9 @@ bool Parser_error_occurred = false;
 struct ParVarList vars;
 
 static struct BlockNode* parse(const struct Lexer *lexer,
-        struct FuncDeclNode *parent_func, u32 bp, u32 block_start_idx,
-        u32 *end_idx, unsigned n_blocks_deep, bool *missing_r_curly);
+        struct FuncDeclNode *parent_func, u32 bp, u32 sp, u32 block_start_idx,
+        u32 *end_idx, unsigned n_blocks_deep, bool *missing_r_curly,
+        bool detect_missing_curly, u32 n_instr_to_parse);
 
 static u32 round_down(u32 num, u32 multiple) {
 
@@ -440,8 +441,8 @@ static void parse_func_decl(const struct Lexer *lexer, struct BlockNode *block,
             Parser_error_occurred = false;
         }
 
-        func->body = parse(lexer, func, bp, args_end_idx+2, &func_end_idx, 1,
-                &missing_r_curly);
+        func->body = parse(lexer, func, bp, bp, args_end_idx+2, &func_end_idx,
+                1, &missing_r_curly, true, 0);
         if (!missing_r_curly)
             check_if_missing_r_curly(lexer, args_end_idx+2, func_end_idx,
                     false, NULL);
@@ -522,7 +523,6 @@ u32 parse_if_stmt(const struct Lexer *lexer, struct BlockNode *block,
 
     u32 r_paren_idx;
     u32 end_idx;
-    bool missing_r_curly;
 
     if (if_idx+1 >= lexer->token_tbl.size ||
             lexer->token_tbl.elems[if_idx+1].type != TokenType_L_PAREN) {
@@ -576,70 +576,45 @@ u32 parse_if_stmt(const struct Lexer *lexer, struct BlockNode *block,
                 TokenType_SEMICOLON);
     }
 
-    if (lexer->token_tbl.elems[r_paren_idx+1].type == TokenType_L_CURLY) {
+    if_node->body_in_block = lexer->token_tbl.elems[r_paren_idx+1].type ==
+        TokenType_L_CURLY;
+    {
+        u32 body_start_idx = r_paren_idx+1+if_node->body_in_block;
+        bool missing_r_curly;
         if_node->body = parse(lexer, parent_func,
-                sp-m_TypeSize_stack_frame_size, r_paren_idx+2, &end_idx,
-                n_blocks_deep+1, &missing_r_curly);
-        if_node->body_in_block = true;
+                if_node->body_in_block ? sp-m_TypeSize_stack_frame_size :
+                bp,
+                if_node->body_in_block ? sp-m_TypeSize_stack_frame_size :
+                sp,
+                body_start_idx, &end_idx, n_blocks_deep+1,
+                &missing_r_curly, if_node->body_in_block,
+                !if_node->body_in_block);
+
+        if (!missing_r_curly && if_node->body_in_block)
+            check_if_missing_r_curly(lexer, body_start_idx, end_idx, false,
+                    NULL);
     }
-    else {
-        enum TokenType stop_types[] = {TokenType_SEMICOLON};
-        struct ExprNode *body_expr = safe_malloc(sizeof(*body_expr));
-
-        *body_expr = ExprNode_init();
-
-        missing_r_curly = false;
-
-        if_node->body = safe_malloc(sizeof(*if_node->body));
-        *if_node->body = BlockNode_init();
-        body_expr->expr = SY_shunting_yard(&lexer->token_tbl, r_paren_idx+1,
-                stop_types,
-                sizeof(stop_types)/sizeof(stop_types[0]), &end_idx, &vars, bp);
-
-        ASTNodeList_push_back(&if_node->body->nodes, ASTNode_create(
-                    body_expr->expr->line_num, body_expr->expr->column_num,
-                    ASTType_EXPR, body_expr
-                    ));
-
-        if_node->body_in_block = false;
-    }
-
-    if (missing_r_curly)
-        Parser_error_occurred = true;
 
     if (end_idx+1 < lexer->token_tbl.size &&
             lexer->token_tbl.elems[end_idx+1].type == TokenType_ELSE) {
 
-        u32 else_idx = end_idx+1;
+        u32 else_body_start_idx;
+        bool missing_r_curly;
+        if_node->else_body_in_block =
+            lexer->token_tbl.elems[end_idx+2].type == TokenType_ELSE;
+        else_body_start_idx = end_idx+2+if_node->else_body_in_block;
+        if_node->else_body = parse(lexer, parent_func,
+                if_node->else_body_in_block ? sp-m_TypeSize_stack_frame_size :
+                bp,
+                if_node->else_body_in_block ? sp-m_TypeSize_stack_frame_size :
+                sp,
+                else_body_start_idx, &end_idx, n_blocks_deep+1,
+                &missing_r_curly, if_node->else_body_in_block,
+                !if_node->else_body_in_block);
 
-        if (lexer->token_tbl.elems[else_idx+1].type == TokenType_L_CURLY) {
-            if_node->else_body = parse(lexer, parent_func,
-                    sp-m_TypeSize_stack_frame_size, else_idx+2, &end_idx,
-                    n_blocks_deep+1, &missing_r_curly);
-            if_node->else_body_in_block = true;
-        }
-        else {
-            enum TokenType stop_types[] = {TokenType_SEMICOLON};
-            struct ExprNode *body_expr = safe_malloc(sizeof(*body_expr));
-
-            *body_expr = ExprNode_init();
-
-            missing_r_curly = false;
-
-            if_node->else_body = safe_malloc(sizeof(*if_node->body));
-            *if_node->else_body = BlockNode_init();
-            body_expr->expr = SY_shunting_yard(&lexer->token_tbl,
-                    else_idx+1, stop_types,
-                    sizeof(stop_types)/sizeof(stop_types[0]), &end_idx, &vars,
-                    bp);
-
-            ASTNodeList_push_back(&if_node->else_body->nodes, ASTNode_create(
-                        body_expr->expr->line_num, body_expr->expr->column_num,
-                        ASTType_EXPR, body_expr
-                        ));
-
-            if_node->else_body_in_block = false;
-        }
+        if (!missing_r_curly && if_node->else_body_in_block)
+            check_if_missing_r_curly(lexer, else_body_start_idx, end_idx,
+                    false, NULL);
 
     }
 
@@ -653,12 +628,15 @@ u32 parse_if_stmt(const struct Lexer *lexer, struct BlockNode *block,
 
 }
 
+/*
+ * n_instr_to_parse   - if set to 0, parses any nr of instructions.
+ */
 static struct BlockNode* parse(const struct Lexer *lexer,
-        struct FuncDeclNode *parent_func, u32 bp, u32 block_start_idx,
-        u32 *end_idx, unsigned n_blocks_deep, bool *missing_r_curly) {
+        struct FuncDeclNode *parent_func, u32 bp, u32 sp, u32 block_start_idx,
+        u32 *end_idx, unsigned n_blocks_deep, bool *missing_r_curly,
+        bool detect_missing_curly, u32 n_instr_to_parse) {
 
-    /* used for bp offsets */
-    u32 sp = bp;
+    u32 n_instrs_parsed = m_u32_max;  /* wraps around to 0 later */
 
     u32 old_vars_size = vars.size;
 
@@ -672,12 +650,20 @@ static struct BlockNode* parse(const struct Lexer *lexer,
     while (prev_end_idx+1 < lexer->token_tbl.size) {
 
         u32 start_idx = prev_end_idx+1;
-        char *token_src = Token_src(&lexer->token_tbl.elems[start_idx]);
+        char *token_src = NULL;
+
+        ++n_instrs_parsed;
+        if (n_instr_to_parse > 0 && n_instrs_parsed == n_instr_to_parse) {
+            break;
+        }
+
+        token_src = Token_src(&lexer->token_tbl.elems[start_idx]);
 
         if (lexer->token_tbl.elems[start_idx].type == TokenType_L_CURLY) {
             struct BlockNode *new_block = parse(lexer, parent_func,
+                    sp-m_TypeSize_stack_frame_size,
                     sp-m_TypeSize_stack_frame_size, start_idx+1,
-                    &prev_end_idx, n_blocks_deep+1, NULL);
+                    &prev_end_idx, n_blocks_deep+1, NULL, true, 0);
             ASTNodeList_push_back(&block->nodes, ASTNode_create(
                         lexer->token_tbl.elems[start_idx].line_num,
                         lexer->token_tbl.elems[start_idx].column_num,
@@ -761,7 +747,7 @@ static struct BlockNode* parse(const struct Lexer *lexer,
     if (end_idx)
         *end_idx = prev_end_idx;
 
-    if (n_blocks_deep == 1 &&
+    if (n_blocks_deep == 1 && detect_missing_curly &&
             lexer->token_tbl.elems[prev_end_idx].type != TokenType_R_CURLY) {
         if (missing_r_curly)
             *missing_r_curly = true;
@@ -787,7 +773,7 @@ struct BlockNode* Parser_parse(const struct Lexer *lexer) {
     vars = ParVarList_init();
     Parser_error_occurred = false;
 
-    root = parse(lexer, NULL, bp, 0, NULL, 0, NULL);
+    root = parse(lexer, NULL, bp, bp, 0, NULL, 0, NULL, true, 0);
 
     assert(vars.size == 0);
     ParVarList_free(&vars);

@@ -557,8 +557,10 @@ struct IfNode IfNode_create(struct Expr *expr, struct BlockNode *body,
 void IfNode_free_w_self(struct IfNode *self) {
 
     Expr_recur_free_w_self(self->expr);
-    BlockNode_free_w_self(self->body);
-    BlockNode_free_w_self(self->else_body);
+    if (self->body)
+        BlockNode_free_w_self(self->body);
+    if (self->else_body)
+        BlockNode_free_w_self(self->else_body);
     m_free(self);
 
 }

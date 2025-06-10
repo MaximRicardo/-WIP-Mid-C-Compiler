@@ -17,9 +17,10 @@ Thus far the compiler has:
     function prototyping
     return statements
     function argument error checking
+    if/else statements
 
 Next thing I'ma implement:
-    if statements
+    pointers
 
     Also, the compiler has a custom debugging keyword ':', which prints the
 value current stored in RAX.

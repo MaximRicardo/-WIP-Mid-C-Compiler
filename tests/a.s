@@ -98,15 +98,11 @@ push rbp
 
 mov rbp, rsp
 
-sub rsp, qword 8
+sub rsp, qword 0
 
 mov eax, [rbp+20]
 
-sub eax, dword 10
-
-mov [rbp+-4], eax
-
-mov eax, [rbp+-4]
+sub eax, dword 5
 
 mov rsp, rbp
 
@@ -116,10 +112,71 @@ jmp _L1
 
 _L0:
 
-mov eax, dword 5
+mov eax, dword 1
 
-mov edx, 5
-imul edx
+cmp eax, dword 0
+
+je _L2
+
+push rbp
+
+mov rbp, rsp
+
+sub rsp, qword 0
+
+mov eax, [rbp+20]
+
+sub eax, dword 10
+
+mov rsp, rbp
+
+pop rbp
+
+jmp _L3
+
+_L2:
+
+mov eax, dword 1
+
+cmp eax, dword 0
+
+je _L4
+
+push rbp
+
+mov rbp, rsp
+
+sub rsp, qword 0
+
+mov eax, [rbp+20]
+
+sub eax, dword 15
+
+mov rsp, rbp
+
+pop rbp
+
+jmp _L5
+
+_L4:
+
+push rbp
+
+mov rbp, rsp
+
+sub rsp, qword 0
+
+mov eax, [rbp+20]
+
+sub eax, dword 20
+
+mov rsp, rbp
+
+pop rbp
+
+_L5:
+
+_L3:
 
 _L1:
 
