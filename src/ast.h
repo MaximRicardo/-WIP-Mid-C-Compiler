@@ -236,11 +236,17 @@ struct IfNode {
 
     struct Expr *expr;
     struct BlockNode *body;
+    struct BlockNode *else_body;
+    /* are there curly brackets around the if and else bodies or are they just
+     * single expressions */
+    bool body_in_block, else_body_in_block;
 
 };
 
 struct IfNode IfNode_init(void);
-struct IfNode IfNode_create(struct Expr *expr, struct BlockNode *body);
+struct IfNode IfNode_create(struct Expr *expr, struct BlockNode *body,
+        struct BlockNode *else_body, bool body_in_block,
+        bool else_body_in_block);
 void IfNode_free_w_self(struct IfNode *self);
 
 struct DebugPrintRAX {

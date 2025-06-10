@@ -40,6 +40,7 @@ enum TokenType {
      * type specifiers aren't included here cuz they're detected during parsing
      * instead of during lexing */
     TokenType_IF_STMT,
+    TokenType_ELSE,
 
     TokenType_DEBUG_PRINT_RAX
 

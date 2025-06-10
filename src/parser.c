@@ -515,7 +515,7 @@ static u32 parse_ret_stmt(const struct Lexer *lexer, struct BlockNode *block,
 }
 
 u32 parse_if_stmt(const struct Lexer *lexer, struct BlockNode *block,
-        u32 n_blocks_deep, u32 if_idx, u32 bp,
+        u32 n_blocks_deep, u32 if_idx, u32 bp, u32 sp,
         struct FuncDeclNode *parent_func) {
 
     struct IfNode *if_node = NULL;
@@ -577,8 +577,10 @@ u32 parse_if_stmt(const struct Lexer *lexer, struct BlockNode *block,
     }
 
     if (lexer->token_tbl.elems[r_paren_idx+1].type == TokenType_L_CURLY) {
-        if_node->body = parse(lexer, parent_func, bp,
-                r_paren_idx+2, &end_idx, n_blocks_deep+1, &missing_r_curly);
+        if_node->body = parse(lexer, parent_func,
+                sp-m_TypeSize_stack_frame_size, r_paren_idx+2, &end_idx,
+                n_blocks_deep+1, &missing_r_curly);
+        if_node->body_in_block = true;
     }
     else {
         enum TokenType stop_types[] = {TokenType_SEMICOLON};
@@ -598,10 +600,48 @@ u32 parse_if_stmt(const struct Lexer *lexer, struct BlockNode *block,
                     body_expr->expr->line_num, body_expr->expr->column_num,
                     ASTType_EXPR, body_expr
                     ));
+
+        if_node->body_in_block = false;
     }
 
     if (missing_r_curly)
         Parser_error_occurred = true;
+
+    if (end_idx+1 < lexer->token_tbl.size &&
+            lexer->token_tbl.elems[end_idx+1].type == TokenType_ELSE) {
+
+        u32 else_idx = end_idx+1;
+
+        if (lexer->token_tbl.elems[else_idx+1].type == TokenType_L_CURLY) {
+            if_node->else_body = parse(lexer, parent_func,
+                    sp-m_TypeSize_stack_frame_size, else_idx+2, &end_idx,
+                    n_blocks_deep+1, &missing_r_curly);
+            if_node->else_body_in_block = true;
+        }
+        else {
+            enum TokenType stop_types[] = {TokenType_SEMICOLON};
+            struct ExprNode *body_expr = safe_malloc(sizeof(*body_expr));
+
+            *body_expr = ExprNode_init();
+
+            missing_r_curly = false;
+
+            if_node->else_body = safe_malloc(sizeof(*if_node->body));
+            *if_node->else_body = BlockNode_init();
+            body_expr->expr = SY_shunting_yard(&lexer->token_tbl,
+                    else_idx+1, stop_types,
+                    sizeof(stop_types)/sizeof(stop_types[0]), &end_idx, &vars,
+                    bp);
+
+            ASTNodeList_push_back(&if_node->else_body->nodes, ASTNode_create(
+                        body_expr->expr->line_num, body_expr->expr->column_num,
+                        ASTType_EXPR, body_expr
+                        ));
+
+            if_node->else_body_in_block = false;
+        }
+
+    }
 
     ASTNodeList_push_back(&block->nodes, ASTNode_create(
                 lexer->token_tbl.elems[if_idx].line_num,
@@ -688,7 +728,7 @@ static struct BlockNode* parse(const struct Lexer *lexer,
 
         else if (lexer->token_tbl.elems[start_idx].type == TokenType_IF_STMT) {
             prev_end_idx = parse_if_stmt(lexer, block, n_blocks_deep,
-                    start_idx, bp, parent_func);
+                    start_idx, bp, sp, parent_func);
         }
 
         else if (lexer->token_tbl.elems[start_idx].type ==

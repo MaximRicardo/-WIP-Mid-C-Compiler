@@ -10,10 +10,12 @@ int main(void) {
     }
     char c = func(100, 3);
     :;
-    if (1-1) {
-        5-10;
-        :;
+    if (0) {
+        int var = x-10;
+        var;
     }
+    else 5*5;
+    :;
 
     return 0;
 }

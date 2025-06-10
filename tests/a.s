@@ -88,9 +88,7 @@ mov rsi, rbx
 call printf
 mov rsp, r15
 
-mov eax, dword 1
-
-sub eax, dword 1
+mov eax, dword 0
 
 cmp eax, dword 0
 
@@ -100,11 +98,30 @@ push rbp
 
 mov rbp, rsp
 
-sub rsp, qword 0
+sub rsp, qword 8
+
+mov eax, [rbp+20]
+
+sub eax, dword 10
+
+mov [rbp+-4], eax
+
+mov eax, [rbp+-4]
+
+mov rsp, rbp
+
+pop rbp
+
+jmp _L1
+
+_L0:
 
 mov eax, dword 5
 
-sub eax, dword 10
+mov edx, 5
+imul edx
+
+_L1:
 
 mov r15, rsp
 and rsp, -16
@@ -114,12 +131,6 @@ mov rdi, msg
 mov rsi, rbx
 call printf
 mov rsp, r15
-
-mov rsp, rbp
-
-pop rbp
-
-_L0:
 
 mov eax, dword 0
 

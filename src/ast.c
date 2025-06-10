@@ -533,15 +533,23 @@ struct IfNode IfNode_init(void) {
     struct IfNode node;
     node.expr = NULL;
     node.body = NULL;
+    node.else_body = NULL;
+    node.body_in_block = false;
+    node.else_body_in_block = false;
     return node;
 
 }
 
-struct IfNode IfNode_create(struct Expr *expr, struct BlockNode *body) {
+struct IfNode IfNode_create(struct Expr *expr, struct BlockNode *body,
+        struct BlockNode *else_body, bool body_in_block,
+        bool else_body_in_block) {
 
     struct IfNode node;
     node.expr = expr;
     node.body = body;
+    node.else_body = else_body;
+    node.body_in_block = body_in_block;
+    node.else_body_in_block = else_body_in_block;
     return node;
 
 }
@@ -550,6 +558,7 @@ void IfNode_free_w_self(struct IfNode *self) {
 
     Expr_recur_free_w_self(self->expr);
     BlockNode_free_w_self(self->body);
+    BlockNode_free_w_self(self->else_body);
     m_free(self);
 
 }

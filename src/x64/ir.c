@@ -729,32 +729,53 @@ static void get_if_stmt_instructions(struct InstrList *instrs,
     struct GPReg expr_reg;
     /* each instruction assumes it can free it's associated string, meaning
      * each instruction will need to be given a different one */
-    char *label_name[2] = {NULL, NULL};
+    char *if_end_label[2] = {NULL, NULL};
+    char *else_end_label[2] = {NULL, NULL};
     u32 i;
 
     if (!if_node->body)
         return;
 
-    for (i = 0; i < sizeof(label_name)/sizeof(label_name[0]); i++) {
-        label_name[i] =
-            safe_malloc(m_comp_label_name_capacity*sizeof(*label_name[i]));
-        sprintf(label_name[i], "_L%lu", label_counter);
+    for (i = 0; i < sizeof(if_end_label)/sizeof(if_end_label[0]); i++) {
+        if_end_label[i] =
+            safe_malloc(m_comp_label_name_capacity*sizeof(*if_end_label[i]));
+        sprintf(if_end_label[i], "_L%lu", label_counter);
+        if (if_node->else_body) {
+            else_end_label[i] = safe_malloc(
+                    m_comp_label_name_capacity*sizeof(*else_end_label[i]));
+            sprintf(else_end_label[i], "_L%lu", label_counter+1);
+        }
     }
-    ++label_counter;
+    label_counter += 1+(if_node->else_body!=NULL);
 
     expr_reg = get_expr_instructions(instrs, if_node->expr, false);
 
     instr_reg_and_imm32(instrs, InstrType_CMP, expr_reg.reg_size,
             reg_idx_to_operand_t(expr_reg.reg_idx), 0, 0);
-    instr_string(instrs, InstrType_JE, label_name[0]);
+    instr_string(instrs, InstrType_JE, if_end_label[0]);
 
     free_reg(instrs, expr_reg);
 
-    create_stack_frame(instrs, if_node->body->var_bytes);
+    if (if_node->body_in_block)
+        create_stack_frame(instrs, if_node->body->var_bytes);
     get_block_instructions(instrs, if_node->body);
-    destroy_stack_frame(instrs);
+    if (if_node->body_in_block)
+        destroy_stack_frame(instrs);
 
-    instr_string(instrs, InstrType_LABEL, label_name[1]);
+    if (if_node->else_body)
+        instr_string(instrs, InstrType_JMP, else_end_label[0]);
+
+    instr_string(instrs, InstrType_LABEL, if_end_label[1]);
+
+    if (if_node->else_body) {
+        if (if_node->else_body_in_block)
+            create_stack_frame(instrs, if_node->else_body->var_bytes);
+        get_block_instructions(instrs, if_node->else_body);
+        if (if_node->else_body_in_block)
+            destroy_stack_frame(instrs);
+
+        instr_string(instrs, InstrType_LABEL, else_end_label[1]);
+    }
 
 }
 
