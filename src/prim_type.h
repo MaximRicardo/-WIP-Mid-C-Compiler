@@ -13,6 +13,7 @@ enum PrimitiveType {
 
 };
 
-bool PrimitiveType_signed(enum PrimitiveType type);
-unsigned PrimitiveType_size(enum PrimitiveType type);
-enum PrimitiveType PrimitiveType_promote(enum PrimitiveType type);
+bool PrimitiveType_signed(enum PrimitiveType type, unsigned lvls_of_indir);
+unsigned PrimitiveType_size(enum PrimitiveType type, unsigned lvls_of_indir);
+enum PrimitiveType PrimitiveType_promote(enum PrimitiveType type,
+        unsigned lvls_of_indir);

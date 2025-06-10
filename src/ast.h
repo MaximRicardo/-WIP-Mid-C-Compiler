@@ -106,6 +106,7 @@ struct Expr {
     const char *src_start; unsigned src_len;
 
     struct Expr *lhs, *rhs;
+    unsigned lhs_lvls_of_indir, rhs_lvls_of_indir;
     enum PrimitiveType lhs_type, rhs_type;
     enum PrimitiveType og_lhs_type;  /* the unpromoted version of lhs */
     struct ExprPtrList args; /* used by function calls */
@@ -122,17 +123,20 @@ struct Expr Expr_init(void);
 /* automatically promotes the lhs and rhs types */
 struct Expr Expr_create(unsigned line_num, unsigned column_num,
         const char *src_start, unsigned src_len, struct Expr *lhs,
-        struct Expr *rhs, enum PrimitiveType og_lhs_type, 
+        struct Expr *rhs, unsigned lhs_lvls_of_indir,
+        unsigned rhs_lvls_of_indir, enum PrimitiveType og_lhs_type, 
         enum PrimitiveType og_rhs_type, struct ExprPtrList args, u32 int_value,
         i32 bp_offset, enum ExprType expr_type);
 /* Uses the passed, tok_t_to_expr_td column numbers aswell as src_start and
  * src_len. */
 struct Expr Expr_create_w_tok(struct Token token, struct Expr *lhs,
-        struct Expr *rhs, enum PrimitiveType lhs_type,
+        struct Expr *rhs, unsigned lhs_lvls_of_indir,
+        unsigned rhs_lvls_of_indir, enum PrimitiveType lhs_type,
         enum PrimitiveType rhs_type, struct ExprPtrList args, u32 int_value,
         i32 bp_offset, enum ExprType expr_type);
 /* Also frees self */
 void Expr_recur_free_w_self(struct Expr *self);
+unsigned Expr_lvls_of_indir(const struct Expr *self);
 /* promote is mostly set to false by assignments operators to figure out how
  * many bytes need to be assigned */
 enum PrimitiveType Expr_type(const struct Expr *self, bool promote);
@@ -158,13 +162,14 @@ struct Declarator {
 
     struct Expr *value;
     char *ident;
+    unsigned lvls_of_indir;
     u32 bp_offset;
 
 };
 
 struct Declarator Declarator_init(void);
 struct Declarator Declarator_create(struct Expr *value, char *ident,
-        u32 bp_offset);
+        unsigned lvls_of_indir, u32 bp_offset);
 void Declarator_free(struct Declarator decl);
 
 struct DeclList {
@@ -207,6 +212,7 @@ struct FuncDeclNode {
 
     struct VarDeclPtrList args;
     bool void_args;
+    unsigned ret_lvls_of_indir;
     enum PrimitiveType ret_type;
     struct BlockNode *body;
     char *name;
@@ -215,21 +221,22 @@ struct FuncDeclNode {
 
 struct FuncDeclNode FuncDeclNode_init(void);
 struct FuncDeclNode FuncDeclNode_create(struct VarDeclPtrList args,
-        bool void_args, enum PrimitiveType ret_type, struct BlockNode *body,
-        char *name);
+        bool void_args, unsigned ret_lvls_of_indir,
+        enum PrimitiveType ret_type, struct BlockNode *body, char *name);
 void FuncDeclNode_free_w_self(struct FuncDeclNode *self);
 
 struct RetNode {
 
     struct Expr *value;
+    unsigned lvls_of_indir;
     enum PrimitiveType type;
     unsigned n_stack_frames_deep;
 
 };
 
 struct RetNode RetNode_init(void);
-struct RetNode RetNode_create(struct Expr *value, enum PrimitiveType type,
-        u32 n_stack_frames_deep);
+struct RetNode RetNode_create(struct Expr *value, unsigned lvls_of_indir,
+        enum PrimitiveType type, u32 n_stack_frames_deep);
 void RetNode_free_w_self(struct RetNode *self);
 
 struct IfNode {

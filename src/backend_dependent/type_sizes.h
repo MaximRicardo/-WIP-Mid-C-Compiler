@@ -7,6 +7,7 @@
 
 #define m_TypeSize_char 1
 #define m_TypeSize_int 4
+#define m_TypeSize_ptr 4
 
 /* every variable on the stack will be aligned to atleast this many bytes.
  * types bigger than this will be aligned to the closest greater multiple of

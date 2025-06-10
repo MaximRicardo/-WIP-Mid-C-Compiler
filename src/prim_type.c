@@ -2,13 +2,18 @@
 #include "backend_dependent/type_sizes.h"
 #include <assert.h>
 
-bool PrimitiveType_signed(enum PrimitiveType type) {
+bool PrimitiveType_signed(enum PrimitiveType type, unsigned lvls_of_indir) {
 
-    return type == PrimType_INT || type == PrimType_CHAR;
+    return lvls_of_indir == 0 && (
+            type == PrimType_INT || type == PrimType_CHAR
+            );
 
 }
 
-unsigned PrimitiveType_size(enum PrimitiveType type) {
+unsigned PrimitiveType_size(enum PrimitiveType type, unsigned lvls_of_indir) {
+
+    if (lvls_of_indir > 0)
+        return m_TypeSize_ptr;
 
     switch (type) {
 
@@ -26,7 +31,11 @@ unsigned PrimitiveType_size(enum PrimitiveType type) {
 
 }
 
-enum PrimitiveType PrimitiveType_promote(enum PrimitiveType type) {
+enum PrimitiveType PrimitiveType_promote(enum PrimitiveType type,
+        unsigned lvls_of_indir) {
+
+    if (lvls_of_indir > 0)
+        return type;
 
     switch (type) {
 

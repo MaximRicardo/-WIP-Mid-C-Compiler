@@ -143,19 +143,22 @@ static enum InstrType expr_to_instr_t(const struct Expr *expr) {
         return InstrType_SUB;
 
     case ExprType_MUL:
-        if (PrimitiveType_signed(Expr_type(expr, true)))
+        if (PrimitiveType_signed(Expr_type(expr, true),
+                    Expr_lvls_of_indir(expr)))
             return InstrType_IMUL;
         else
             return InstrType_MUL;
 
     case ExprType_DIV:
-        if (PrimitiveType_signed(Expr_type(expr, true)))
+        if (PrimitiveType_signed(Expr_type(expr, true),
+                    Expr_lvls_of_indir(expr)))
             return InstrType_IDIV;
         else
             return InstrType_DIV;
 
     case ExprType_MODULUS:
-        if (PrimitiveType_signed(Expr_type(expr, true)))
+        if (PrimitiveType_signed(Expr_type(expr, true),
+                    Expr_lvls_of_indir(expr)))
             return InstrType_IMODULO;
         else
             return InstrType_MODULO;
@@ -400,7 +403,8 @@ static struct GPReg get_func_call_expr_instructions(struct InstrList *instrs,
     {
         for (i = 0; i < expr->args.size; i++) {
             unsigned arg_size = PrimitiveType_size(
-                    Expr_type(expr->args.elems[i], true));
+                    Expr_type(expr->args.elems[i], true),
+                    Expr_lvls_of_indir(expr->args.elems[i]));
             /* alignment */
             arg_size = round_up(arg_size, m_TypeSize_stack_var_min_alignment);
             args_stack_space += arg_size;
@@ -470,13 +474,22 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
     else if (expr->expr_type == ExprType_IDENT) {
         enum InstrType type = load_reference ? InstrType_LEA :
             InstrType_MOV_F_LOC;
-        instr_reg_and_reg(instrs, type, instr_size,
+        unsigned var_size = PrimitiveType_size(Expr_type(expr, false),
+                Expr_lvls_of_indir(expr));
+        instr_reg_and_reg(instrs, type, InstrSize_bytes_to(var_size),
                 reg_idx_to_operand_t(lhs_reg.reg_idx), InstrOperandType_REG_BP,
                 expr->bp_offset);
+        if (var_size < 4) {
+            instr_reg_and_imm32(instrs, InstrType_AND, instr_size,
+                    reg_idx_to_operand_t(lhs_reg.reg_idx), (1<<var_size*8)-1,
+                    0);
+        }
     }
     else if (expr->expr_type == ExprType_EQUAL) {
         enum InstrSize assignment_size = InstrSize_bytes_to(
-                PrimitiveType_size(expr->og_lhs_type));
+                PrimitiveType_size(expr->og_lhs_type,
+                    expr->lhs_lvls_of_indir));
+
         if (expr->rhs->expr_type != ExprType_INT_LIT)
             instr_reg_and_reg(instrs, InstrType_MOV_T_LOC, assignment_size,
                     reg_idx_to_operand_t(lhs_reg.reg_idx),
@@ -524,7 +537,7 @@ static void get_var_decl_instructions(struct InstrList *instrs,
     for (i = 0; i < var_decl->decls.size; i++) {
         if (var_decl->decls.elems[i].value) {
             enum InstrSize instr_size = InstrSize_bytes_to(PrimitiveType_size(
-                        var_decl->type
+                        var_decl->type, var_decl->decls.elems[i].lvls_of_indir
                         ));
 
             struct GPReg reg =
@@ -650,8 +663,9 @@ static void get_ret_stmt_instructions(struct InstrList *instrs,
         assert(reg.reg_idx == 0);
         free_reg(instrs, reg);
 
-        if (PrimitiveType_size(ret_node->type) < 4) {
-            unsigned type_size = PrimitiveType_size(ret_node->type);
+        if (PrimitiveType_size(ret_node->type, ret_node->lvls_of_indir) < 4) {
+            unsigned type_size = PrimitiveType_size(ret_node->type,
+                    ret_node->lvls_of_indir);
             instr_reg_and_imm32(instrs, InstrType_AND, InstrSize_32,
                     InstrOperandType_REG_AX,
                     type_size == 4 ? m_u32_max : (1<<type_size*8)-1, 0);

@@ -3,6 +3,7 @@
 #include "safe_mem.h"
 #include "token.h"
 #include "vector_impl.h"
+#include "macros.h"
 #include <assert.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -89,6 +90,8 @@ struct Expr Expr_init(void) {
     expr.og_lhs_type = PrimType_INVALID;
     expr.lhs_type = PrimType_INVALID;
     expr.rhs_type = PrimType_INVALID;
+    expr.lhs_lvls_of_indir = 0;
+    expr.rhs_lvls_of_indir = 0;
     expr.args = ExprPtrList_init();
     expr.expr_type = ExprType_INVALID;
     expr.int_value = 0;
@@ -99,7 +102,8 @@ struct Expr Expr_init(void) {
 
 struct Expr Expr_create(unsigned line_num, unsigned column_num,
         const char *src_start, unsigned src_len, struct Expr *lhs,
-        struct Expr *rhs, enum PrimitiveType lhs_type,
+        struct Expr *rhs, unsigned lhs_lvls_of_indir,
+        unsigned rhs_lvls_of_indir, enum PrimitiveType lhs_type,
         enum PrimitiveType rhs_type, struct ExprPtrList args, u32 int_value,
         i32 bp_offset, enum ExprType expr_type) {
 
@@ -110,11 +114,13 @@ struct Expr Expr_create(unsigned line_num, unsigned column_num,
     expr.src_len = src_len;
     expr.lhs = lhs;
     expr.rhs = rhs;
+    expr.lhs_lvls_of_indir = lhs_lvls_of_indir;
+    expr.rhs_lvls_of_indir = rhs_lvls_of_indir;
     expr.og_lhs_type = lhs_type;
     expr.lhs_type = lhs_type == PrimType_INVALID ? PrimType_INVALID :
-        PrimitiveType_promote(lhs_type);
+        PrimitiveType_promote(lhs_type, expr.lhs_lvls_of_indir);
     expr.rhs_type = rhs_type == PrimType_INVALID ? PrimType_INVALID :
-        PrimitiveType_promote(rhs_type);
+        PrimitiveType_promote(rhs_type, expr.rhs_lvls_of_indir);
     expr.args = args;
     expr.int_value = int_value;
     expr.bp_offset = bp_offset;
@@ -124,13 +130,14 @@ struct Expr Expr_create(unsigned line_num, unsigned column_num,
 }
 
 struct Expr Expr_create_w_tok(struct Token token, struct Expr *lhs,
-        struct Expr *rhs, enum PrimitiveType lhs_type,
+        struct Expr *rhs, unsigned lhs_lvls_of_indir,
+        unsigned rhs_lvls_of_indir, enum PrimitiveType lhs_type,
         enum PrimitiveType rhs_type, struct ExprPtrList args, u32 int_value,
         i32 bp_offset, enum ExprType expr_type) {
 
     return Expr_create(token.line_num, token.column_num, token.src_start,
-            token.src_len, lhs, rhs, lhs_type, rhs_type, args, int_value,
-            bp_offset, expr_type);
+            token.src_len, lhs, rhs, lhs_lvls_of_indir, rhs_lvls_of_indir,
+            lhs_type, rhs_type, args, int_value, bp_offset, expr_type);
 
 }
 
@@ -151,10 +158,17 @@ void Expr_recur_free_w_self(struct Expr *self) {
 
 }
 
+unsigned Expr_lvls_of_indir(const struct Expr *self) {
+
+    return m_max(self->lhs_lvls_of_indir, self->rhs_lvls_of_indir);
+
+}
+
 enum PrimitiveType Expr_type(const struct Expr *self, bool promote) {
 
     if (self->rhs) {
-        enum PrimitiveType lhs_prom = PrimitiveType_promote(self->lhs_type);
+        enum PrimitiveType lhs_prom = PrimitiveType_promote(self->lhs_type,
+                self->lhs_lvls_of_indir);
         /*
         enum PrimitiveType rhs_prom = PrimitiveType_promote(self->rhs_type);
         */
@@ -171,7 +185,8 @@ enum PrimitiveType Expr_type(const struct Expr *self, bool promote) {
         return PrimType_INT;
     }
     else {
-        return promote ? PrimitiveType_promote(self->lhs_type) :
+        return promote ?
+            PrimitiveType_promote(self->lhs_type, self->lhs_lvls_of_indir) :
             self->og_lhs_type;
     }
 
@@ -373,17 +388,19 @@ struct Declarator Declarator_init(void) {
     struct Declarator decl;
     decl.value = NULL;
     decl.ident = NULL;
+    decl.lvls_of_indir = 0;
     decl.bp_offset = 0;
     return decl;
 
 }
 
 struct Declarator Declarator_create(struct Expr *value, char *ident,
-        u32 bp_offset) {
+        unsigned lvls_of_indir, u32 bp_offset) {
 
     struct Declarator decl;
     decl.value = value;
     decl.ident = ident;
+    decl.lvls_of_indir = lvls_of_indir;
     decl.bp_offset = bp_offset;
     return decl;
 
@@ -433,8 +450,18 @@ bool VarDeclPtrList_equivalent(const struct VarDeclPtrList *self,
         return false;
 
     for (i = 0; i < self->size; i++) {
+        u32 j;
+
         if (self->elems[i]->type != other->elems[i]->type) {
             return false;
+        }
+
+        for (j = 0; j < self->elems[i]->decls.size; j++) {
+
+            if (self->elems[i]->decls.elems[j].lvls_of_indir !=
+                    other->elems[i]->decls.elems[j].lvls_of_indir)
+                return false;
+
         }
     }
 
@@ -465,6 +492,7 @@ struct FuncDeclNode FuncDeclNode_init(void) {
     struct FuncDeclNode func_decl;
     func_decl.args = VarDeclPtrList_init();
     func_decl.void_args = false;
+    func_decl.ret_lvls_of_indir = 0;
     func_decl.ret_type = PrimType_INVALID;
     func_decl.body = NULL;
     func_decl.name = NULL;
@@ -473,12 +501,13 @@ struct FuncDeclNode FuncDeclNode_init(void) {
 }
 
 struct FuncDeclNode FuncDeclNode_create(struct VarDeclPtrList args,
-        bool void_args, enum PrimitiveType ret_type, struct BlockNode *body,
-        char *name) {
+        bool void_args, unsigned ret_lvls_of_indir,
+        enum PrimitiveType ret_type, struct BlockNode *body, char *name) {
 
     struct FuncDeclNode func_decl;
     func_decl.args = args;
     func_decl.void_args = void_args;
+    func_decl.ret_lvls_of_indir = ret_lvls_of_indir;
     func_decl.ret_type = ret_type;
     func_decl.body = body;
     func_decl.name = name;
@@ -504,17 +533,19 @@ struct RetNode RetNode_init(void) {
 
     struct RetNode ret_node;
     ret_node.value = NULL;
+    ret_node.lvls_of_indir = 0;
     ret_node.type = PrimType_INVALID;
     ret_node.n_stack_frames_deep = 0;
     return ret_node;
 
 }
 
-struct RetNode RetNode_create(struct Expr *value, enum PrimitiveType type,
-        u32 n_stack_frames_deep) {
+struct RetNode RetNode_create(struct Expr *value, unsigned lvls_of_indir,
+        enum PrimitiveType type, u32 n_stack_frames_deep) {
 
     struct RetNode ret_node;
     ret_node.value = value;
+    ret_node.lvls_of_indir = lvls_of_indir;
     ret_node.type = type;
     ret_node.n_stack_frames_deep = n_stack_frames_deep;
     return ret_node;

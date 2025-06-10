@@ -3,7 +3,6 @@
 #include "comp_dependent/ints.h"
 #include "safe_mem.h"
 #include "token.h"
-#include "parser.h"
 #include "macros.h"
 #include <assert.h>
 #include <stddef.h>
@@ -82,7 +81,7 @@ static void push_operator_to_queue(struct ExprPtrList *output_queue,
         struct ExprPtrList *operator_stack, struct Token op_tok) {
 
     struct Expr *expr = safe_malloc(sizeof(*expr));
-    *expr = Expr_create_w_tok(op_tok, NULL, NULL, PrimType_INVALID,
+    *expr = Expr_create_w_tok(op_tok, NULL, NULL, 0, 0, PrimType_INVALID,
             PrimType_INVALID, ExprPtrList_init(), 0, 0,
             tok_t_to_expr_t(op_tok.type));
 
@@ -162,7 +161,7 @@ static u32 read_func_call(const struct TokenList *token_tbl, u32 f_call_idx,
 
 
     expr = safe_malloc(sizeof(*expr));
-    *expr = Expr_create_w_tok(token_tbl->elems[f_call_idx], NULL, NULL,
+    *expr = Expr_create_w_tok(token_tbl->elems[f_call_idx], NULL, NULL, 0, 0,
             PrimType_INVALID, PrimType_INVALID, ExprPtrList_init(), 0, 0,
             ExprType_FUNC_CALL);
 
@@ -231,7 +230,7 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
         }
         else if (token_tbl->elems[i].type == TokenType_L_PAREN) {
             struct Expr *expr = safe_malloc(sizeof(*expr));
-            *expr = Expr_create_w_tok(token_tbl->elems[i], NULL, NULL,
+            *expr = Expr_create_w_tok(token_tbl->elems[i], NULL, NULL, 0, 0,
                     PrimType_INVALID, PrimType_INVALID, ExprPtrList_init(), 0,
                     0, ExprType_PAREN);
             ExprPtrList_push_back(&operator_stack, expr);
@@ -273,6 +272,7 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
             m_free(name);
             expr = safe_malloc(sizeof(*expr));
             *expr = Expr_create_w_tok(token_tbl->elems[i], NULL, NULL,
+                    vars->elems[var_idx].lvls_of_indir, 0,
                     vars->elems[var_idx].type, PrimType_INVALID,
                     ExprPtrList_init(), 0, vars->elems[var_idx].stack_pos-bp,
                     ExprType_IDENT);
@@ -280,7 +280,7 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
         }
         else {
             struct Expr *expr = safe_malloc(sizeof(*expr));
-            *expr = Expr_create_w_tok(token_tbl->elems[i], NULL, NULL,
+            *expr = Expr_create_w_tok(token_tbl->elems[i], NULL, NULL, 0, 0,
                     PrimType_INT, PrimType_INVALID, ExprPtrList_init(),
                     token_tbl->elems[i].value.int_value, 0, ExprType_INT_LIT);
             ExprPtrList_push_back(&output_queue, expr);
