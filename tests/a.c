@@ -1,7 +1,9 @@
 int func(int x, int y);
 void foo(void);
 
-int main(void) {
+int main(int argc) {
+    argc;
+    :;
     int x = 10+5;
     :;
     {

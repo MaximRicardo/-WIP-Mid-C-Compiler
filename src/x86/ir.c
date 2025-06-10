@@ -1,5 +1,5 @@
 #include "ir.h"
-
+#include "../backend_dependent/type_sizes.h"
 #include <assert.h>
 #include <limits.h>
 #include <stdio.h>
@@ -402,7 +402,7 @@ static struct GPReg get_func_call_expr_instructions(struct InstrList *instrs,
             unsigned arg_size = PrimitiveType_size(
                     Expr_type(expr->args.elems[i], true));
             /* alignment */
-            args_stack_space = round_up(args_stack_space, arg_size);
+            arg_size = round_up(arg_size, m_TypeSize_stack_var_min_alignment);
             args_stack_space += arg_size;
         }
 
@@ -416,13 +416,12 @@ static struct GPReg get_func_call_expr_instructions(struct InstrList *instrs,
                 expr->args.elems[i], false);
         unsigned reg_size_bytes = InstrSize_to_bytes(arg_reg.reg_size);
 
-        next_arg_offset = round_up(next_arg_offset, reg_size_bytes);
-
         instr_reg_and_reg(instrs, InstrType_MOV_T_LOC, arg_reg.reg_size,
                 InstrOperandType_REG_SP, reg_idx_to_operand_t(arg_reg.reg_idx),
                 next_arg_offset);
 
-        next_arg_offset += reg_size_bytes;
+        next_arg_offset += round_up(reg_size_bytes,
+                m_TypeSize_stack_var_min_alignment);
 
         free_reg(instrs, arg_reg);
     }
@@ -651,7 +650,7 @@ static void get_ret_stmt_instructions(struct InstrList *instrs,
         assert(reg.reg_idx == 0);
         free_reg(instrs, reg);
 
-        if (PrimitiveType_size(ret_node->type) < 8) {
+        if (PrimitiveType_size(ret_node->type) < 4) {
             unsigned type_size = PrimitiveType_size(ret_node->type);
             instr_reg_and_imm32(instrs, InstrType_AND, InstrSize_32,
                     InstrOperandType_REG_AX,

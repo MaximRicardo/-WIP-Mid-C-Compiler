@@ -165,6 +165,8 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
         enum PrimitiveType var_type, u32 v_decl_idx, u32 *end_idx, u32 bp,
         u32 *sp, bool is_func_param, unsigned *n_func_param_bytes) {
 
+    /* rounded up to the closest multiple of
+     * m_TypeSize_stack_var_min_alignment */
     unsigned var_size;
     struct VarDeclNode *var_decl = NULL;
     struct Expr *expr = NULL;
@@ -174,44 +176,53 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
             lexer->token_tbl.elems[v_decl_idx+1].type != TokenType_IDENT) {
         enum TokenType stop_types[] =
             {TokenType_SEMICOLON, TokenType_COMMA, TokenType_R_PAREN};
+
         fprintf(stderr, "unnamed variables are not supported. line %u,"
                 " column %u\n", lexer->token_tbl.elems[v_decl_idx].line_num,
                 lexer->token_tbl.elems[v_decl_idx].column_num);
         Parser_error_occurred = true;
+
         *end_idx = skip_to_token_type_alt_arr(v_decl_idx, lexer->token_tbl,
                 stop_types, sizeof(stop_types)/sizeof(stop_types[0]));
+
         return NULL;
     }
     else if (var_type == PrimType_VOID) {
         char *var_name = Token_src(&lexer->token_tbl.elems[v_decl_idx+1]);
+
         fprintf(stderr, "variable '%s' of type 'void' on line %u,"
                 " column %u.\n", var_name,
                 lexer->token_tbl.elems[v_decl_idx].line_num,
                 lexer->token_tbl.elems[v_decl_idx].column_num);
         Parser_error_occurred = true;
+
         m_free(var_name);
+
         *end_idx = skip_to_token_type_alt(v_decl_idx, lexer->token_tbl,
                 TokenType_SEMICOLON);
+
         return NULL;
     }
     
-    var_size = PrimitiveType_size(var_type);
+    var_size = round_up(PrimitiveType_size(var_type),
+            m_TypeSize_stack_var_min_alignment);
     var_decl = safe_malloc(sizeof(*var_decl));
     expr = is_func_param ? NULL :
         var_decl_value(lexer, v_decl_idx, end_idx, bp);
     decl = Declarator_create(expr,
             Token_src(&lexer->token_tbl.elems[v_decl_idx+1]), 0);
 
-    /* align the variable to its size */
     if (!is_func_param) {
         *sp = round_down(*sp, var_size);
         decl.bp_offset = *sp-bp-var_size;
     }
     else {
         *n_func_param_bytes = round_up(*n_func_param_bytes, var_size);
+
         decl.bp_offset = m_TypeSize_callee_saved_regs_stack_size +
             m_TypeSize_return_address_size + m_TypeSize_stack_frame_size +
             *n_func_param_bytes;
+
         *end_idx = v_decl_idx+2;
     }
 
@@ -694,8 +705,12 @@ static struct BlockNode* parse(const struct Lexer *lexer,
                             lexer->token_tbl.elems[start_idx].line_num,
                             lexer->token_tbl.elems[start_idx].column_num,
                             ASTType_VAR_DECL, var_decl));
-                block->var_bytes = round_up(block->var_bytes + old_sp-sp, 8);
-                sp = round_down(sp, 8);
+                block->var_bytes = block->var_bytes + old_sp-sp;
+                printf("var bytes = %u\n", block->var_bytes);
+                assert(sp % m_TypeSize_stack_var_min_alignment == 0);
+                assert(
+                    block->var_bytes % m_TypeSize_stack_var_min_alignment == 0
+                    );
             }
             else if (lexer->token_tbl.elems[start_idx+2].type ==
                     TokenType_L_PAREN) {
