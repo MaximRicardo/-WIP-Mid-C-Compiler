@@ -1,4 +1,4 @@
-[BITS 64]
+[BITS 32]
 
 extern printf
 
@@ -6,87 +6,79 @@ section .text
 global main
 main:
 
-push rbx
+push ebx
 
-push r12
+push esi
 
-push r13
+push edi
 
-push r14
+push ebp
 
-push r15
+mov ebp, esp
 
-push rbp
-
-mov rbp, rsp
-
-sub rsp, qword 16
+sub esp, dword 16
 
 mov eax, dword 10
 
 add eax, dword 5
 
-mov [rbp+-4], eax
+mov [ebp+-4], eax
 
-mov r15, rsp
-and rsp, -16
-mov rbx, rax
-mov al, 0
-mov rdi, msg
-mov rsi, rbx
+mov ebx, esp
+and esp, -16
+push eax
+push msg$
 call printf
-mov rsp, r15
+mov esp, ebx
 
-push rbp
+push ebp
 
-mov rbp, rsp
+mov ebp, esp
 
-sub rsp, qword 8
+sub esp, dword 8
 
-mov eax, [rbp+12]
+mov eax, [ebp+8]
 
 add eax, dword 10
 
-mov [rbp+-4], eax
+mov [ebp+-4], eax
 
-lea rax, [rbp+12]
+lea eax, [ebp+8]
 
-mov ebx, [rbp+12]
+mov ebx, [ebp+8]
 
-mov ecx, [rbp+-4]
+mov ecx, [ebp+-4]
 
 add ebx, ecx
 
-mov [rax+0], ebx
+mov [eax+0], ebx
 
-mov rsp, rbp
+mov esp, ebp
 
-pop rbp
+pop ebp
 
-sub rsp, qword 8
+sub esp, dword 8
 
 mov ebx, dword 100
 
-mov [rsp+0], ebx
+mov [esp+0], ebx
 
 mov ebx, dword 3
 
-mov [rsp+4], ebx
+mov [esp+4], ebx
 
 call func
 
-add rsp, qword 8
+add esp, dword 8
 
-mov [rbp+-9], al
+mov [ebp+-9], al
 
-mov r15, rsp
-and rsp, -16
-mov rbx, rax
-mov al, 0
-mov rdi, msg
-mov rsi, rbx
+mov ebx, esp
+and esp, -16
+push eax
+push msg$
 call printf
-mov rsp, r15
+mov esp, ebx
 
 mov eax, dword 0
 
@@ -94,19 +86,19 @@ cmp eax, dword 0
 
 je _L0
 
-push rbp
+push ebp
 
-mov rbp, rsp
+mov ebp, esp
 
-sub rsp, qword 0
+sub esp, dword 0
 
-mov eax, [rbp+20]
+mov eax, [ebp+16]
 
 sub eax, dword 5
 
-mov rsp, rbp
+mov esp, ebp
 
-pop rbp
+pop ebp
 
 jmp _L1
 
@@ -118,19 +110,19 @@ cmp eax, dword 0
 
 je _L2
 
-push rbp
+push ebp
 
-mov rbp, rsp
+mov ebp, esp
 
-sub rsp, qword 0
+sub esp, dword 0
 
-mov eax, [rbp+20]
+mov eax, [ebp+16]
 
 sub eax, dword 10
 
-mov rsp, rbp
+mov esp, ebp
 
-pop rbp
+pop ebp
 
 jmp _L3
 
@@ -142,37 +134,37 @@ cmp eax, dword 0
 
 je _L4
 
-push rbp
+push ebp
 
-mov rbp, rsp
+mov ebp, esp
 
-sub rsp, qword 0
+sub esp, dword 0
 
-mov eax, [rbp+20]
+mov eax, [ebp+16]
 
 sub eax, dword 15
 
-mov rsp, rbp
+mov esp, ebp
 
-pop rbp
+pop ebp
 
 jmp _L5
 
 _L4:
 
-push rbp
+push ebp
 
-mov rbp, rsp
+mov ebp, esp
 
-sub rsp, qword 0
+sub esp, dword 0
 
-mov eax, [rbp+20]
+mov eax, [ebp+16]
 
 sub eax, dword 20
 
-mov rsp, rbp
+mov esp, ebp
 
-pop rbp
+pop ebp
 
 _L5:
 
@@ -180,159 +172,125 @@ _L3:
 
 _L1:
 
-mov r15, rsp
-and rsp, -16
-mov rbx, rax
-mov al, 0
-mov rdi, msg
-mov rsi, rbx
+mov ebx, esp
+and esp, -16
+push eax
+push msg$
 call printf
-mov rsp, r15
+mov esp, ebx
 
 mov eax, dword 0
 
 and eax, dword -1
 
-mov rsp, rbp
+mov esp, ebp
 
-pop rbp
+pop ebp
 
-pop r15
+pop edi
 
-pop r14
+pop esi
 
-pop r13
-
-pop r12
-
-pop rbx
+pop ebx
 
 ret
 
-mov rsp, rbp
+mov esp, ebp
 
-pop rbp
+pop ebp
 
-pop r15
+pop edi
 
-pop r14
+pop esi
 
-pop r13
-
-pop r12
-
-pop rbx
+pop ebx
 
 ret
 
 func:
 
-push rbx
+push ebx
 
-push r12
+push esi
 
-push r13
+push edi
 
-push r14
+push ebp
 
-push r15
+mov ebp, esp
 
-push rbp
+sub esp, dword 0
 
-mov rbp, rsp
+mov eax, [ebp+20]
 
-sub rsp, qword 0
-
-mov eax, [rbp+56]
-
-mov ebx, [rbp+60]
+mov ebx, [ebp+24]
 
 imul ebx
 
 and eax, dword -1
 
-mov rsp, rbp
+mov esp, ebp
 
-pop rbp
+pop ebp
 
-pop r15
+pop edi
 
-pop r14
+pop esi
 
-pop r13
-
-pop r12
-
-pop rbx
+pop ebx
 
 ret
 
-mov rsp, rbp
+mov esp, ebp
 
-pop rbp
+pop ebp
 
-pop r15
+pop edi
 
-pop r14
+pop esi
 
-pop r13
-
-pop r12
-
-pop rbx
+pop ebx
 
 ret
 
 foo:
 
-push rbx
+push ebx
 
-push r12
+push esi
 
-push r13
+push edi
 
-push r14
+push ebp
 
-push r15
+mov ebp, esp
 
-push rbp
+sub esp, dword 0
 
-mov rbp, rsp
+mov esp, ebp
 
-sub rsp, qword 0
+pop ebp
 
-mov rsp, rbp
+pop edi
 
-pop rbp
+pop esi
 
-pop r15
-
-pop r14
-
-pop r13
-
-pop r12
-
-pop rbx
+pop ebx
 
 ret
 
-mov rsp, rbp
+mov esp, ebp
 
-pop rbp
+pop ebp
 
-pop r15
+pop edi
 
-pop r14
+pop esi
 
-pop r13
-
-pop r12
-
-pop rbx
+pop ebx
 
 ret
 
 
 section .rodata
-msg: db `result = %d\n\0`
+msg$: db `result = %d\n\0`

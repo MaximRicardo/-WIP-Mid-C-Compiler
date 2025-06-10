@@ -12,8 +12,8 @@ enum InstrType {
     InstrType_INVALID,
 
     InstrType_MOV,
-    InstrType_MOV_F_LOC,  /* example: mov rax, [rbx+8] */
-    InstrType_MOV_T_LOC,  /* example: mov [rbx+8], rax */
+    InstrType_MOV_F_LOC,  /* example: mov eax, [rbx+8] */
+    InstrType_MOV_T_LOC,  /* example: mov [rbx+8], eax */
 
     InstrType_LEA,
 
@@ -47,7 +47,7 @@ enum InstrType {
 
     InstrType_LABEL,
 
-    InstrType_DEBUG_RAX
+    InstrType_DEBUG_EAX
 
 };
 
@@ -60,14 +60,6 @@ enum InstrOperandType {
     InstrOperandType_REG_AX,
     InstrOperandType_REG_BX,
     InstrOperandType_REG_CX,
-    InstrOperandType_REG_R8,
-    InstrOperandType_REG_R9,
-    InstrOperandType_REG_R10,
-    InstrOperandType_REG_R11,
-    InstrOperandType_REG_R12,
-    InstrOperandType_REG_R13,
-    InstrOperandType_REG_R14,
-    InstrOperandType_REG_R15,
     /* stack registers */
     InstrOperandType_REG_SP,
     InstrOperandType_REG_BP,
@@ -102,8 +94,7 @@ enum InstrSize {
 
     InstrSize_8,
     InstrSize_16,
-    InstrSize_32,
-    InstrSize_64
+    InstrSize_32
 
 };
 

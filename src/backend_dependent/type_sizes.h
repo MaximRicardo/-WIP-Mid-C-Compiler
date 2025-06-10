@@ -9,9 +9,9 @@
 #define m_TypeSize_int 4
 
 /* how many bytes it takes to make a new stack frame */
-#define m_TypeSize_stack_frame_size 8
+#define m_TypeSize_stack_frame_size 4
 
 /* not counting the base and stack pointers */
-#define m_TypeSize_callee_saved_regs_stack_size (8*5)
+#define m_TypeSize_callee_saved_regs_stack_size (4*3)
 
-#define m_TypeSize_return_address_size 8
+#define m_TypeSize_return_address_size 4

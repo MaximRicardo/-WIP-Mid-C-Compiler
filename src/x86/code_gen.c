@@ -3,35 +3,27 @@
 #include <assert.h>
 #include <stdio.h>
 
-const char *reg_names[][4] = {
-    {"al", "ax", "eax", "rax"},
-    {"bl", "bx", "ebx", "rbx"},
-    {"cl", "cx", "ecx", "rcx"},
-    {"r8b", "r8w", "r8d", "r8"},
-    {"r9b", "r9w", "r9d", "r9"},
-    {"r10b", "r10w", "r10d", "r10"},
-    {"r11b", "r11w", "r11d", "r11"},
-    {"r12b", "r12w", "r12d", "r12"},
-    {"r13b", "r13w", "r13d", "r13"},
-    {"r14b", "r14w", "r14d", "r14"},
-    {"r15b", "r15w", "r15d", "r15"},
-    {"spl", "sp", "esp", "rsp"},
-    {"bpl", "bp", "ebp", "rbp"},
-    {"sil", "si", "esi", "rsi"},
-    {"dil", "di", "edi", "rdi"},
-    {"dl", "dx", "edx", "rdx"},
+const char *reg_names[][3] = {
+    {"al", "ax", "eax"},
+    {"bl", "bx", "ebx"},
+    {"cl", "cx", "ecx"},
+    {"spl", "sp", "esp"},
+    {"bpl", "bp", "ebp"},
+    {"sil", "si", "esi"},
+    {"dil", "di", "edi"},
+    {"dl", "dx", "edx"},
 };
 
 const char *dx_names[] = {
-    "dl", "dx", "edx", "rdx"
+    "dl", "dx", "edx"
 };
 
 const char *si_names[] = {
-    "sil", "si", "esi", "rsi"
+    "sil", "si", "esi"
 };
 
 const char *di_names[] = {
-    "dil", "di", "edi", "rdi"
+    "dil", "di", "edi"
 };
 
 const char *instr_type_to_asm[] = {
@@ -76,7 +68,6 @@ const char *size_specifier[] = {
     "byte",
     "word",
     "dword",
-    "qword",
 
 };
 
@@ -121,7 +112,7 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
                 );
 
         fprintf(output, ", [%s+%d]\n",
-                reg_names[type_to_reg(instr->rhs.type)][InstrSize_64],
+                reg_names[type_to_reg(instr->rhs.type)][InstrSize_32],
                 instr->offset
                 );
     }
@@ -131,7 +122,7 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
 
         if (type_is_reg(instr->rhs.type)) {
             fprintf(output, "mov [%s+%d]",
-                    reg_names[type_to_reg(instr->lhs.type)][InstrSize_64],
+                    reg_names[type_to_reg(instr->lhs.type)][InstrSize_32],
                     instr->offset
                     );
 
@@ -143,7 +134,7 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
             printf("instr size = %d\n", instr->instr_size);
             fprintf(output, "mov %s [%s+%d]",
                     size_specifier[instr->instr_size],
-                    reg_names[type_to_reg(instr->lhs.type)][InstrSize_64],
+                    reg_names[type_to_reg(instr->lhs.type)][InstrSize_32],
                     instr->offset
                     );
 
@@ -155,11 +146,11 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
         assert(type_is_reg(instr->lhs.type));
 
         fprintf(output, "lea %s",
-                reg_names[type_to_reg(instr->lhs.type)][InstrSize_64]);
+                reg_names[type_to_reg(instr->lhs.type)][InstrSize_32]);
 
         if (type_is_reg(instr->rhs.type)) {
             fprintf(output, ", [%s+%d]\n",
-                    reg_names[type_to_reg(instr->rhs.type)][InstrSize_64],
+                    reg_names[type_to_reg(instr->rhs.type)][InstrSize_32],
                     instr->offset);
         }
         else {
@@ -202,7 +193,7 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
         /* why x86? just why? */
         if (instr->lhs.type != InstrOperandType_REG_AX)
             fprintf(output, "xchg rax, %s\n",
-                    reg_names[type_to_reg(instr->lhs.type)][InstrSize_64]);
+                    reg_names[type_to_reg(instr->lhs.type)][InstrSize_32]);
 
         if (type_is_reg(instr->rhs.type))
             fprintf(output, "%s %s\n", instr_type_to_asm[instr->type],
@@ -217,21 +208,21 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
 
         if (instr->lhs.type != InstrOperandType_REG_AX)
             fprintf(output, "xchg rax, %s\n",
-                    reg_names[type_to_reg(instr->lhs.type)][InstrSize_64]);
+                    reg_names[type_to_reg(instr->lhs.type)][InstrSize_32]);
     }
 
     else if (instr->type == InstrType_DIV || instr->type == InstrType_IDIV) {
         /* day 7045205478 of questioning why div and mul always use AX */
         if (instr->lhs.type != InstrOperandType_REG_AX)
             fprintf(output, "xchg rax, %s\n",
-                    reg_names[type_to_reg(instr->lhs.type)][InstrSize_64]);
+                    reg_names[type_to_reg(instr->lhs.type)][InstrSize_32]);
 
         if (instr->type == InstrType_DIV)
             fprintf(output, "xor rdx, rdx\n");
         else {
             if (instr->instr_size == InstrSize_32)
                 fprintf(output, "cdq\n");
-            else if (instr->instr_size == InstrSize_64)
+            else if (instr->instr_size == InstrSize_32)
                 fprintf(output, "cqo\n");
             else
                 assert(false);
@@ -251,7 +242,7 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
 
         if (instr->lhs.type != InstrOperandType_REG_AX)
             fprintf(output, "xchg rax, %s\n",
-                    reg_names[type_to_reg(instr->lhs.type)][InstrSize_64]);
+                    reg_names[type_to_reg(instr->lhs.type)][InstrSize_32]);
     }
 
     else if (instr->type == InstrType_MODULO ||
@@ -259,14 +250,14 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
         /* day 7045205478 of questioning why div and mul always use AX */
         if (instr->lhs.type != InstrOperandType_REG_AX)
             fprintf(output, "xchg rax, %s\n",
-                    reg_names[type_to_reg(instr->lhs.type)][InstrSize_64]);
+                    reg_names[type_to_reg(instr->lhs.type)][InstrSize_32]);
 
         if (instr->type == InstrType_DIV)
             fprintf(output, "xor rdx, rdx\n");
         else {
             if (instr->instr_size == InstrSize_32)
                 fprintf(output, "cdq\n");
-            else if (instr->instr_size == InstrSize_64)
+            else if (instr->instr_size == InstrSize_32)
                 fprintf(output, "cqo\n");
             else
                 assert(false);
@@ -286,7 +277,7 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
 
         if (instr->lhs.type != InstrOperandType_REG_AX)
             fprintf(output, "xchg rax, %s\n",
-                    reg_names[type_to_reg(instr->lhs.type)][InstrSize_64]);
+                    reg_names[type_to_reg(instr->lhs.type)][InstrSize_32]);
 
         /* the remainder is in DX */
         fprintf(output, "mov %s, %s\n",
@@ -329,15 +320,13 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
         fprintf(output, "%s:\n", instr->string);
     }
 
-    else if (instr->type == InstrType_DEBUG_RAX) {
-        fprintf(output, "mov r15, rsp\n");
-        fprintf(output, "and rsp, -16\n");
-        fprintf(output, "mov rbx, rax\n");
-        fprintf(output, "mov al, 0\n");
-        fprintf(output, "mov rdi, msg\n");
-        fprintf(output, "mov rsi, rbx\n");
+    else if (instr->type == InstrType_DEBUG_EAX) {
+        fprintf(output, "mov ebx, esp\n");
+        fprintf(output, "and esp, -16\n");
+        fprintf(output, "push eax\n");
+        fprintf(output, "push msg$\n");
         fprintf(output, "call printf\n");
-        fprintf(output, "mov rsp, r15\n");
+        fprintf(output, "mov esp, ebx\n");
     }
 
     else {
@@ -352,7 +341,7 @@ void CodeGenArch_generate(FILE *output, const struct BlockNode *ast) {
     struct InstrList instrs = IR_get_instructions(ast);
     unsigned i;
 
-    fprintf(output, "[BITS 64]\n\n");
+    fprintf(output, "[BITS 32]\n\n");
     fprintf(output, "extern printf\n");
     fprintf(output, "\nsection .text\n");
     fprintf(output, "global main\n");
@@ -363,7 +352,7 @@ void CodeGenArch_generate(FILE *output, const struct BlockNode *ast) {
     }
 
     fprintf(output, "\nsection .rodata\n");
-    fprintf(output, "msg: db `result = %%d\\n\\0`\n");
+    fprintf(output, "msg$: db `result = %%d\\n\\0`\n");
 
     while (instrs.size > 0) {
         InstrList_pop_back(&instrs, Instruction_free);
