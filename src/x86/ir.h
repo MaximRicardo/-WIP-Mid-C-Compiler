@@ -30,6 +30,9 @@ enum InstrType {
     InstrType_IMODULO,
     InstrType_AND,
     InstrType_CMP,
+    InstrType_SHL,
+    InstrType_SHR,
+    InstrType_ASHR,
 
     /* unary operations */
     InstrType_BITWISE_NOT,

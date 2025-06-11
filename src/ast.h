@@ -86,9 +86,13 @@ enum ExprType {
 
 };
 
-bool ExprType_is_bin_operator(enum ExprType expr);
-bool ExprType_is_unary_operator(enum ExprType expr);
-bool ExprType_is_operator(enum ExprType expr);
+bool ExprType_is_bin_operator(enum ExprType type);
+bool ExprType_is_unary_operator(enum ExprType type);
+bool ExprType_is_operator(enum ExprType type);
+/* is the type a valid operation on an expr with 2 ptr operands */
+bool ExprType_is_valid_ptr_operation(enum ExprType type);
+/* is the type a valid operation on an expr with a ptr and an integer */
+bool ExprType_is_valid_single_ptr_operation(enum ExprType type);
 
 struct ExprPtrList {
 
@@ -108,7 +112,6 @@ struct Expr {
     struct Expr *lhs, *rhs;
     unsigned lhs_lvls_of_indir, rhs_lvls_of_indir;
     enum PrimitiveType lhs_type, rhs_type;
-    enum PrimitiveType og_lhs_type;  /* the unpromoted version of lhs */
     struct ExprPtrList args; /* used by function calls */
 
     u32 int_value;
@@ -137,9 +140,7 @@ struct Expr Expr_create_w_tok(struct Token token, struct Expr *lhs,
 /* Also frees self */
 void Expr_recur_free_w_self(struct Expr *self);
 unsigned Expr_lvls_of_indir(const struct Expr *self);
-/* promote is mostly set to false by assignments operators to figure out how
- * many bytes need to be assigned */
-enum PrimitiveType Expr_type(const struct Expr *self, bool promote);
+enum PrimitiveType Expr_type(const struct Expr *self);
 u32 Expr_evaluate(const struct Expr *expr);
 char* Expr_src(const struct Expr *expr); /* same as Token_src */
 /* checks if there are any errors in the expression that the shunting yard

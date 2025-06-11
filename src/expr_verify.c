@@ -38,6 +38,47 @@ static bool verify_func_call(const struct Expr *expr,
 
 }
 
+/* for when both operands are pointers */
+static bool verify_ptr_operation(const struct Expr *expr) {
+
+    if (!ExprType_is_valid_ptr_operation(expr->expr_type)) {
+        char *expr_src = Expr_src(expr);
+
+        fprintf(stderr, "cannot perform operation '%s' on a pointer and a"
+                " pointer. line %u, column %u\n", expr_src, expr->line_num,
+                expr->column_num);
+
+        m_free(expr_src);
+
+        return true;
+    }
+
+    return false;
+
+}
+
+/* for when only the left operand is a pointer */
+static bool verify_single_ptr_operation(const struct Expr *expr) {
+
+    if (expr->expr_type == ExprType_IDENT)
+        return false;
+
+    if (!ExprType_is_valid_single_ptr_operation(expr->expr_type)) {
+        char *expr_src = Expr_src(expr);
+
+        fprintf(stderr, "cannot perform operation '%s' on a pointer and a"
+                " non-pointer. line %u, column %u\n", expr_src, expr->line_num,
+                expr->column_num);
+
+        m_free(expr_src);
+
+        return true;
+    }
+
+    return false;
+
+}
+
 static bool verify_expr(const struct Expr *expr, const struct ParVarList *vars,
         bool is_root) {
 
@@ -49,7 +90,13 @@ static bool verify_expr(const struct Expr *expr, const struct ParVarList *vars,
         error |= verify_expr(expr->rhs, vars, false);
 
     if (expr->expr_type == ExprType_FUNC_CALL) {
-        verify_func_call(expr, vars, is_root);
+        error |= verify_func_call(expr, vars, is_root);
+    }
+    else if (expr->lhs_lvls_of_indir > 0 && expr->rhs_lvls_of_indir > 0) {
+        error |= verify_ptr_operation(expr);
+    }
+    else if (expr->lhs_lvls_of_indir > 0) {
+        error |= verify_single_ptr_operation(expr);
     }
 
     return error;

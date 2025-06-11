@@ -16,27 +16,23 @@ push ebp
 
 mov ebp, esp
 
-sub esp, dword 4
-
 sub esp, dword 8
 
-mov ebx, dword 5
-
-mov [esp+0], ebx
-
-mov ebx, dword 2
-
-mov [esp+4], ebx
-
-call func
-
-add esp, dword 8
+mov eax, dword 18
 
 mov [ebp+-4], eax
 
+mov eax, dword 10
+
+mov [ebp+-8], eax
+
 mov eax, [ebp+-4]
 
-add eax, dword 2
+mov ebx, [ebp+-8]
+
+sub eax, ebx
+
+shr eax, 2
 
 mov ebx, esp
 and esp, -16

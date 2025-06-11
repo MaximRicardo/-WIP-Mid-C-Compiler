@@ -2,8 +2,9 @@ int func(int x, int y);
 
 int main(void) {
 
-    char *c = func(5,2);
-    c+2;
+    int *p = 18;
+    int *q = 10;
+    p-q;
     :;
 
     return 0;

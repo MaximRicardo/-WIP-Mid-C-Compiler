@@ -14,6 +14,8 @@
 
 unsigned long label_counter = 0;
 
+unsigned next_reg_to_leak = 0;
+
 /* is the register currently holding a value? */
 bool gp_reg_used[] = {
     false,  /* ax */
@@ -104,9 +106,10 @@ static struct GPReg alloc_reg(struct InstrList *instrs) {
     reg.reg_idx = unused_reg();
     if (reg.reg_idx == UINT_MAX) {
         /* IMPORTANT: verify that using rand isn't absolutely bonkers here */
-        reg.reg_idx = rand() % n_gp_regs;
+        reg.reg_idx = next_reg_to_leak++;
         leak_reg_to_stack(instrs, reg.reg_idx);
         reg.prev_val_was_leaked = true;
+        next_reg_to_leak %= n_gp_regs;
     }
     gp_reg_used[reg.reg_idx] = true;
     return reg;
@@ -128,7 +131,14 @@ static void free_reg(struct InstrList *instrs, struct GPReg reg) {
 
 static unsigned operand_t_to_reg_idx(enum InstrOperandType type) {
 
-    return type-InstrOperandType_REG_AX;
+    return type-InstrOperandType_REGISTERS_START-1;
+
+}
+
+static bool operand_t_is_reg(enum InstrOperandType type) {
+
+    return type > InstrOperandType_REGISTERS_START &&
+        type < InstrOperandType_REGISTERS_END;
 
 }
 
@@ -143,21 +153,21 @@ static enum InstrType expr_to_instr_t(const struct Expr *expr) {
         return InstrType_SUB;
 
     case ExprType_MUL:
-        if (PrimitiveType_signed(Expr_type(expr, true),
+        if (PrimitiveType_signed(Expr_type(expr),
                     Expr_lvls_of_indir(expr)))
             return InstrType_IMUL;
         else
             return InstrType_MUL;
 
     case ExprType_DIV:
-        if (PrimitiveType_signed(Expr_type(expr, true),
+        if (PrimitiveType_signed(Expr_type(expr),
                     Expr_lvls_of_indir(expr)))
             return InstrType_IDIV;
         else
             return InstrType_DIV;
 
     case ExprType_MODULUS:
-        if (PrimitiveType_signed(Expr_type(expr, true),
+        if (PrimitiveType_signed(Expr_type(expr),
                     Expr_lvls_of_indir(expr)))
             return InstrType_IMODULO;
         else
@@ -245,7 +255,7 @@ void Instruction_free(struct Instruction instr) {
 
 static enum InstrOperandType reg_idx_to_operand_t(unsigned idx) {
 
-    return InstrOperandType_REG_AX+idx;
+    return InstrOperandType_REGISTERS_START+idx+1;
 
 }
 
@@ -375,6 +385,29 @@ static void instr_only_type(struct InstrList *instrs, enum InstrType type) {
 
 }
 
+/* returns the log2 of bytes. only works for 1, 2, and 4 bytes. i can't get
+ * log2 and friends to work for some reason, my best guess is that c89 doesn't
+ * support them? */
+static unsigned bytes_log2(unsigned bytes) {
+
+    switch (bytes) {
+
+    case 1:
+        return 0;
+
+    case 2:
+        return 1;
+
+    case 4:
+        return 2;
+
+    default:
+        assert(false);
+
+    }
+
+}
+
 static struct GPReg get_expr_instructions(struct InstrList *instrs,
         const struct Expr *expr, bool load_reference);
 
@@ -403,7 +436,7 @@ static struct GPReg get_func_call_expr_instructions(struct InstrList *instrs,
     {
         for (i = 0; i < expr->args.size; i++) {
             unsigned arg_size = PrimitiveType_size(
-                    Expr_type(expr->args.elems[i], true),
+                    Expr_type(expr->args.elems[i]),
                     Expr_lvls_of_indir(expr->args.elems[i]));
             /* alignment */
             arg_size = round_up(arg_size, m_TypeSize_stack_var_min_alignment);
@@ -474,7 +507,7 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
     else if (expr->expr_type == ExprType_IDENT) {
         enum InstrType type = load_reference ? InstrType_LEA :
             InstrType_MOV_F_LOC;
-        unsigned var_size = PrimitiveType_size(Expr_type(expr, false),
+        unsigned var_size = PrimitiveType_size(Expr_type(expr),
                 Expr_lvls_of_indir(expr));
         instr_reg_and_reg(instrs, type, InstrSize_bytes_to(var_size),
                 reg_idx_to_operand_t(lhs_reg.reg_idx), InstrOperandType_REG_BP,
@@ -487,7 +520,7 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
     }
     else if (expr->expr_type == ExprType_EQUAL) {
         enum InstrSize assignment_size = InstrSize_bytes_to(
-                PrimitiveType_size(expr->og_lhs_type,
+                PrimitiveType_size(expr->lhs_type,
                     expr->lhs_lvls_of_indir));
 
         if (expr->rhs->expr_type != ExprType_INT_LIT)
@@ -501,6 +534,12 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
     }
     else {
         struct Instruction instr = Instruction_init();
+        bool is_ptr_int_operation =
+            expr->rhs && expr->lhs_lvls_of_indir > 0 &&
+                expr->rhs_lvls_of_indir == 0;
+        bool is_ptr_ptr_operation =
+            expr->rhs && expr->lhs_lvls_of_indir > 0 &&
+                expr->rhs_lvls_of_indir > 0;
 
         instr.type = expr_to_instr_t(expr);
         instr.instr_size = instr_size;
@@ -516,7 +555,23 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
             instr.rhs = InstrOperand_create_imm(InstrOperandType_IMM_32,
                     expr->rhs->int_value);
 
+        if (is_ptr_int_operation && operand_t_is_reg(instr.rhs.type)) {
+            instr_reg_and_imm32(instrs, InstrType_SHL, instr.instr_size,
+                    instr.rhs.type,
+                    bytes_log2(InstrSize_to_bytes(instr.instr_size)), 0);
+        }
+        else if (is_ptr_int_operation) {
+            instr.rhs.value.imm <<=
+                bytes_log2(InstrSize_to_bytes(instr.instr_size));
+        }
+
         InstrList_push_back(instrs, instr);
+
+        if (is_ptr_ptr_operation) {
+            instr_reg_and_imm32(instrs, InstrType_SHR, instr.instr_size,
+                    instr.lhs.type,
+                    bytes_log2(InstrSize_to_bytes(instr.instr_size)), 0);
+        }
     }
 
     if (rhs_reg.reg_idx != UINT_MAX)

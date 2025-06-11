@@ -56,10 +56,12 @@ static void move_operator_to_out_queue(struct ExprPtrList *output_queue,
     operator->lhs =
         output_queue->elems[output_queue->size-1-(operator->rhs!=NULL)];
 
-    operator->og_lhs_type = Expr_type(operator->lhs, false);
-    operator->lhs_type = Expr_type(operator->rhs, true);
+    operator->lhs_lvls_of_indir = Expr_lvls_of_indir(operator->lhs);
+    operator->rhs_lvls_of_indir = Expr_lvls_of_indir(operator->rhs);
+
+    operator->lhs_type = Expr_type(operator->rhs);
     if (operator->rhs) {
-        operator->rhs_type = Expr_type(operator->rhs, true);
+        operator->rhs_type = Expr_type(operator->rhs);
     }
 
     /* Remove the lhs and rhs from the queue and replace them with the
@@ -270,6 +272,7 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
                 continue;
             }
             m_free(name);
+
             expr = safe_malloc(sizeof(*expr));
             *expr = Expr_create_w_tok(token_tbl->elems[i], NULL, NULL,
                     vars->elems[var_idx].lvls_of_indir, 0,

@@ -47,6 +47,9 @@ const char *instr_type_to_asm[] = {
     "idiv",
     "and",
     "cmp",
+    "shl",
+    "shr",
+    "ashr",
 
     "not",
 
@@ -98,6 +101,13 @@ static bool branch_instr(enum InstrType type) {
 
     return type == InstrType_JMP || type == InstrType_JE ||
         type == InstrType_JNE;
+
+}
+
+static bool shift_instr(enum InstrType type) {
+
+    return type == InstrType_SHL || type == InstrType_SHR ||
+        type == InstrType_ASHR;
 
 }
 
@@ -318,6 +328,17 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
     else if (instr->type == InstrType_LABEL) {
         assert(instr->string);
         fprintf(output, "%s:\n", instr->string);
+    }
+
+    else if (shift_instr(instr->type)) {
+        printf("idx = %u\n", instr->lhs.type);
+        fprintf(output, "%s %s", instr_type_to_asm[instr->type],
+                reg_names[type_to_reg(instr->lhs.type)][instr->instr_size]);
+        if (type_is_reg(instr->rhs.type))
+            fprintf(output, ", %s\n",
+                    reg_names[type_to_reg(instr->rhs.type)][InstrSize_8]);
+        else
+            fprintf(output, ", %u\n", instr->rhs.value.imm);
     }
 
     else if (instr->type == InstrType_DEBUG_EAX) {

@@ -10,6 +10,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* TODO:
+ *    Add comparison operators to ExprType_is_valid_ptr_operation
+ *    Add increment/decrement operators to
+ *      ExprType_is_valid_single_ptr_operation
+ */
+
 struct ASTNode ASTNode_init(void) {
 
     struct ASTNode node;
@@ -57,26 +63,36 @@ void ASTNode_free(struct ASTNode node) {
 
 }
 
-bool ExprType_is_bin_operator(enum ExprType expr) {
+bool ExprType_is_bin_operator(enum ExprType type) {
 
-    return Token_is_bin_operator(expr_t_to_tok_t(expr));
-
-}
-
-bool ExprType_is_unary_operator(enum ExprType expr) {
-
-    return Token_is_unary_operator(expr_t_to_tok_t(expr));
+    return Token_is_bin_operator(expr_t_to_tok_t(type));
 
 }
 
-bool ExprType_is_operator(enum ExprType expr) {
+bool ExprType_is_unary_operator(enum ExprType type) {
 
-    return Token_is_operator(expr_t_to_tok_t(expr));
+    return Token_is_unary_operator(expr_t_to_tok_t(type));
 
 }
 
-bool ExprType_is_unary_operator(enum ExprType expr);
-bool ExprType_is_operator(enum ExprType expr);
+bool ExprType_is_operator(enum ExprType type) {
+
+    return Token_is_operator(expr_t_to_tok_t(type));
+
+}
+
+bool ExprType_is_valid_ptr_operation(enum ExprType type) {
+
+    /* add comparison operators later */
+    return type == ExprType_EQUAL || type == ExprType_MINUS;
+
+}
+
+bool ExprType_is_valid_single_ptr_operation(enum ExprType type) {
+
+    return type == ExprType_PLUS || type == ExprType_MINUS;
+
+}
 
 struct Expr Expr_init(void) {
 
@@ -87,7 +103,6 @@ struct Expr Expr_init(void) {
     expr.src_len = 0;
     expr.lhs = NULL;
     expr.rhs = NULL;
-    expr.og_lhs_type = PrimType_INVALID;
     expr.lhs_type = PrimType_INVALID;
     expr.rhs_type = PrimType_INVALID;
     expr.lhs_lvls_of_indir = 0;
@@ -116,7 +131,6 @@ struct Expr Expr_create(unsigned line_num, unsigned column_num,
     expr.rhs = rhs;
     expr.lhs_lvls_of_indir = lhs_lvls_of_indir;
     expr.rhs_lvls_of_indir = rhs_lvls_of_indir;
-    expr.og_lhs_type = lhs_type;
     expr.lhs_type = lhs_type == PrimType_INVALID ? PrimType_INVALID :
         PrimitiveType_promote(lhs_type, expr.lhs_lvls_of_indir);
     expr.rhs_type = rhs_type == PrimType_INVALID ? PrimType_INVALID :
@@ -164,30 +178,25 @@ unsigned Expr_lvls_of_indir(const struct Expr *self) {
 
 }
 
-enum PrimitiveType Expr_type(const struct Expr *self, bool promote) {
+enum PrimitiveType Expr_type(const struct Expr *self) {
 
     if (self->rhs) {
         enum PrimitiveType lhs_prom = PrimitiveType_promote(self->lhs_type,
                 self->lhs_lvls_of_indir);
-        /*
-        enum PrimitiveType rhs_prom = PrimitiveType_promote(self->rhs_type);
-        */
+        enum PrimitiveType rhs_prom = PrimitiveType_promote(self->rhs_type,
+                self->rhs_lvls_of_indir);
 
-        /* it's impossible to not promote the operands in this case */
-        assert(promote);
-
-        /* Time for C arithmetic type conversions! Yayyyy! */
-        /* Actually not yet cuz i haven't added any types other than int yet */
-        return lhs_prom;
+        if (self->rhs_lvls_of_indir > self->lhs_lvls_of_indir)
+            return rhs_prom;
+        else
+            return lhs_prom;
     }
     else if (self->expr_type == ExprType_FUNC_CALL) {
         /* TEMPORARY SOLUTION. WILL NOT WORK AFTER ADDING MORE DATA TYPES */
         return PrimType_INT;
     }
     else {
-        return promote ?
-            PrimitiveType_promote(self->lhs_type, self->lhs_lvls_of_indir) :
-            self->og_lhs_type;
+        return PrimitiveType_promote(self->lhs_type, self->lhs_lvls_of_indir);
     }
 
 }
@@ -478,7 +487,7 @@ bool VarDeclPtrList_equivalent_expr(const struct VarDeclPtrList *self,
         return false;
 
     for (i = 0; i < self->size; i++) {
-        if (self->elems[i]->type != Expr_type(other->elems[i], true)) {
+        if (self->elems[i]->type != Expr_type(other->elems[i])) {
             return false;
         }
     }
