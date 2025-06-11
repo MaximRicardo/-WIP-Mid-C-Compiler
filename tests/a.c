@@ -5,6 +5,13 @@ int main(void) {
     int n = 5;
     int *x = &n;
 
+    if (1) {
+
+    }
+    else {
+
+    }
+
     *func(x);
     :;
 

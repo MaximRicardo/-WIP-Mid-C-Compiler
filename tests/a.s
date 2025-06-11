@@ -26,6 +26,38 @@ lea eax, [ebp+-4]
 
 mov [ebp+-8], eax
 
+mov eax, dword 1
+
+cmp eax, dword 0
+
+je _L0$
+
+push ebp
+
+mov ebp, esp
+
+sub esp, dword 0
+
+mov esp, ebp
+
+pop ebp
+
+jmp _L1$
+
+_L0$:
+
+push ebp
+
+mov ebp, esp
+
+sub esp, dword 0
+
+mov esp, ebp
+
+pop ebp
+
+_L1$:
+
 sub esp, dword 4
 
 mov ebx, [ebp+-8]

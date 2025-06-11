@@ -788,11 +788,11 @@ static void get_if_stmt_instructions(struct InstrList *instrs,
     for (i = 0; i < sizeof(if_end_label)/sizeof(if_end_label[0]); i++) {
         if_end_label[i] =
             safe_malloc(m_comp_label_name_capacity*sizeof(*if_end_label[i]));
-        sprintf(if_end_label[i], "_L%lu", label_counter);
+        sprintf(if_end_label[i], "_L%lu$", label_counter);
         if (if_node->else_body) {
             else_end_label[i] = safe_malloc(
                     m_comp_label_name_capacity*sizeof(*else_end_label[i]));
-            sprintf(else_end_label[i], "_L%lu", label_counter+1);
+            sprintf(else_end_label[i], "_L%lu$", label_counter+1);
         }
     }
     label_counter += 1+(if_node->else_body!=NULL);
