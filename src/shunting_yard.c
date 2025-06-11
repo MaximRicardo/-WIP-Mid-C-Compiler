@@ -36,7 +36,7 @@ static u32 skip_to_token_type_alt(u32 start_idx, struct TokenList tokens,
 /* Moves the operator at the top of the operator queue over to the output
  * queue */
 static void move_operator_to_out_queue(struct ExprPtrList *output_queue,
-        struct ExprPtrList *operator_stack) {
+        struct ExprPtrList *operator_stack, const struct ParVarList *vars) {
 
     struct Expr *operator =
         ExprPtrList_back(operator_stack);
@@ -56,13 +56,13 @@ static void move_operator_to_out_queue(struct ExprPtrList *output_queue,
     operator->lhs =
         output_queue->elems[output_queue->size-1-(operator->rhs!=NULL)];
 
-    operator->lhs_lvls_of_indir = Expr_lvls_of_indir(operator->lhs);
-    operator->lhs_type = Expr_type(operator->lhs);
-    operator->lhs_og_type = Expr_type_no_prom(operator->lhs);
+    operator->lhs_lvls_of_indir = Expr_lvls_of_indir(operator->lhs, vars);
+    operator->lhs_type = Expr_type(operator->lhs, vars);
+    operator->lhs_og_type = Expr_type_no_prom(operator->lhs, vars);
     if (operator->rhs) {
-        operator->rhs_lvls_of_indir = Expr_lvls_of_indir(operator->rhs);
-        operator->rhs_type = Expr_type(operator->rhs);
-        operator->rhs_og_type = Expr_type_no_prom(operator->rhs);
+        operator->rhs_lvls_of_indir = Expr_lvls_of_indir(operator->rhs, vars);
+        operator->rhs_type = Expr_type(operator->rhs, vars);
+        operator->rhs_og_type = Expr_type_no_prom(operator->rhs, vars);
     }
 
     /* Remove the lhs and rhs from the queue and replace them with the
@@ -81,7 +81,8 @@ static void move_operator_to_out_queue(struct ExprPtrList *output_queue,
  *    operator stack should be popped first.
  */
 static void push_operator_to_queue(struct ExprPtrList *output_queue,
-        struct ExprPtrList *operator_stack, struct Token op_tok) {
+        struct ExprPtrList *operator_stack, struct Token op_tok,
+        const struct ParVarList *vars) {
 
     struct Expr *expr = safe_malloc(sizeof(*expr));
     *expr = Expr_create_w_tok(op_tok, NULL, NULL, 0, 0, PrimType_INVALID,
@@ -109,7 +110,7 @@ static void push_operator_to_queue(struct ExprPtrList *output_queue,
         assert(output_queue->size >=
                 (Token_is_bin_operator(o2_tok_type) ? 2 : 1));
 
-        move_operator_to_out_queue(output_queue, operator_stack);
+        move_operator_to_out_queue(output_queue, operator_stack, vars);
     }
 
     ExprPtrList_push_back(operator_stack, expr);
@@ -120,11 +121,12 @@ static void push_operator_to_queue(struct ExprPtrList *output_queue,
  * been inserted to the operator stack between the left parenthesis and the
  * right one in LIFO order */
 static void read_r_paren(struct ExprPtrList *output_queue,
-        struct ExprPtrList *operator_stack, const struct Token *r_paren_tok) {
+        struct ExprPtrList *operator_stack, const struct Token *r_paren_tok,
+        const struct ParVarList *vars) {
 
     while (operator_stack->size > 0 &&
             ExprPtrList_back(operator_stack)->expr_type != ExprType_PAREN) {
-        move_operator_to_out_queue(output_queue, operator_stack);
+        move_operator_to_out_queue(output_queue, operator_stack, vars);
     }
 
     if (operator_stack->size == 0) {
@@ -229,7 +231,7 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
 
         if (Token_is_operator(token_tbl->elems[i].type)) {
             push_operator_to_queue(&output_queue, &operator_stack,
-                    token_tbl->elems[i]);
+                    token_tbl->elems[i], vars);
         }
         else if (token_tbl->elems[i].type == TokenType_L_PAREN) {
             struct Expr *expr = safe_malloc(sizeof(*expr));
@@ -240,7 +242,8 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
             ++n_parens_deep;
         }
         else if (token_tbl->elems[i].type == TokenType_R_PAREN) {
-            read_r_paren(&output_queue, &operator_stack, &token_tbl->elems[i]);
+            read_r_paren(&output_queue, &operator_stack, &token_tbl->elems[i],
+                    vars);
             --n_parens_deep;
         }
         else if (i+1 < token_tbl->size &&
@@ -280,6 +283,7 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
                     vars->elems[var_idx].type, PrimType_INVALID,
                     ExprPtrList_init(), 0, vars->elems[var_idx].stack_pos-bp,
                     ExprType_IDENT);
+            Expr_type(expr, vars);
             ExprPtrList_push_back(&output_queue, expr);
         }
         else {
@@ -310,7 +314,7 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
             ExprPtrList_pop_back(&operator_stack, Expr_recur_free_w_self);
         }
         else
-            move_operator_to_out_queue(&output_queue, &operator_stack);
+            move_operator_to_out_queue(&output_queue, &operator_stack, vars);
     }
     ExprPtrList_free(&operator_stack);
 

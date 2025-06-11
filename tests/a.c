@@ -1,26 +1,16 @@
-void func(int *x, int *y);
+int* func(int *x);
 
 int main(void) {
 
-    int x = 5;
-    int y = 5;
+    int n = 5;
+    int *x = &n;
 
-    func(&x, &y);
-    x;
-    :;
-    func(&x, &y);
-    x;
-    :;
-    func(&x, &y);
-    x;
-    :;
-    func(&x, &y);
-    x;
+    *func(x);
     :;
 
     return 0;
 }
 
-void func(int *x, int *y) {
-    *x = *x + *y;
+int* func(int *x) {
+    return x;
 }

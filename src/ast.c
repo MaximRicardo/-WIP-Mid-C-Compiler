@@ -1,5 +1,7 @@
 #include "ast.h"
 #include "bool.h"
+#include "comp_dependent/ints.h"
+#include "parser_var.h"
 #include "prim_type.h"
 #include "safe_mem.h"
 #include "token.h"
@@ -120,6 +122,9 @@ struct Expr Expr_init(void) {
     expr.expr_type = ExprType_INVALID;
     expr.int_value = 0;
     expr.bp_offset = 0;
+    expr.lvls_of_indir = 0;
+    expr.prim_type = PrimType_INVALID;
+    expr.non_prom_prim_type = PrimType_INVALID;
     return expr;
 
 }
@@ -150,6 +155,9 @@ struct Expr Expr_create(unsigned line_num, unsigned column_num,
     expr.int_value = int_value;
     expr.bp_offset = bp_offset;
     expr.expr_type = expr_type;
+    expr.lvls_of_indir = 0;
+    expr.prim_type = PrimType_INVALID;
+    expr.non_prom_prim_type = PrimType_INVALID;
     return expr;
 
 }
@@ -183,21 +191,37 @@ void Expr_recur_free_w_self(struct Expr *self) {
 
 }
 
-unsigned Expr_lvls_of_indir(const struct Expr *self) {
+unsigned Expr_lvls_of_indir(struct Expr *self, const struct ParVarList *vars) {
 
-    unsigned lvls_of_indir =
-        m_max(self->lhs_lvls_of_indir, self->rhs_lvls_of_indir);
+    if (self->expr_type == ExprType_FUNC_CALL) {
+        char *expr_src = Expr_src(self);
 
-    if (self->expr_type == ExprType_DEREFERENCE) {
-        assert(lvls_of_indir > 0);
-        --lvls_of_indir;
+        u32 var_idx = ParVarList_find_var(vars, expr_src);
+        unsigned lvls_of_indir =
+            var_idx == m_u32_max ? 0 : vars->elems[var_idx].lvls_of_indir;
+
+        m_free(expr_src);
+
+        self->lvls_of_indir = lvls_of_indir;
+    }
+    else {
+        unsigned lvls_of_indir =
+            m_max(self->lhs_lvls_of_indir, self->rhs_lvls_of_indir);
+
+        if (self->expr_type == ExprType_DEREFERENCE) {
+            assert(lvls_of_indir > 0);
+            --lvls_of_indir;
+        }
+
+        self->lvls_of_indir = lvls_of_indir;
     }
 
-    return lvls_of_indir;
+    return self->lvls_of_indir;
 
 }
 
-enum PrimitiveType Expr_type(const struct Expr *self) {
+enum PrimitiveType Expr_type(struct Expr *self,
+        const struct ParVarList *vars) {
 
     if (self->rhs) {
         enum PrimitiveType lhs_prom = PrimitiveType_promote(self->lhs_type,
@@ -206,26 +230,59 @@ enum PrimitiveType Expr_type(const struct Expr *self) {
                 self->rhs_lvls_of_indir);
 
         if (self->rhs_lvls_of_indir > self->lhs_lvls_of_indir)
-            return rhs_prom;
+            self->prim_type = rhs_prom;
         else
-            return lhs_prom;
+            self->prim_type = lhs_prom;
     }
     else if (self->expr_type == ExprType_FUNC_CALL) {
-        /* TEMPORARY SOLUTION. WILL NOT WORK AFTER ADDING MORE DATA TYPES */
-        return PrimType_INT;
+        char *expr_src = Expr_src(self);
+
+        u32 var_idx = ParVarList_find_var(vars, expr_src);
+        enum PrimitiveType type;
+        unsigned lvls_of_indir;
+
+        if (var_idx == m_u32_max) {
+            type = PrimType_INT;
+            lvls_of_indir = 0;
+        }
+        else {
+            type = vars->elems[var_idx].type;
+            lvls_of_indir = vars->elems[var_idx].lvls_of_indir;
+        }
+
+        m_free(expr_src);
+
+        self->prim_type = PrimitiveType_promote(type, lvls_of_indir);
     }
     else {
-        return PrimitiveType_promote(self->lhs_type, self->lhs_lvls_of_indir);
+        self->prim_type =
+            PrimitiveType_promote(self->lhs_type, self->lhs_lvls_of_indir);
     }
+
+    return self->prim_type;
 
 }
 
-enum PrimitiveType Expr_type_no_prom(const struct Expr *self) {
+enum PrimitiveType Expr_type_no_prom(struct Expr *self,
+        const struct ParVarList *vars) {
 
-    if (self->rhs && self->rhs_lvls_of_indir > self->lhs_lvls_of_indir)
-        return self->rhs_og_type;
+    if (self->expr_type == ExprType_FUNC_CALL) {
+        char *expr_src = Expr_src(self);
+
+        u32 var_idx = ParVarList_find_var(vars, expr_src);
+        enum PrimitiveType type =
+            var_idx == m_u32_max ? PrimType_INT : vars->elems[var_idx].type;
+
+        m_free(expr_src);
+
+        self->non_prom_prim_type = type;
+    }
+    else if (self->rhs && self->rhs_lvls_of_indir > self->lhs_lvls_of_indir)
+        self->non_prom_prim_type = self->rhs_og_type;
     else
-        return self->lhs_og_type;
+        self->non_prom_prim_type = self->lhs_og_type;
+
+    return self->non_prom_prim_type;
 
 }
 
@@ -537,7 +594,7 @@ bool VarDeclPtrList_equivalent(const struct VarDeclPtrList *self,
 }
 
 bool VarDeclPtrList_equivalent_expr(const struct VarDeclPtrList *self,
-        const struct ExprPtrList *other) {
+        const struct ExprPtrList *other, const struct ParVarList *vars) {
 
     u32 i;
 
@@ -545,7 +602,7 @@ bool VarDeclPtrList_equivalent_expr(const struct VarDeclPtrList *self,
         return false;
 
     for (i = 0; i < self->size; i++) {
-        if (self->elems[i]->type != Expr_type(other->elems[i])) {
+        if (self->elems[i]->type != Expr_type(other->elems[i], vars)) {
             return false;
         }
     }

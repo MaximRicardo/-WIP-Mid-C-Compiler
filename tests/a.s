@@ -22,94 +22,21 @@ mov eax, dword 5
 
 mov [ebp+-4], eax
 
-mov eax, dword 5
+lea eax, [ebp+-4]
 
 mov [ebp+-8], eax
 
-sub esp, dword 8
+sub esp, dword 4
 
-lea ebx, [ebp+-4]
-
-mov [esp+0], ebx
-
-lea ebx, [ebp+-8]
-
-mov [esp+4], ebx
-
-call func
-
-add esp, dword 8
-
-mov eax, [ebp+-4]
-
-mov ebx, esp
-and esp, -16
-push eax
-push msg$
-call printf
-mov esp, ebx
-
-sub esp, dword 8
-
-lea ebx, [ebp+-4]
+mov ebx, [ebp+-8]
 
 mov [esp+0], ebx
 
-lea ebx, [ebp+-8]
-
-mov [esp+4], ebx
-
 call func
 
-add esp, dword 8
+add esp, dword 4
 
-mov eax, [ebp+-4]
-
-mov ebx, esp
-and esp, -16
-push eax
-push msg$
-call printf
-mov esp, ebx
-
-sub esp, dword 8
-
-lea ebx, [ebp+-4]
-
-mov [esp+0], ebx
-
-lea ebx, [ebp+-8]
-
-mov [esp+4], ebx
-
-call func
-
-add esp, dword 8
-
-mov eax, [ebp+-4]
-
-mov ebx, esp
-and esp, -16
-push eax
-push msg$
-call printf
-mov esp, ebx
-
-sub esp, dword 8
-
-lea ebx, [ebp+-4]
-
-mov [esp+0], ebx
-
-lea ebx, [ebp+-8]
-
-mov [esp+4], ebx
-
-call func
-
-add esp, dword 8
-
-mov eax, [ebp+-4]
+mov eax, [eax+0]
 
 mov ebx, esp
 and esp, -16
@@ -160,17 +87,17 @@ sub esp, dword 0
 
 mov eax, [ebp+20]
 
-mov ebx, [ebp+20]
+mov esp, ebp
 
-mov ebx, [ebx+0]
+pop ebp
 
-mov ecx, [ebp+24]
+pop edi
 
-mov ecx, [ecx+0]
+pop esi
 
-add ebx, ecx
+pop ebx
 
-mov [eax+0], ebx
+ret
 
 mov esp, ebp
 

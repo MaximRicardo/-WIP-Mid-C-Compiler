@@ -122,6 +122,13 @@ struct Expr {
     unsigned lhs_og_type, rhs_og_type;
     struct ExprPtrList args; /* used by function calls */
 
+    /* gets set via Expr_lvls_of_indir */
+    unsigned lvls_of_indir;
+    /* gets set via Expr_type */
+    enum PrimitiveType prim_type;
+    /* gets set via Expr_type_no_prom */
+    enum PrimitiveType non_prom_prim_type;
+
     u32 int_value;
 
     i32 bp_offset;
@@ -149,13 +156,15 @@ struct Expr Expr_create_w_tok(struct Token token, struct Expr *lhs,
         enum ExprType expr_type);
 /* Also frees self */
 void Expr_recur_free_w_self(struct Expr *self);
-unsigned Expr_lvls_of_indir(const struct Expr *self);
-enum PrimitiveType Expr_type(const struct Expr *self);
+unsigned Expr_lvls_of_indir(struct Expr *self, const struct ParVarList *vars);
+enum PrimitiveType Expr_type(struct Expr *self,
+        const struct ParVarList *vars);
 /* works differently from Expr_type. uses lhs_og_type and rhs_og_type instead,
  * and inherits directly from whichever operand has the highest level of indir.
  * If both have the same, then it's inherited from the left operand by default.
  */
-enum PrimitiveType Expr_type_no_prom(const struct Expr *self);
+enum PrimitiveType Expr_type_no_prom(struct Expr *self,
+        const struct ParVarList *vars);
 u32 Expr_evaluate(const struct Expr *expr);
 char* Expr_src(const struct Expr *expr); /* same as Token_src */
 /* checks if there are any errors in the expression that the shunting yard
@@ -221,7 +230,7 @@ struct VarDeclPtrList {
 bool VarDeclPtrList_equivalent(const struct VarDeclPtrList *self,
         const struct VarDeclPtrList *other);
 bool VarDeclPtrList_equivalent_expr(const struct VarDeclPtrList *self,
-        const struct ExprPtrList *other);
+        const struct ExprPtrList *other, const struct ParVarList *vars);
 m_declare_VectorImpl_funcs(VarDeclPtrList, struct VarDeclNode*)
 
 struct FuncDeclNode {

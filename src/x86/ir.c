@@ -153,22 +153,22 @@ static enum InstrType expr_to_instr_t(const struct Expr *expr) {
         return InstrType_SUB;
 
     case ExprType_MUL:
-        if (PrimitiveType_signed(Expr_type(expr),
-                    Expr_lvls_of_indir(expr)))
+        if (PrimitiveType_signed(expr->prim_type,
+                    expr->lvls_of_indir))
             return InstrType_IMUL;
         else
             return InstrType_MUL;
 
     case ExprType_DIV:
-        if (PrimitiveType_signed(Expr_type(expr),
-                    Expr_lvls_of_indir(expr)))
+        if (PrimitiveType_signed(expr->prim_type,
+                    expr->lvls_of_indir))
             return InstrType_IDIV;
         else
             return InstrType_DIV;
 
     case ExprType_MODULUS:
-        if (PrimitiveType_signed(Expr_type(expr),
-                    Expr_lvls_of_indir(expr)))
+        if (PrimitiveType_signed(expr->prim_type,
+                    expr->lvls_of_indir))
             return InstrType_IMODULO;
         else
             return InstrType_MODULO;
@@ -436,8 +436,8 @@ static struct GPReg get_func_call_expr_instructions(struct InstrList *instrs,
     {
         for (i = 0; i < expr->args.size; i++) {
             unsigned arg_size = PrimitiveType_size(
-                    Expr_type(expr->args.elems[i]),
-                    Expr_lvls_of_indir(expr->args.elems[i]));
+                    expr->args.elems[i]->prim_type,
+                    expr->args.elems[i]->lvls_of_indir);
             /* alignment */
             arg_size = round_up(arg_size, m_TypeSize_stack_var_min_alignment);
             args_stack_space += arg_size;
@@ -509,8 +509,8 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
     else if (expr->expr_type == ExprType_IDENT) {
         enum InstrType type = load_reference ? InstrType_LEA :
             InstrType_MOV_F_LOC;
-        unsigned var_size = PrimitiveType_size(Expr_type(expr),
-                Expr_lvls_of_indir(expr));
+        unsigned var_size = PrimitiveType_size(expr->prim_type,
+                expr->lvls_of_indir);
         instr_reg_and_reg(instrs, type, InstrSize_bytes_to(var_size),
                 reg_idx_to_operand_t(lhs_reg.reg_idx), InstrOperandType_REG_BP,
                 expr->bp_offset);
