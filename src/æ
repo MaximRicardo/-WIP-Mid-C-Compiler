@@ -58,11 +58,9 @@ static void move_operator_to_out_queue(struct ExprPtrList *output_queue,
 
     operator->lhs_lvls_of_indir = Expr_lvls_of_indir(operator->lhs);
     operator->lhs_type = Expr_type(operator->lhs);
-    operator->lhs_og_type = Expr_type_no_prom(operator->lhs);
     if (operator->rhs) {
         operator->rhs_lvls_of_indir = Expr_lvls_of_indir(operator->rhs);
         operator->rhs_type = Expr_type(operator->rhs);
-        operator->rhs_og_type = Expr_type_no_prom(operator->rhs);
     }
 
     /* Remove the lhs and rhs from the queue and replace them with the
@@ -85,7 +83,7 @@ static void push_operator_to_queue(struct ExprPtrList *output_queue,
 
     struct Expr *expr = safe_malloc(sizeof(*expr));
     *expr = Expr_create_w_tok(op_tok, NULL, NULL, 0, 0, PrimType_INVALID,
-            PrimType_INVALID, ExprPtrList_init(), 0, 0,
+            PrimType_INVALID, 0, ExprPtrList_init(), 0, 0,
             tok_t_to_expr_t(op_tok.type));
 
     /* If the operator o2 at the top of the stack has greater precedence than
@@ -165,7 +163,7 @@ static u32 read_func_call(const struct TokenList *token_tbl, u32 f_call_idx,
 
     expr = safe_malloc(sizeof(*expr));
     *expr = Expr_create_w_tok(token_tbl->elems[f_call_idx], NULL, NULL, 0, 0,
-            PrimType_INVALID, PrimType_INVALID, ExprPtrList_init(), 0, 0,
+            PrimType_INVALID, PrimType_INVALID, 0, ExprPtrList_init(), 0, 0,
             ExprType_FUNC_CALL);
 
     /* now, we gotta parse every expression inside the parentheses */

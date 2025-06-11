@@ -1,5 +1,6 @@
 #include "ast.h"
 #include "bool.h"
+#include "prim_type.h"
 #include "safe_mem.h"
 #include "token.h"
 #include "vector_impl.h"
@@ -109,10 +110,12 @@ struct Expr Expr_init(void) {
     expr.src_len = 0;
     expr.lhs = NULL;
     expr.rhs = NULL;
-    expr.lhs_type = PrimType_INVALID;
-    expr.rhs_type = PrimType_INVALID;
     expr.lhs_lvls_of_indir = 0;
     expr.rhs_lvls_of_indir = 0;
+    expr.lhs_og_type = PrimType_INVALID;
+    expr.rhs_og_type = PrimType_INVALID;
+    expr.lhs_type = expr.lhs_og_type;
+    expr.rhs_type = expr.rhs_og_type;
     expr.args = ExprPtrList_init();
     expr.expr_type = ExprType_INVALID;
     expr.int_value = 0;
@@ -137,6 +140,8 @@ struct Expr Expr_create(unsigned line_num, unsigned column_num,
     expr.rhs = rhs;
     expr.lhs_lvls_of_indir = lhs_lvls_of_indir;
     expr.rhs_lvls_of_indir = rhs_lvls_of_indir;
+    expr.lhs_og_type = lhs_type;
+    expr.rhs_og_type = rhs_type;
     expr.lhs_type = lhs_type == PrimType_INVALID ? PrimType_INVALID :
         PrimitiveType_promote(lhs_type, expr.lhs_lvls_of_indir);
     expr.rhs_type = rhs_type == PrimType_INVALID ? PrimType_INVALID :
@@ -212,6 +217,15 @@ enum PrimitiveType Expr_type(const struct Expr *self) {
     else {
         return PrimitiveType_promote(self->lhs_type, self->lhs_lvls_of_indir);
     }
+
+}
+
+enum PrimitiveType Expr_type_no_prom(const struct Expr *self) {
+
+    if (self->rhs && self->rhs_lvls_of_indir > self->lhs_lvls_of_indir)
+        return self->rhs_og_type;
+    else
+        return self->lhs_og_type;
 
 }
 

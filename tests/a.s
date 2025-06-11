@@ -16,25 +16,17 @@ push ebp
 
 mov ebp, esp
 
-sub esp, dword 8
+sub esp, dword 4
 
 mov eax, dword 18
 
 mov [ebp+-4], eax
 
-mov eax, dword 14
-
-mov [ebp+-8], eax
-
 mov eax, [ebp+-4]
 
-mov ebx, [ebp+-8]
+mov al, [eax+0]
 
-sub eax, ebx
-
-shr eax, 2
-
-mov eax, [eax+0]
+and eax, dword 255
 
 mov ebx, esp
 and esp, -16

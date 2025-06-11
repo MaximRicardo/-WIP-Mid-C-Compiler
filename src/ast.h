@@ -117,6 +117,8 @@ struct Expr {
     struct Expr *lhs, *rhs;
     unsigned lhs_lvls_of_indir, rhs_lvls_of_indir;
     enum PrimitiveType lhs_type, rhs_type;
+    /* doesn't factor in type promotions or lvls of indir */
+    unsigned lhs_og_type, rhs_og_type;
     struct ExprPtrList args; /* used by function calls */
 
     u32 int_value;
@@ -132,20 +134,27 @@ struct Expr Expr_init(void);
 struct Expr Expr_create(unsigned line_num, unsigned column_num,
         const char *src_start, unsigned src_len, struct Expr *lhs,
         struct Expr *rhs, unsigned lhs_lvls_of_indir,
-        unsigned rhs_lvls_of_indir, enum PrimitiveType og_lhs_type, 
-        enum PrimitiveType og_rhs_type, struct ExprPtrList args, u32 int_value,
-        i32 bp_offset, enum ExprType expr_type);
+        unsigned rhs_lvls_of_indir, enum PrimitiveType lhs_type, 
+        enum PrimitiveType rhs_type,
+        struct ExprPtrList args, u32 int_value, i32 bp_offset,
+        enum ExprType expr_type);
 /* Uses the passed, tok_t_to_expr_td column numbers aswell as src_start and
  * src_len. */
 struct Expr Expr_create_w_tok(struct Token token, struct Expr *lhs,
         struct Expr *rhs, unsigned lhs_lvls_of_indir,
         unsigned rhs_lvls_of_indir, enum PrimitiveType lhs_type,
-        enum PrimitiveType rhs_type, struct ExprPtrList args, u32 int_value,
-        i32 bp_offset, enum ExprType expr_type);
+        enum PrimitiveType rhs_type,
+        struct ExprPtrList args, u32 int_value, i32 bp_offset,
+        enum ExprType expr_type);
 /* Also frees self */
 void Expr_recur_free_w_self(struct Expr *self);
 unsigned Expr_lvls_of_indir(const struct Expr *self);
 enum PrimitiveType Expr_type(const struct Expr *self);
+/* works differently from Expr_type. uses lhs_og_type and rhs_og_type instead,
+ * and inherits directly from whichever operand has the highest level of indir.
+ * If both have the same, then it's inherited from the left operand by default.
+ */
+enum PrimitiveType Expr_type_no_prom(const struct Expr *self);
 u32 Expr_evaluate(const struct Expr *expr);
 char* Expr_src(const struct Expr *expr); /* same as Token_src */
 /* checks if there are any errors in the expression that the shunting yard

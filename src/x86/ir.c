@@ -540,7 +540,7 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
 
     }
     else if (expr->expr_type == ExprType_DEREFERENCE) {
-        unsigned deref_ptr_size = PrimitiveType_size(expr->lhs_type,
+        unsigned deref_ptr_size = PrimitiveType_size(expr->lhs_og_type,
                         expr->lhs_lvls_of_indir-1);
 
         instr_reg_and_reg(instrs, InstrType_MOV_F_LOC,
@@ -580,12 +580,13 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
         if (is_ptr_int_operation && operand_t_is_reg(instr.rhs.type)) {
             instr_reg_and_imm32(instrs, InstrType_SHL, instr.instr_size,
                     instr.rhs.type,
-                    bytes_log2(PrimitiveType_size(expr->lhs_type,
+                    bytes_log2(PrimitiveType_size(expr->lhs_og_type,
                             expr->lhs_lvls_of_indir-1)), 0);
         }
         else if (is_ptr_int_operation) {
             instr.rhs.value.imm <<=
-                bytes_log2(InstrSize_to_bytes(instr.instr_size));
+                bytes_log2(PrimitiveType_size(expr->lhs_og_type,
+                            expr->lhs_lvls_of_indir-1));
         }
 
         InstrList_push_back(instrs, instr);
@@ -593,7 +594,7 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
         if (is_ptr_ptr_operation) {
             instr_reg_and_imm32(instrs, InstrType_SHR, instr.instr_size,
                     instr.lhs.type,
-                    bytes_log2(PrimitiveType_size(expr->lhs_type,
+                    bytes_log2(PrimitiveType_size(expr->lhs_og_type,
                             expr->lhs_lvls_of_indir-1)), 0);
         }
     }
