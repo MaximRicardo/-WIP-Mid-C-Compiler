@@ -32,7 +32,7 @@ mov ebx, [ebp+-8]
 
 sub eax, ebx
 
-shr eax, 2
+shr eax, 0
 
 mov ebx, esp
 and esp, -16

@@ -2,8 +2,8 @@ int func(int x, int y);
 
 int main(void) {
 
-    int *p = 18;
-    int *q = 10;
+    char *p = 18;
+    char *q = 10;
     p-q;
     :;
 

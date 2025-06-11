@@ -265,9 +265,6 @@ static void push_used_caller_saved_regs(struct InstrList *instrs) {
     push_instr.type = InstrType_PUSH;
     push_instr.instr_size = InstrSize_32;
 
-    printf("idx = %u, size = %u\n",
-            operand_t_to_reg_idx(InstrOperandType_REG_CX),
-            n_gp_regs);
     if (gp_reg_used[operand_t_to_reg_idx(InstrOperandType_REG_CX)]) {
         push_instr.lhs =
             InstrOperand_create_imm(InstrOperandType_REG_CX, 0);
@@ -558,7 +555,8 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
         if (is_ptr_int_operation && operand_t_is_reg(instr.rhs.type)) {
             instr_reg_and_imm32(instrs, InstrType_SHL, instr.instr_size,
                     instr.rhs.type,
-                    bytes_log2(InstrSize_to_bytes(instr.instr_size)), 0);
+                    bytes_log2(PrimitiveType_size(expr->lhs_type,
+                            expr->lhs_lvls_of_indir-1)), 0);
         }
         else if (is_ptr_int_operation) {
             instr.rhs.value.imm <<=
@@ -570,7 +568,8 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
         if (is_ptr_ptr_operation) {
             instr_reg_and_imm32(instrs, InstrType_SHR, instr.instr_size,
                     instr.lhs.type,
-                    bytes_log2(InstrSize_to_bytes(instr.instr_size)), 0);
+                    bytes_log2(PrimitiveType_size(expr->lhs_type,
+                            expr->lhs_lvls_of_indir-1)), 0);
         }
     }
 

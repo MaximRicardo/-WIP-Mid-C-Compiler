@@ -331,7 +331,6 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
     }
 
     else if (shift_instr(instr->type)) {
-        printf("idx = %u\n", instr->lhs.type);
         fprintf(output, "%s %s", instr_type_to_asm[instr->type],
                 reg_names[type_to_reg(instr->lhs.type)][instr->instr_size]);
         if (type_is_reg(instr->rhs.type))
