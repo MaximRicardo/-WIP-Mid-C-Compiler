@@ -176,6 +176,9 @@ static enum InstrType expr_to_instr_t(const struct Expr *expr) {
     case ExprType_BITWISE_NOT:
         return InstrType_BITWISE_NOT;
 
+    case ExprType_NEGATIVE:
+        return InstrType_NEGATIVE;
+
     default:
         assert(false);
 
@@ -490,7 +493,8 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
 
     if (expr->lhs)
         lhs_reg = get_expr_instructions(instrs, expr->lhs,
-                expr->expr_type == ExprType_EQUAL);
+                expr->expr_type == ExprType_EQUAL ||
+                expr->expr_type == ExprType_REFERENCE);
     else
         lhs_reg = alloc_reg(instrs);
 
@@ -528,6 +532,27 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
             instr_reg_and_imm32(instrs, InstrType_MOV_T_LOC, assignment_size,
                     reg_idx_to_operand_t(lhs_reg.reg_idx),
                     expr->rhs->int_value, 0);
+    }
+    else if (expr->expr_type == ExprType_POSITIVE) {
+
+    }
+    else if (expr->expr_type == ExprType_REFERENCE) {
+
+    }
+    else if (expr->expr_type == ExprType_DEREFERENCE) {
+        unsigned deref_ptr_size = PrimitiveType_size(expr->lhs_type,
+                        expr->lhs_lvls_of_indir-1);
+
+        instr_reg_and_reg(instrs, InstrType_MOV_F_LOC,
+                InstrSize_bytes_to(deref_ptr_size),
+                reg_idx_to_operand_t(lhs_reg.reg_idx),
+                reg_idx_to_operand_t(lhs_reg.reg_idx), 0);
+
+        if (deref_ptr_size < 4) {
+            instr_reg_and_imm32(instrs, InstrType_AND, InstrSize_32,
+                    reg_idx_to_operand_t(lhs_reg.reg_idx),
+                    (1<<deref_ptr_size*8)-1, 0);
+        }
     }
     else {
         struct Instruction instr = Instruction_init();
@@ -722,7 +747,7 @@ static void get_ret_stmt_instructions(struct InstrList *instrs,
                     ret_node->lvls_of_indir);
             instr_reg_and_imm32(instrs, InstrType_AND, InstrSize_32,
                     InstrOperandType_REG_AX,
-                    type_size == 4 ? m_u32_max : (1<<type_size*8)-1, 0);
+                    (1<<type_size*8)-1, 0);
         }
     }
 

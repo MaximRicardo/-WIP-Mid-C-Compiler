@@ -52,6 +52,7 @@ const char *instr_type_to_asm[] = {
     "ashr",
 
     "not",
+    "neg",
 
     "push",
     "pop",

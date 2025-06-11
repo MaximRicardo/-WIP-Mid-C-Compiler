@@ -2,9 +2,9 @@ int func(int x, int y);
 
 int main(void) {
 
-    char *p = 18;
-    char *q = 10;
-    p-q;
+    void **p = 18;
+    void **q = 14;
+    *(p-q);
     :;
 
     return 0;

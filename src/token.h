@@ -25,6 +25,10 @@ enum TokenType {
 
     /* unary operators */
     TokenType_BITWISE_NOT,
+    TokenType_REFERENCE,
+    TokenType_DEREFERENCE,
+    TokenType_POSITIVE,
+    TokenType_NEGATIVE,
 
     TokenType_L_PAREN,
     TokenType_R_PAREN,
@@ -82,8 +86,10 @@ struct Token Token_create_w_val(unsigned line_num, unsigned column_num,
 bool Token_is_unary_operator(enum TokenType type);
 bool Token_is_bin_operator(enum TokenType type);
 bool Token_is_operator(enum TokenType type);
-
-m_declare_VectorImpl_funcs(TokenList, struct Token)
+bool Token_is_literal(enum TokenType type);
+/* only works on token types that have a unary equivalent, such as
+ * TokenType_MINUS->TokenType_NEGATIVE */
+bool Token_convert_to_unary(enum TokenType type);
 
 unsigned Token_precedence(enum TokenType type);
 /* Does the token have left to right associativity? */
@@ -92,3 +98,5 @@ bool Token_l_to_right_asso(enum TokenType type);
 /* uses src_start and src_len to return a null terminated string.
  * the string is dynamically allocated and must be freed */
 char* Token_src(const struct Token *self);
+
+m_declare_VectorImpl_funcs(TokenList, struct Token)

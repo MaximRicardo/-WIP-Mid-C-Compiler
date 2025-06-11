@@ -31,7 +31,9 @@ struct Token Token_create_w_val(unsigned line_num, unsigned column_num,
 
 bool Token_is_unary_operator(enum TokenType type) {
 
-    return type == TokenType_BITWISE_NOT;
+    return type == TokenType_BITWISE_NOT || type == TokenType_POSITIVE ||
+        type == TokenType_NEGATIVE || type == TokenType_REFERENCE ||
+        type == TokenType_DEREFERENCE;
 
 }
 
@@ -47,6 +49,32 @@ bool Token_is_bin_operator(enum TokenType type) {
 bool Token_is_operator(enum TokenType type) {
 
     return Token_is_unary_operator(type) || Token_is_bin_operator(type);
+
+}
+
+bool Token_is_literal(enum TokenType type) {
+
+    return type == TokenType_INT_LIT;
+
+}
+
+bool Token_convert_to_unary(enum TokenType type) {
+
+    switch (type) {
+
+    case TokenType_PLUS:
+        return TokenType_POSITIVE;
+
+    case TokenType_MINUS:
+        return TokenType_NEGATIVE;
+
+    case TokenType_MUL:
+        return TokenType_DEREFERENCE;
+
+    default:
+        assert(false);
+
+    }
 
 }
 
@@ -70,6 +98,10 @@ unsigned Token_precedence(enum TokenType type) {
         return 3;
 
     case TokenType_BITWISE_NOT:
+    case TokenType_POSITIVE:
+    case TokenType_NEGATIVE:
+    case TokenType_DEREFERENCE:
+    case TokenType_REFERENCE:
         return 2;
 
     default:

@@ -36,6 +36,7 @@ enum InstrType {
 
     /* unary operations */
     InstrType_BITWISE_NOT,
+    InstrType_NEGATIVE,
 
     /* stack operations */
     InstrType_PUSH,

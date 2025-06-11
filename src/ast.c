@@ -94,6 +94,12 @@ bool ExprType_is_valid_single_ptr_operation(enum ExprType type) {
 
 }
 
+bool ExprType_is_valid_unary_ptr_operation(enum ExprType type) {
+
+    return type == ExprType_REFERENCE || type == ExprType_DEREFERENCE;
+
+}
+
 struct Expr Expr_init(void) {
 
     struct Expr expr;
@@ -174,7 +180,15 @@ void Expr_recur_free_w_self(struct Expr *self) {
 
 unsigned Expr_lvls_of_indir(const struct Expr *self) {
 
-    return m_max(self->lhs_lvls_of_indir, self->rhs_lvls_of_indir);
+    unsigned lvls_of_indir =
+        m_max(self->lhs_lvls_of_indir, self->rhs_lvls_of_indir);
+
+    if (self->expr_type == ExprType_DEREFERENCE) {
+        assert(lvls_of_indir > 0);
+        --lvls_of_indir;
+    }
+
+    return lvls_of_indir;
 
 }
 
@@ -323,6 +337,18 @@ enum ExprType tok_t_to_expr_t(enum TokenType type) {
     case TokenType_BITWISE_NOT:
         return ExprType_BITWISE_NOT;
 
+    case TokenType_POSITIVE:
+        return ExprType_POSITIVE;
+
+    case TokenType_NEGATIVE:
+        return ExprType_NEGATIVE;
+
+    case TokenType_REFERENCE:
+        return ExprType_REFERENCE;
+
+    case TokenType_DEREFERENCE:
+        return ExprType_DEREFERENCE;
+
     case TokenType_FUNC_CALL:
         return ExprType_FUNC_CALL;
 
@@ -372,6 +398,18 @@ enum TokenType expr_t_to_tok_t(enum ExprType type) {
 
     case ExprType_BITWISE_NOT:
         return TokenType_BITWISE_NOT;
+
+    case ExprType_POSITIVE:
+        return TokenType_POSITIVE;
+
+    case ExprType_NEGATIVE:
+        return TokenType_NEGATIVE;
+
+    case ExprType_REFERENCE:
+        return TokenType_REFERENCE;
+
+    case ExprType_DEREFERENCE:
+        return TokenType_DEREFERENCE;
 
     case ExprType_FUNC_CALL:
         return TokenType_FUNC_CALL;

@@ -22,7 +22,7 @@ mov eax, dword 18
 
 mov [ebp+-4], eax
 
-mov eax, dword 10
+mov eax, dword 14
 
 mov [ebp+-8], eax
 
@@ -32,7 +32,9 @@ mov ebx, [ebp+-8]
 
 sub eax, ebx
 
-shr eax, 0
+shr eax, 2
+
+mov eax, [eax+0]
 
 mov ebx, esp
 and esp, -16

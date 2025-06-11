@@ -177,7 +177,7 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
     unsigned ident_idx = v_decl_idx+1;
     while (v_decl_idx+1+n_asterisks < lexer->token_tbl.size &&
             lexer->token_tbl.elems[v_decl_idx+1+n_asterisks].type ==
-                TokenType_MUL) {
+                TokenType_DEREFERENCE) {
         ++ident_idx;
         ++n_asterisks;
     }
@@ -197,7 +197,7 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
 
         return NULL;
     }
-    else if (var_type == PrimType_VOID) {
+    else if (var_type == PrimType_VOID && n_asterisks == 0) {
         char *var_name = Token_src(&lexer->token_tbl.elems[ident_idx]);
         fprintf(stderr, "variable '%s' of type 'void' on line %u,"
                 " column %u.\n", var_name,
@@ -404,7 +404,7 @@ static void parse_func_decl(const struct Lexer *lexer, struct BlockNode *block,
     u32 func_n_asterisks = 0;
     u32 f_ident_idx = f_decl_idx+1;
     while (lexer->token_tbl.elems[f_decl_idx+1+func_n_asterisks].type ==
-            TokenType_MUL) {
+            TokenType_DEREFERENCE) {
         ++f_ident_idx;
         ++func_n_asterisks;
     }
@@ -717,7 +717,8 @@ static struct BlockNode* parse(const struct Lexer *lexer,
         else if (Ident_type_spec(token_src) != PrimType_INVALID) {
             unsigned ident_idx = start_idx+1;
             while (ident_idx < lexer->token_tbl.size &&
-                    lexer->token_tbl.elems[ident_idx].type == TokenType_MUL) {
+                    lexer->token_tbl.elems[ident_idx].type ==
+                    TokenType_DEREFERENCE) {
                 ++ident_idx;
             }
             if (ident_idx+1 >= lexer->token_tbl.size ||

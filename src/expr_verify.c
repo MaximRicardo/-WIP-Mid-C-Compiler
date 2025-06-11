@@ -38,6 +38,34 @@ static bool verify_func_call(const struct Expr *expr,
 
 }
 
+static bool verify_unary_ptr_operation(const struct Expr *expr) {
+
+    if (!ExprType_is_valid_unary_ptr_operation(expr->expr_type)) {
+        char *expr_src = Expr_src(expr);
+
+        fprintf(stderr, "cannot perform unary operation '%s' on a pointer."
+                " line %u, column %u.\n", expr_src, expr->line_num,
+                expr->column_num);
+
+        m_free(expr_src);
+
+        return true;
+    }
+    else if (expr->lhs_lvls_of_indir == 1 && expr->lhs_type == PrimType_VOID) {
+        char *expr_src = Expr_src(expr);
+
+        fprintf(stderr, "cannot dereference a void pointer."
+                " line %u, column %u.\n", expr->line_num, expr->column_num);
+
+        m_free(expr_src);
+
+        return true;
+    }
+
+    return false;
+
+}
+
 /* for when both operands are pointers */
 static bool verify_ptr_operation(const struct Expr *expr) {
 
@@ -59,9 +87,6 @@ static bool verify_ptr_operation(const struct Expr *expr) {
 
 /* for when only the left operand is a pointer */
 static bool verify_single_ptr_operation(const struct Expr *expr) {
-
-    if (expr->expr_type == ExprType_IDENT)
-        return false;
 
     if (!ExprType_is_valid_single_ptr_operation(expr->expr_type)) {
         char *expr_src = Expr_src(expr);
@@ -92,10 +117,22 @@ static bool verify_expr(const struct Expr *expr, const struct ParVarList *vars,
     if (expr->expr_type == ExprType_FUNC_CALL) {
         error |= verify_func_call(expr, vars, is_root);
     }
-    else if (expr->lhs_lvls_of_indir > 0 && expr->rhs_lvls_of_indir > 0) {
+    else if (expr->lhs_lvls_of_indir > 0 &&
+            ExprType_is_unary_operator(expr->expr_type)) {
+        error |= verify_unary_ptr_operation(expr);
+    }
+    else if (ExprType_is_unary_operator(expr->expr_type) &&
+            expr->expr_type == ExprType_DEREFERENCE) {
+        fprintf(stderr, "can not dereference a non-pointer. line %u,"
+                " column %u.\n", expr->line_num, expr->column_num);
+        error = true;
+    }
+    else if (expr->lhs_lvls_of_indir > 0 && expr->rhs_lvls_of_indir > 0 &&
+            ExprType_is_bin_operator(expr->expr_type)) {
         error |= verify_ptr_operation(expr);
     }
-    else if (expr->lhs_lvls_of_indir > 0) {
+    else if (expr->lhs_lvls_of_indir > 0 &&
+            ExprType_is_bin_operator(expr->expr_type)) {
         error |= verify_single_ptr_operation(expr);
     }
 

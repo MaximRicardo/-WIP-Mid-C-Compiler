@@ -9,6 +9,7 @@
 #include "safe_mem.h"
 #include "lexer.h"
 #include "parser.h"
+#include "bin_to_unary.h"
 
 #define m_build_bug_on(condition) \
     ((void)sizeof(char[1 - 2*!!(condition)]))
@@ -44,6 +45,8 @@ void compile(char *src, FILE *output, bool *error_occurred) {
                 lexer.token_tbl.tokens[i].value.int_value);
     }
 #endif
+
+    BinToUnary_convert(&lexer.token_tbl);
 
     if (!Lexer_error_occurred) {
         struct BlockNode *ast = Parser_parse(&lexer);

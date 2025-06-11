@@ -77,6 +77,10 @@ enum ExprType {
 
     /* Unary operators */
     ExprType_BITWISE_NOT,
+    ExprType_POSITIVE,
+    ExprType_NEGATIVE,
+    ExprType_REFERENCE,
+    ExprType_DEREFERENCE,
 
     /* parentheses are only used in the shunting yard algorithm */
     ExprType_PAREN,
@@ -93,6 +97,7 @@ bool ExprType_is_operator(enum ExprType type);
 bool ExprType_is_valid_ptr_operation(enum ExprType type);
 /* is the type a valid operation on an expr with a ptr and an integer */
 bool ExprType_is_valid_single_ptr_operation(enum ExprType type);
+bool ExprType_is_valid_unary_ptr_operation(enum ExprType type);
 
 struct ExprPtrList {
 

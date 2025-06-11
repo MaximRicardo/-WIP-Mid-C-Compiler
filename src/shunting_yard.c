@@ -57,10 +57,9 @@ static void move_operator_to_out_queue(struct ExprPtrList *output_queue,
         output_queue->elems[output_queue->size-1-(operator->rhs!=NULL)];
 
     operator->lhs_lvls_of_indir = Expr_lvls_of_indir(operator->lhs);
-    operator->rhs_lvls_of_indir = Expr_lvls_of_indir(operator->rhs);
-
-    operator->lhs_type = Expr_type(operator->rhs);
+    operator->lhs_type = Expr_type(operator->lhs);
     if (operator->rhs) {
+        operator->rhs_lvls_of_indir = Expr_lvls_of_indir(operator->rhs);
         operator->rhs_type = Expr_type(operator->rhs);
     }
 
