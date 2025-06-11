@@ -4,6 +4,7 @@
 #include "parser_var.h"
 #include "prim_type.h"
 #include "safe_mem.h"
+#include "token.h"
 #include <assert.h>
 #include <stdio.h>
 
@@ -117,12 +118,22 @@ static bool verify_expr(const struct Expr *expr, const struct ParVarList *vars,
     if (expr->expr_type == ExprType_FUNC_CALL) {
         error |= verify_func_call(expr, vars, is_root);
     }
+    else if (expr->expr_type == ExprType_REFERENCE) {
+        if (expr->lhs->expr_type != ExprType_IDENT &&
+                /* makes sure it's not a func call */
+                expr->lhs->args.size == 0 &&
+                expr->lhs->expr_type != ExprType_DEREFERENCE) {
+            fprintf(stderr,
+                    "cannot reference an operand with no address. line %u,"
+                    " column %u.\n", expr->line_num, expr->column_num);
+            error = true;
+        }
+    }
     else if (expr->lhs_lvls_of_indir > 0 &&
             ExprType_is_unary_operator(expr->expr_type)) {
         error |= verify_unary_ptr_operation(expr);
     }
-    else if (ExprType_is_unary_operator(expr->expr_type) &&
-            expr->expr_type == ExprType_DEREFERENCE) {
+    else if (expr->expr_type == ExprType_DEREFERENCE) {
         fprintf(stderr, "can not dereference a non-pointer. line %u,"
                 " column %u.\n", expr->line_num, expr->column_num);
         error = true;

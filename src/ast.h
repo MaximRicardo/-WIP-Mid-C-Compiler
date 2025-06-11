@@ -74,6 +74,7 @@ enum ExprType {
     ExprType_MODULUS,
     ExprType_EQUAL,
     ExprType_COMMA,
+    ExprType_BITWISE_AND,
 
     /* Unary operators */
     ExprType_BITWISE_NOT,

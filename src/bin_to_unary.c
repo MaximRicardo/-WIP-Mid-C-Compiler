@@ -5,11 +5,6 @@
 #include "token.h"
 #include <stdio.h>
 
-/*
- * TODO:
- *    make sure void **p doesn't do weird shit
- */
-
 void BinToUnary_convert(struct TokenList *token_tbl) {
 
     u32 i;

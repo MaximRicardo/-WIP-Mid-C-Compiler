@@ -42,7 +42,7 @@ bool Token_is_bin_operator(enum TokenType type) {
     return type == TokenType_PLUS || type == TokenType_MINUS ||
         type == TokenType_MUL || type == TokenType_DIV ||
         type == TokenType_MODULUS || type == TokenType_EQUAL ||
-        type == TokenType_COMMA;
+        type == TokenType_COMMA || type == TokenType_BITWISE_AND;
 
 }
 
@@ -71,6 +71,9 @@ bool Token_convert_to_unary(enum TokenType type) {
     case TokenType_MUL:
         return TokenType_DEREFERENCE;
 
+    case TokenType_BITWISE_AND:
+        return TokenType_REFERENCE;
+
     default:
         assert(false);
 
@@ -87,6 +90,9 @@ unsigned Token_precedence(enum TokenType type) {
 
     case TokenType_EQUAL:
         return 14;
+
+    case TokenType_BITWISE_AND:
+        return 8;
 
     case TokenType_PLUS:
     case TokenType_MINUS:

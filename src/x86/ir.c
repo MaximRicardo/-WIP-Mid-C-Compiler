@@ -480,7 +480,8 @@ static struct GPReg get_func_call_expr_instructions(struct InstrList *instrs,
 
 }
 
-/* load_reference is only used on identifier nodes, else it's ignored */
+/* load_reference is only used on identifier nodes and dereference nodes, else
+ * it's ignored */
 static struct GPReg get_expr_instructions(struct InstrList *instrs,
         const struct Expr *expr, bool load_reference) {
 
@@ -539,7 +540,7 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
     else if (expr->expr_type == ExprType_REFERENCE) {
 
     }
-    else if (expr->expr_type == ExprType_DEREFERENCE) {
+    else if (expr->expr_type == ExprType_DEREFERENCE && !load_reference) {
         unsigned deref_ptr_size = PrimitiveType_size(expr->lhs_og_type,
                         expr->lhs_lvls_of_indir-1);
 
@@ -553,6 +554,9 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
                     reg_idx_to_operand_t(lhs_reg.reg_idx),
                     (1<<deref_ptr_size*8)-1, 0);
         }
+    }
+    else if (expr->expr_type == ExprType_DEREFERENCE) {
+        /* if load_reference is true then it cancels out the dereference */
     }
     else {
         struct Instruction instr = Instruction_init();

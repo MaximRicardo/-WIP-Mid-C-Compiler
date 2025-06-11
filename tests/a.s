@@ -16,17 +16,100 @@ push ebp
 
 mov ebp, esp
 
-sub esp, dword 4
+sub esp, dword 8
 
-mov eax, dword 18
+mov eax, dword 5
 
 mov [ebp+-4], eax
 
+mov eax, dword 5
+
+mov [ebp+-8], eax
+
+sub esp, dword 8
+
+lea ebx, [ebp+-4]
+
+mov [esp+0], ebx
+
+lea ebx, [ebp+-8]
+
+mov [esp+4], ebx
+
+call func
+
+add esp, dword 8
+
 mov eax, [ebp+-4]
 
-mov al, [eax+0]
+mov ebx, esp
+and esp, -16
+push eax
+push msg$
+call printf
+mov esp, ebx
 
-and eax, dword 255
+sub esp, dword 8
+
+lea ebx, [ebp+-4]
+
+mov [esp+0], ebx
+
+lea ebx, [ebp+-8]
+
+mov [esp+4], ebx
+
+call func
+
+add esp, dword 8
+
+mov eax, [ebp+-4]
+
+mov ebx, esp
+and esp, -16
+push eax
+push msg$
+call printf
+mov esp, ebx
+
+sub esp, dword 8
+
+lea ebx, [ebp+-4]
+
+mov [esp+0], ebx
+
+lea ebx, [ebp+-8]
+
+mov [esp+4], ebx
+
+call func
+
+add esp, dword 8
+
+mov eax, [ebp+-4]
+
+mov ebx, esp
+and esp, -16
+push eax
+push msg$
+call printf
+mov esp, ebx
+
+sub esp, dword 8
+
+lea ebx, [ebp+-4]
+
+mov [esp+0], ebx
+
+lea ebx, [ebp+-8]
+
+mov [esp+4], ebx
+
+call func
+
+add esp, dword 8
+
+mov eax, [ebp+-4]
 
 mov ebx, esp
 and esp, -16
@@ -77,21 +160,17 @@ sub esp, dword 0
 
 mov eax, [ebp+20]
 
-mov ebx, [ebp+24]
+mov ebx, [ebp+20]
 
-imul ebx
+mov ebx, [ebx+0]
 
-mov esp, ebp
+mov ecx, [ebp+24]
 
-pop ebp
+mov ecx, [ecx+0]
 
-pop edi
+add ebx, ecx
 
-pop esi
-
-pop ebx
-
-ret
+mov [eax+0], ebx
 
 mov esp, ebp
 

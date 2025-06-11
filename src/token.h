@@ -22,6 +22,7 @@ enum TokenType {
     TokenType_MODULUS,
     TokenType_EQUAL,
     TokenType_COMMA,
+    TokenType_BITWISE_AND,
 
     /* unary operators */
     TokenType_BITWISE_NOT,
