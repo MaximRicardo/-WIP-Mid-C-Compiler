@@ -9,10 +9,8 @@
 #define m_TypeSize_int 4
 #define m_TypeSize_ptr 4
 
-/* every variable on the stack will be aligned to atleast this many bytes.
- * types bigger than this will be aligned to the closest greater multiple of
- * this value */
-#define m_TypeSize_stack_var_min_alignment 4
+/* in bytes */
+#define m_TypeSize_stack_min_alignment 4
 
 /* how many bytes it takes to make a new stack frame */
 #define m_TypeSize_stack_frame_size 4

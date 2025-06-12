@@ -20,9 +20,9 @@ sub esp, dword 8
 
 mov eax, dword 5
 
-mov [ebp+-4], eax
+mov [ebp+-1], al
 
-lea eax, [ebp+-4]
+lea eax, [ebp+-1]
 
 mov [ebp+-8], eax
 
@@ -68,7 +68,9 @@ call func
 
 add esp, dword 4
 
-mov eax, [eax+0]
+mov al, [eax+0]
+
+and eax, dword 255
 
 mov ebx, esp
 and esp, -16

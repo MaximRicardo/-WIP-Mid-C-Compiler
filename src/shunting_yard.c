@@ -283,6 +283,8 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
                     vars->elems[var_idx].type, PrimType_INVALID,
                     ExprPtrList_init(), 0, vars->elems[var_idx].stack_pos-bp,
                     ExprType_IDENT);
+            Expr_lvls_of_indir(expr, vars);
+            Expr_type_no_prom(expr, vars);
             Expr_type(expr, vars);
             ExprPtrList_push_back(&output_queue, expr);
         }

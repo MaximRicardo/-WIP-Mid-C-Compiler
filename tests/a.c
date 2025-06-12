@@ -1,9 +1,9 @@
-int* func(int *x);
+char* func(char *x);
 
 int main(void) {
 
-    int n = 5;
-    int *x = &n;
+    char n = 5;
+    char *x = &n;
 
     if (1) {
 
@@ -18,6 +18,6 @@ int main(void) {
     return 0;
 }
 
-int* func(int *x) {
+char* func(char *x) {
     return x;
 }

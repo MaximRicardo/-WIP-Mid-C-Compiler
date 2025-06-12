@@ -1,5 +1,5 @@
 #include "ir.h"
-#include "../backend_dependent/type_sizes.h"
+
 #include <assert.h>
 #include <limits.h>
 #include <stdio.h>
@@ -439,7 +439,7 @@ static struct GPReg get_func_call_expr_instructions(struct InstrList *instrs,
                     expr->args.elems[i]->prim_type,
                     expr->args.elems[i]->lvls_of_indir);
             /* alignment */
-            arg_size = round_up(arg_size, m_TypeSize_stack_var_min_alignment);
+            args_stack_space = round_up(args_stack_space, arg_size);
             args_stack_space += arg_size;
         }
 
@@ -453,12 +453,13 @@ static struct GPReg get_func_call_expr_instructions(struct InstrList *instrs,
                 expr->args.elems[i], false);
         unsigned reg_size_bytes = InstrSize_to_bytes(arg_reg.reg_size);
 
+        next_arg_offset = round_up(next_arg_offset, reg_size_bytes);
+
         instr_reg_and_reg(instrs, InstrType_MOV_T_LOC, arg_reg.reg_size,
                 InstrOperandType_REG_SP, reg_idx_to_operand_t(arg_reg.reg_idx),
                 next_arg_offset);
 
-        next_arg_offset += round_up(reg_size_bytes,
-                m_TypeSize_stack_var_min_alignment);
+        next_arg_offset += reg_size_bytes;
 
         free_reg(instrs, arg_reg);
     }
@@ -509,8 +510,8 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
     else if (expr->expr_type == ExprType_IDENT) {
         enum InstrType type = load_reference ? InstrType_LEA :
             InstrType_MOV_F_LOC;
-        unsigned var_size = PrimitiveType_size(expr->prim_type,
-                expr->lvls_of_indir);
+        unsigned var_size = PrimitiveType_size(expr->non_prom_prim_type,
+                expr->lvls_of_indir+load_reference);
         instr_reg_and_reg(instrs, type, InstrSize_bytes_to(var_size),
                 reg_idx_to_operand_t(lhs_reg.reg_idx), InstrOperandType_REG_BP,
                 expr->bp_offset);
