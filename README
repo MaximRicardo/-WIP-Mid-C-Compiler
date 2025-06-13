@@ -18,9 +18,10 @@ Thus far the compiler has:
     return statements
     function argument error checking
     if/else statements
+    pointers
 
 Next thing I'ma implement:
-    pointers
+    arrays
 
     Also, the compiler has a custom debugging keyword ':', which prints the
 value current stored in RAX.

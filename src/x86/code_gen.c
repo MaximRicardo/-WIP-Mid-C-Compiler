@@ -64,6 +64,8 @@ const char *instr_type_to_asm[] = {
     "jne",
 
     "LABEL INSTRUCTION",
+
+    "extern",
 };
 
 /* used in stuff like pushing an immediate */
@@ -142,7 +144,6 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
                     );
         }
         else {
-            printf("instr size = %d\n", instr->instr_size);
             fprintf(output, "mov %s [%s+%d]",
                     size_specifier[instr->instr_size],
                     reg_names[type_to_reg(instr->lhs.type)][InstrSize_32],
@@ -329,6 +330,12 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
     else if (instr->type == InstrType_LABEL) {
         assert(instr->string);
         fprintf(output, "%s:\n", instr->string);
+    }
+
+    else if (instr->type == InstrType_EXTERN) {
+        assert(instr->string);
+        fprintf(output, "%s %s\n", instr_type_to_asm[instr->type],
+                instr->string);
     }
 
     else if (shift_instr(instr->type)) {

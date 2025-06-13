@@ -260,6 +260,10 @@ static bool func_prototypes_match(const struct Lexer *lexer,
     char *func_name = Token_src(&lexer->token_tbl.elems[f_ident_tok_idx]);
     u32 i;
     bool not_matching = false;
+    not_matching |= vars.elems[prev_func_decl_var_idx].lvls_of_indir == 0 &&
+        func->ret_lvls_of_indir > 0;
+    not_matching |= vars.elems[prev_func_decl_var_idx].lvls_of_indir > 0 &&
+        func->ret_lvls_of_indir == 0;
     not_matching |= vars.elems[prev_func_decl_var_idx].type != func->ret_type;
     not_matching |= vars.elems[prev_func_decl_var_idx].args->size !=
         func->args.size;
@@ -287,7 +291,7 @@ static bool is_unnamed_void_var(const struct Lexer *lexer, u32 type_spec_idx) {
                 (lexer->token_tbl.elems[type_spec_idx+1].type !=
                  TokenType_IDENT &&
                  lexer->token_tbl.elems[type_spec_idx+1].type !=
-                 TokenType_MUL)));
+                 TokenType_DEREFERENCE)));
 
     m_free(type_spec_src);
     return is_true;
@@ -515,7 +519,8 @@ static u32 parse_ret_stmt(const struct Lexer *lexer, struct BlockNode *block,
             lexer->token_tbl.elems[ret_idx+1].type == TokenType_SEMICOLON) {
         end_idx = ret_idx+1;
     }
-    else if (parent_func->ret_type == PrimType_VOID) {
+    else if (parent_func->ret_type == PrimType_VOID &&
+            parent_func->ret_lvls_of_indir == 0) {
         fprintf(stderr, "cannot return a value in void function '%s'."
                 " line %u.\n", parent_func->name,
                 lexer->token_tbl.elems[ret_idx].line_num);
@@ -528,6 +533,18 @@ static u32 parse_ret_stmt(const struct Lexer *lexer, struct BlockNode *block,
         ret_node->value = SY_shunting_yard(&lexer->token_tbl, ret_idx+1,
                 stop_types, sizeof(stop_types)/sizeof(stop_types[0]), &end_idx,
                 &vars, bp);
+        ret_node->lvls_of_indir = ret_node->value->lvls_of_indir;
+        ret_node->type = Expr_type(ret_node->value, &vars);
+    }
+
+    if (parent_func->ret_lvls_of_indir >= 1 &&
+            parent_func->ret_type != ret_node->type) {
+        fprintf(stderr, "'%s' return type and returned type do not match."
+                " line %u.\n", parent_func->name,
+                lexer->token_tbl.elems[ret_idx].line_num);
+        Parser_error_occurred = true;
+        end_idx = skip_to_token_type_alt(ret_idx, lexer->token_tbl,
+                TokenType_SEMICOLON);
     }
 
     ASTNodeList_push_back(&block->nodes, ASTNode_create(

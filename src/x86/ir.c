@@ -719,8 +719,12 @@ static void get_func_decl_instructions(struct InstrList *instrs,
 
     char *label = NULL;
 
-    if (!func->body)
+    if (!func->body) {
+        char *copy = safe_malloc((strlen(func->name)+1)*sizeof(*copy));
+        strcpy(copy, func->name);
+        instr_string(instrs, InstrType_EXTERN, copy);
         return;
+    }
 
     label = safe_malloc((strlen(func->name)+1)*sizeof(*label));
     strcpy(label, func->name);

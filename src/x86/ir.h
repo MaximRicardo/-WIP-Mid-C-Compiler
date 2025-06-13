@@ -51,6 +51,8 @@ enum InstrType {
 
     InstrType_LABEL,
 
+    InstrType_EXTERN,
+
     InstrType_DEBUG_EAX
 
 };

@@ -1,19 +1,17 @@
+void* malloc(int size);
+void free(void *ptr);
+
 char* func(char *x);
 
 int main(void) {
 
-    char n = 5;
-    char *x = &n;
+    char *ptr = malloc(4);
 
-    if (1) {
-
-    }
-    else {
-
-    }
-
-    *func(x);
+    *ptr = 10;
+    *func(ptr);
     :;
+
+    free(ptr);
 
     return 0;
 }

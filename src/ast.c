@@ -576,11 +576,17 @@ bool VarDeclPtrList_equivalent(const struct VarDeclPtrList *self,
     for (i = 0; i < self->size; i++) {
         u32 j;
 
-        if (self->elems[i]->type != other->elems[i]->type) {
-            return false;
-        }
-
         for (j = 0; j < self->elems[i]->decls.size; j++) {
+
+            /* any pointer can be casted to a void pointer */
+            if (self->elems[i]->decls.elems[j].lvls_of_indir == 1 &&
+                    self->elems[i]->type == PrimType_VOID &&
+                    other->elems[i]->decls.elems[j].lvls_of_indir >= 1)
+                continue;
+
+            if (self->elems[i]->type != other->elems[i]->type) {
+                return false;
+            }
 
             if (self->elems[i]->decls.elems[j].lvls_of_indir !=
                     other->elems[i]->decls.elems[j].lvls_of_indir)
@@ -602,9 +608,22 @@ bool VarDeclPtrList_equivalent_expr(const struct VarDeclPtrList *self,
         return false;
 
     for (i = 0; i < self->size; i++) {
-        if (self->elems[i]->type != Expr_type(other->elems[i], vars)) {
-            return false;
+        u32 j;
+
+        for (j = 0; j < self->elems[i]->decls.size; j++) {
+            /* any pointer can be casted to a void pointer */
+            if (self->elems[i]->decls.elems[j].lvls_of_indir == 1 &&
+                    self->elems[i]->type == PrimType_VOID &&
+                    other->elems[i]->lvls_of_indir >= 1)
+                continue;
+
+            if (self->elems[i]->type != Expr_type(other->elems[i], vars) ||
+                    self->elems[i]->decls.elems[j].lvls_of_indir !=
+                    other->elems[i]->lvls_of_indir) {
+                return false;
+            }
         }
+
     }
 
     return true;

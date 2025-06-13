@@ -15,7 +15,8 @@ static bool verify_func_call(const struct Expr *expr,
     u32 var_idx = ParVarList_find_var(vars, func_name);
     assert(var_idx != m_u32_max);
 
-    if (!is_root && vars->elems[var_idx].type == PrimType_VOID) {
+    if (!is_root && vars->elems[var_idx].type == PrimType_VOID &&
+            vars->elems[var_idx].lvls_of_indir == 0) {
         fprintf(stderr,
                 "cannot use the function '%s' in an expression, due to it"
                 " being of type 'void'. line %u, column %u.\n", func_name,
