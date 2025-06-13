@@ -5,7 +5,7 @@
 #include "vector_impl.h"
 
 /* when adding a new token make sure to update:
- *  Token_is_unary_operator, Token_is_bin_operator, Token_precedence, ExprType
+ *  Token_precedence, ExprType
  */
 
 enum TokenType {
@@ -15,6 +15,7 @@ enum TokenType {
     TokenType_SEMICOLON,
 
     /* binary operators */
+    TokenType_BINARY_OPS_START,
     TokenType_PLUS,
     TokenType_MINUS,
     TokenType_MUL,
@@ -22,19 +23,24 @@ enum TokenType {
     TokenType_MODULUS,
     TokenType_EQUAL,
     TokenType_COMMA,
+    TokenType_L_ARR_SUBSCR,
     TokenType_BITWISE_AND,
+    TokenType_BINARY_OPS_END,
 
     /* unary operators */
+    TokenType_UNARY_OPS_START,
     TokenType_BITWISE_NOT,
     TokenType_REFERENCE,
     TokenType_DEREFERENCE,
     TokenType_POSITIVE,
     TokenType_NEGATIVE,
+    TokenType_UNARY_OPS_END,
 
     TokenType_L_PAREN,
     TokenType_R_PAREN,
     TokenType_L_CURLY,
     TokenType_R_CURLY,
+    TokenType_R_ARR_SUBSCR,
 
     TokenType_INT_LIT,
 
@@ -91,6 +97,7 @@ bool Token_is_literal(enum TokenType type);
 /* only works on token types that have a unary equivalent, such as
  * TokenType_MINUS->TokenType_NEGATIVE */
 bool Token_convert_to_unary(enum TokenType type);
+bool Token_has_unary_version(enum TokenType type);
 
 unsigned Token_precedence(enum TokenType type);
 /* Does the token have left to right associativity? */

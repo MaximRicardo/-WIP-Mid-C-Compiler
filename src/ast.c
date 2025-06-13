@@ -405,6 +405,9 @@ enum ExprType tok_t_to_expr_t(enum TokenType type) {
     case TokenType_COMMA:
         return ExprType_COMMA;
 
+    case TokenType_L_ARR_SUBSCR:
+        return ExprType_L_ARR_SUBSCR;
+
     case TokenType_BITWISE_AND:
         return ExprType_BITWISE_AND;
 
@@ -469,6 +472,9 @@ enum TokenType expr_t_to_tok_t(enum ExprType type) {
 
     case ExprType_COMMA:
         return TokenType_COMMA;
+
+    case ExprType_L_ARR_SUBSCR:
+        return TokenType_L_ARR_SUBSCR;
 
     case ExprType_BITWISE_AND:
         return TokenType_BITWISE_AND;

@@ -14,7 +14,8 @@ void BinToUnary_convert(struct TokenList *token_tbl) {
         bool should_convert;
         char *prev_token_src = NULL;
 
-        if (!Token_is_bin_operator(token_tbl->elems[i].type))
+        if (!Token_is_bin_operator(token_tbl->elems[i].type) ||
+                !Token_has_unary_version(token_tbl->elems[i].type))
             continue;
 
         prev_token_src = Token_src(&token_tbl->elems[i-1]);

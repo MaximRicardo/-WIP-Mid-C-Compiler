@@ -5,13 +5,11 @@ char* func(char *x);
 
 int main(void) {
 
-    char *ptr = malloc(4);
+    int array[5];
 
-    *ptr = 10;
-    *func(ptr);
-    :;
-
-    free(ptr);
+    array[0] = 5;
+    array[1] = 10;
+    array[2] = 15;
 
     return 0;
 }

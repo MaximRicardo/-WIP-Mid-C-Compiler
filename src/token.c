@@ -31,18 +31,15 @@ struct Token Token_create_w_val(unsigned line_num, unsigned column_num,
 
 bool Token_is_unary_operator(enum TokenType type) {
 
-    return type == TokenType_BITWISE_NOT || type == TokenType_POSITIVE ||
-        type == TokenType_NEGATIVE || type == TokenType_REFERENCE ||
-        type == TokenType_DEREFERENCE;
+    return type > TokenType_UNARY_OPS_START &&
+        type < TokenType_UNARY_OPS_END;
 
 }
 
 bool Token_is_bin_operator(enum TokenType type) {
 
-    return type == TokenType_PLUS || type == TokenType_MINUS ||
-        type == TokenType_MUL || type == TokenType_DIV ||
-        type == TokenType_MODULUS || type == TokenType_EQUAL ||
-        type == TokenType_COMMA || type == TokenType_BITWISE_AND;
+    return type > TokenType_BINARY_OPS_START &&
+        type < TokenType_BINARY_OPS_END;
 
 }
 
@@ -81,6 +78,13 @@ bool Token_convert_to_unary(enum TokenType type) {
 
 }
 
+bool Token_has_unary_version(enum TokenType type) {
+
+    return type == TokenType_PLUS || type == TokenType_MINUS ||
+        type == TokenType_MUL || type == TokenType_BITWISE_AND;
+
+}
+
 unsigned Token_precedence(enum TokenType type) {
 
     switch (type) {
@@ -109,6 +113,9 @@ unsigned Token_precedence(enum TokenType type) {
     case TokenType_DEREFERENCE:
     case TokenType_REFERENCE:
         return 2;
+
+    case TokenType_L_ARR_SUBSCR:
+        return 1;
 
     default:
         assert(false);

@@ -1,6 +1,8 @@
 #include "shunting_yard.h"
 #include "ast.h"
 #include "comp_dependent/ints.h"
+#include "parser.h"
+#include "prim_type.h"
 #include "safe_mem.h"
 #include "token.h"
 #include "macros.h"
@@ -80,7 +82,7 @@ static void move_operator_to_out_queue(struct ExprPtrList *output_queue,
  * check_below_operators  - Checks whether any previous operators in the
  *    operator stack should be popped first.
  */
-static void push_operator_to_queue(struct ExprPtrList *output_queue,
+static void push_operator_to_stack(struct ExprPtrList *output_queue,
         struct ExprPtrList *operator_stack, struct Token op_tok,
         const struct ParVarList *vars) {
 
@@ -210,6 +212,32 @@ static bool type_is_in_array(enum TokenType type, enum TokenType *arr,
 
 }
 
+static void push_array_subscr_to_stack(const struct TokenList *token_tbl,
+        struct ExprPtrList *output_queue, struct ExprPtrList *operator_stack,
+        u32 l_arr_subscr, u32 *end_idx, const struct ParVarList *vars,
+        u32 bp) {
+
+    struct Expr *expr = NULL;
+    struct Expr *value = NULL;
+    enum TokenType stop_types[] = {TokenType_R_ARR_SUBSCR};
+    bool old_error_occurred = Parser_error_occurred;
+
+    assert(token_tbl->elems[l_arr_subscr].type == TokenType_L_ARR_SUBSCR);
+
+    value = SY_shunting_yard(token_tbl, l_arr_subscr+1, stop_types,
+            sizeof(stop_types)/sizeof(stop_types[0]), end_idx, vars, bp);
+    Parser_error_occurred |= old_error_occurred;
+
+    expr = safe_malloc(sizeof(*expr));
+    *expr = Expr_create_w_tok(token_tbl->elems[l_arr_subscr], NULL, NULL,
+            0, 0, PrimType_INVALID, PrimType_INVALID, ExprPtrList_init(), 0, 0,
+            tok_t_to_expr_t(token_tbl->elems[l_arr_subscr].type));
+
+    ExprPtrList_push_back(output_queue, value);
+    ExprPtrList_push_back(operator_stack, expr);
+
+}
+
 struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
         enum TokenType *stop_types, u32 n_stop_types, u32 *end_idx,
         const struct ParVarList *vars, u32 bp) {
@@ -229,8 +257,12 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
                     n_stop_types))
             break;
 
-        if (Token_is_operator(token_tbl->elems[i].type)) {
-            push_operator_to_queue(&output_queue, &operator_stack,
+        if (token_tbl->elems[i].type == TokenType_L_ARR_SUBSCR) {
+            push_array_subscr_to_stack(token_tbl, &output_queue,
+                    &operator_stack, i, &i, vars, bp);
+        }
+        else if (Token_is_operator(token_tbl->elems[i].type)) {
+            push_operator_to_stack(&output_queue, &operator_stack,
                     token_tbl->elems[i], vars);
         }
         else if (token_tbl->elems[i].type == TokenType_L_PAREN) {

@@ -496,7 +496,8 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
     if (expr->lhs)
         lhs_reg = get_expr_instructions(instrs, expr->lhs,
                 expr->expr_type == ExprType_EQUAL ||
-                expr->expr_type == ExprType_REFERENCE);
+                expr->expr_type == ExprType_REFERENCE ||
+                expr->expr_type == ExprType_L_ARR_SUBSCR);
     else
         lhs_reg = alloc_reg(instrs);
 
@@ -558,6 +559,31 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
     }
     else if (expr->expr_type == ExprType_DEREFERENCE) {
         /* if load_reference is true then it cancels out the dereference */
+    }
+    else if (expr->expr_type == ExprType_L_ARR_SUBSCR) {
+        unsigned deref_ptr_size = PrimitiveType_size(expr->lhs_og_type,
+                        expr->lhs_lvls_of_indir);
+
+        if (expr->rhs->expr_type != ExprType_INT_LIT) {
+            instr_reg_and_imm32(instrs, InstrType_SHL, InstrSize_32,
+                    reg_idx_to_operand_t(rhs_reg.reg_idx),
+                    (1<<deref_ptr_size)-1, 0);
+
+            instr_reg_and_reg(instrs, InstrType_ADD, InstrSize_32,
+                    reg_idx_to_operand_t(lhs_reg.reg_idx),
+                    reg_idx_to_operand_t(rhs_reg.reg_idx), 0);
+        }
+        else
+            instr_reg_and_imm32(instrs, InstrType_ADD, InstrSize_32,
+                    reg_idx_to_operand_t(lhs_reg.reg_idx),
+                    expr->rhs->int_value*deref_ptr_size, 0);
+
+        if (!load_reference) {
+            instr_reg_and_reg(instrs, InstrType_MOV_F_LOC,
+                    InstrSize_bytes_to(deref_ptr_size),
+                    reg_idx_to_operand_t(lhs_reg.reg_idx),
+                    reg_idx_to_operand_t(lhs_reg.reg_idx), 0);
+        }
     }
     else {
         struct Instruction instr = Instruction_init();

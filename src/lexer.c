@@ -126,6 +126,9 @@ struct Lexer Lexer_lex(const char *src) {
         else if (src[src_i] == ',')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, TokenType_COMMA));
+        else if (src[src_i] == '[')
+            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+                        &src[src_i], 1, TokenType_L_ARR_SUBSCR));
         else if (src[src_i] == '&')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, TokenType_BITWISE_AND));
@@ -146,6 +149,9 @@ struct Lexer Lexer_lex(const char *src) {
         else if (src[src_i] == '}')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, TokenType_R_CURLY));
+        else if (src[src_i] == ']')
+            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+                        &src[src_i], 1, TokenType_R_ARR_SUBSCR));
 
         else if (isdigit(src[src_i])) {
             /* An integer literal */

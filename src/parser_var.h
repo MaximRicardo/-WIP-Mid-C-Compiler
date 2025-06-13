@@ -11,6 +11,8 @@ struct ParserVar {
     char *name;
     unsigned lvls_of_indir;
     enum PrimitiveType type;
+    bool is_array;
+    u32 array_len;
     u32 stack_pos;
 
     /* used by functions */
@@ -23,8 +25,8 @@ struct ParserVar {
 struct ParserVar ParserVar_init(void);
 struct ParserVar ParserVar_create(unsigned line_num, unsigned column_num,
         char *name, unsigned lvls_of_indir, enum PrimitiveType type,
-        u32 stack_pos, struct VarDeclPtrList *args, bool void_args,
-        bool has_been_defined);
+        bool is_array, u32 array_len, u32 stack_pos,
+        struct VarDeclPtrList *args, bool void_args, bool has_been_defined);
 void ParserVar_free(struct ParserVar var);
 
 struct ParVarList {

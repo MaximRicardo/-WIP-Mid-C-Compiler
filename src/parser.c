@@ -127,17 +127,18 @@ static struct Expr* parse_expr(const struct Lexer *lexer, u32 start_idx,
 }
 
 static struct Expr* var_decl_value(const struct Lexer *lexer, u32 ident_idx,
-        u32 *semicolon_idx, u32 bp) {
+        u32 equal_sign_idx, u32 *semicolon_idx, u32 bp) {
 
     struct Expr *expr = NULL;
 
-    if (ident_idx+2 >= lexer->token_tbl.size ||
-            lexer->token_tbl.elems[ident_idx+1].type == TokenType_SEMICOLON) {
-        *semicolon_idx = ident_idx+1;
+    if (equal_sign_idx+1 >= lexer->token_tbl.size ||
+            lexer->token_tbl.elems[equal_sign_idx].type ==
+            TokenType_SEMICOLON) {
+        *semicolon_idx = equal_sign_idx;
         return NULL;
     }
 
-    if (lexer->token_tbl.elems[ident_idx+1].type != TokenType_EQUAL) {
+    if (lexer->token_tbl.elems[equal_sign_idx].type != TokenType_EQUAL) {
         fprintf(stderr, "missing an equals sign. line %u.\n",
                 lexer->token_tbl.elems[ident_idx].line_num);
         Parser_error_occurred = true;
@@ -148,7 +149,7 @@ static struct Expr* var_decl_value(const struct Lexer *lexer, u32 ident_idx,
         return NULL;
     }
 
-    expr = SY_shunting_yard(&lexer->token_tbl, ident_idx+2, NULL, 0,
+    expr = SY_shunting_yard(&lexer->token_tbl, equal_sign_idx+1, NULL, 0,
             semicolon_idx, &vars, bp);
     Parser_error_occurred |= SY_error_occurred;
 
@@ -171,8 +172,11 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
     struct Expr *expr = NULL;
     struct Declarator decl;
 
+    bool is_array = false;
+    u32 array_len = 0;
+
     unsigned n_asterisks = 0;
-    unsigned ident_idx = v_decl_idx+1;
+    u32 ident_idx = v_decl_idx+1;
     while (v_decl_idx+1+n_asterisks < lexer->token_tbl.size &&
             lexer->token_tbl.elems[v_decl_idx+1+n_asterisks].type ==
                 TokenType_DEREFERENCE) {
@@ -204,11 +208,29 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
                 TokenType_SEMICOLON);
         return NULL;
     }
-    
+
+    is_array = ident_idx+1 < lexer->token_tbl.size &&
+        lexer->token_tbl.elems[ident_idx+1].type == TokenType_L_ARR_SUBSCR;
+    if (is_array) {
+        enum TokenType stop_types[] = {TokenType_R_ARR_SUBSCR};
+        struct Expr *len_expr = SY_shunting_yard(&lexer->token_tbl,
+                ident_idx+2, stop_types,
+                sizeof(stop_types)/sizeof(stop_types[0]), end_idx, &vars, bp);
+        ++*end_idx;
+        array_len = Expr_evaluate(len_expr);
+        Expr_recur_free_w_self(len_expr);
+    }
+    else {
+        *end_idx = ident_idx+1;
+    }
+
     var_size = PrimitiveType_size(var_type, n_asterisks);
+    if (is_array)
+        var_size *= array_len;
+
     var_decl = safe_malloc(sizeof(*var_decl));
     expr = is_func_param ? NULL :
-        var_decl_value(lexer, ident_idx, end_idx, bp);
+        var_decl_value(lexer, ident_idx, *end_idx, end_idx, bp);
     decl = Declarator_create(expr,
             Token_src(&lexer->token_tbl.elems[ident_idx]), n_asterisks, 0);
 
@@ -233,7 +255,8 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
                 lexer->token_tbl.elems[v_decl_idx].line_num,
                 lexer->token_tbl.elems[v_decl_idx].column_num,
                 Token_src(&lexer->token_tbl.elems[ident_idx]), n_asterisks,
-                var_type, decl.bp_offset+bp, NULL, false, false));
+                var_type, is_array, array_len, decl.bp_offset+bp, NULL, false,
+                false));
     if (!is_func_param)
         *sp -= var_size;
     else
@@ -415,8 +438,8 @@ static void parse_func_decl(const struct Lexer *lexer, struct BlockNode *block,
                     lexer->token_tbl.elems[f_decl_idx].line_num,
                     lexer->token_tbl.elems[f_decl_idx].column_num,
                     Token_src(&lexer->token_tbl.elems[f_ident_idx]),
-                    func_n_asterisks, func_type, 0, &func->args, void_args,
-                    false));
+                    func_n_asterisks, func_type, false, 0, 0, &func->args,
+                    void_args, false));
         ++old_vars_size;
     }
 
