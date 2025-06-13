@@ -123,6 +123,9 @@ struct Expr {
     unsigned lhs_og_type, rhs_og_type;
     struct ExprPtrList args; /* used by function calls */
 
+    bool is_array;
+    u32 array_len;
+
     /* gets set via Expr_lvls_of_indir */
     unsigned lvls_of_indir;
     /* gets set via Expr_type */
@@ -146,7 +149,7 @@ struct Expr Expr_create(unsigned line_num, unsigned column_num,
         unsigned rhs_lvls_of_indir, enum PrimitiveType lhs_type, 
         enum PrimitiveType rhs_type,
         struct ExprPtrList args, u32 int_value, i32 bp_offset,
-        enum ExprType expr_type);
+        enum ExprType expr_type, bool is_array, u32 array_len);
 /* Uses the passed, tok_t_to_expr_td column numbers aswell as src_start and
  * src_len. */
 struct Expr Expr_create_w_tok(struct Token token, struct Expr *lhs,
@@ -154,7 +157,7 @@ struct Expr Expr_create_w_tok(struct Token token, struct Expr *lhs,
         unsigned rhs_lvls_of_indir, enum PrimitiveType lhs_type,
         enum PrimitiveType rhs_type,
         struct ExprPtrList args, u32 int_value, i32 bp_offset,
-        enum ExprType expr_type);
+        enum ExprType expr_type, bool is_array, u32 array_len);
 /* Also frees self */
 void Expr_recur_free_w_self(struct Expr *self);
 unsigned Expr_lvls_of_indir(struct Expr *self, const struct ParVarList *vars);

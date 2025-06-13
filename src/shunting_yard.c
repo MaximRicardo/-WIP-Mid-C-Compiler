@@ -89,7 +89,7 @@ static void push_operator_to_stack(struct ExprPtrList *output_queue,
     struct Expr *expr = safe_malloc(sizeof(*expr));
     *expr = Expr_create_w_tok(op_tok, NULL, NULL, 0, 0, PrimType_INVALID,
             PrimType_INVALID, ExprPtrList_init(), 0, 0,
-            tok_t_to_expr_t(op_tok.type));
+            tok_t_to_expr_t(op_tok.type), false, 0);
 
     /* If the operator o2 at the top of the stack has greater precedence than
      * the current operator o1, o2 must be moved to the output queue. Then if
@@ -170,7 +170,7 @@ static u32 read_func_call(const struct TokenList *token_tbl, u32 f_call_idx,
     expr = safe_malloc(sizeof(*expr));
     *expr = Expr_create_w_tok(token_tbl->elems[f_call_idx], NULL, NULL, 0, 0,
             PrimType_INVALID, PrimType_INVALID, ExprPtrList_init(), 0, 0,
-            ExprType_FUNC_CALL);
+            ExprType_FUNC_CALL, false, 0);
 
     /* now, we gotta parse every expression inside the parentheses */
     while (arg_start_idx < token_tbl->size &&
@@ -231,7 +231,7 @@ static void push_array_subscr_to_stack(const struct TokenList *token_tbl,
     expr = safe_malloc(sizeof(*expr));
     *expr = Expr_create_w_tok(token_tbl->elems[l_arr_subscr], NULL, NULL,
             0, 0, PrimType_INVALID, PrimType_INVALID, ExprPtrList_init(), 0, 0,
-            tok_t_to_expr_t(token_tbl->elems[l_arr_subscr].type));
+            tok_t_to_expr_t(token_tbl->elems[l_arr_subscr].type), false, 0);
 
     ExprPtrList_push_back(output_queue, value);
     ExprPtrList_push_back(operator_stack, expr);
@@ -269,7 +269,7 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
             struct Expr *expr = safe_malloc(sizeof(*expr));
             *expr = Expr_create_w_tok(token_tbl->elems[i], NULL, NULL, 0, 0,
                     PrimType_INVALID, PrimType_INVALID, ExprPtrList_init(), 0,
-                    0, ExprType_PAREN);
+                    0, ExprType_PAREN, false, 0);
             ExprPtrList_push_back(&operator_stack, expr);
             ++n_parens_deep;
         }
@@ -314,7 +314,8 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
                     vars->elems[var_idx].lvls_of_indir, 0,
                     vars->elems[var_idx].type, PrimType_INVALID,
                     ExprPtrList_init(), 0, vars->elems[var_idx].stack_pos-bp,
-                    ExprType_IDENT);
+                    ExprType_IDENT, vars->elems[var_idx].is_array,
+                    vars->elems[var_idx].array_len);
             Expr_lvls_of_indir(expr, vars);
             Expr_type_no_prom(expr, vars);
             Expr_type(expr, vars);
@@ -324,7 +325,8 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
             struct Expr *expr = safe_malloc(sizeof(*expr));
             *expr = Expr_create_w_tok(token_tbl->elems[i], NULL, NULL, 0, 0,
                     PrimType_INT, PrimType_INVALID, ExprPtrList_init(),
-                    token_tbl->elems[i].value.int_value, 0, ExprType_INT_LIT);
+                    token_tbl->elems[i].value.int_value, 0, ExprType_INT_LIT,
+                    false, 0);
             ExprPtrList_push_back(&output_queue, expr);
         }
 

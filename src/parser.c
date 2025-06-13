@@ -2,6 +2,7 @@
 #include "ast.h"
 #include "comp_dependent/ints.h"
 #include "lexer.h"
+#include "prim_type.h"
 #include "safe_mem.h"
 #include "shunting_yard.h"
 #include "identifier.h"
@@ -219,14 +220,16 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
         ++*end_idx;
         array_len = Expr_evaluate(len_expr);
         Expr_recur_free_w_self(len_expr);
+        ++n_asterisks;  /* arrays act a lot like a level of pointers */
     }
     else {
         *end_idx = ident_idx+1;
     }
 
-    var_size = PrimitiveType_size(var_type, n_asterisks);
     if (is_array)
-        var_size *= array_len;
+        var_size = PrimitiveType_size(var_type, n_asterisks-1)*array_len;
+    else
+        var_size = PrimitiveType_size(var_type, n_asterisks);
 
     var_decl = safe_malloc(sizeof(*var_decl));
     expr = is_func_param ? NULL :

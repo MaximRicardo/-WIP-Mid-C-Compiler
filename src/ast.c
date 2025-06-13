@@ -93,7 +93,8 @@ bool ExprType_is_valid_ptr_operation(enum ExprType type) {
 
 bool ExprType_is_valid_single_ptr_operation(enum ExprType type) {
 
-    return type == ExprType_PLUS || type == ExprType_MINUS;
+    return type == ExprType_PLUS || type == ExprType_MINUS ||
+        type == ExprType_L_ARR_SUBSCR;
 
 }
 
@@ -122,6 +123,8 @@ struct Expr Expr_init(void) {
     expr.expr_type = ExprType_INVALID;
     expr.int_value = 0;
     expr.bp_offset = 0;
+    expr.is_array = false;
+    expr.array_len = 0;
     expr.lvls_of_indir = 0;
     expr.prim_type = PrimType_INVALID;
     expr.non_prom_prim_type = PrimType_INVALID;
@@ -134,7 +137,7 @@ struct Expr Expr_create(unsigned line_num, unsigned column_num,
         struct Expr *rhs, unsigned lhs_lvls_of_indir,
         unsigned rhs_lvls_of_indir, enum PrimitiveType lhs_type,
         enum PrimitiveType rhs_type, struct ExprPtrList args, u32 int_value,
-        i32 bp_offset, enum ExprType expr_type) {
+        i32 bp_offset, enum ExprType expr_type, bool is_array, u32 array_len) {
 
     struct Expr expr;
     expr.line_num = line_num;
@@ -155,6 +158,8 @@ struct Expr Expr_create(unsigned line_num, unsigned column_num,
     expr.int_value = int_value;
     expr.bp_offset = bp_offset;
     expr.expr_type = expr_type;
+    expr.is_array = is_array;
+    expr.array_len = array_len;
     expr.lvls_of_indir = 0;
     expr.prim_type = PrimType_INVALID;
     expr.non_prom_prim_type = PrimType_INVALID;
@@ -166,11 +171,12 @@ struct Expr Expr_create_w_tok(struct Token token, struct Expr *lhs,
         struct Expr *rhs, unsigned lhs_lvls_of_indir,
         unsigned rhs_lvls_of_indir, enum PrimitiveType lhs_type,
         enum PrimitiveType rhs_type, struct ExprPtrList args, u32 int_value,
-        i32 bp_offset, enum ExprType expr_type) {
+        i32 bp_offset, enum ExprType expr_type, bool is_array, u32 array_len) {
 
     return Expr_create(token.line_num, token.column_num, token.src_start,
             token.src_len, lhs, rhs, lhs_lvls_of_indir, rhs_lvls_of_indir,
-            lhs_type, rhs_type, args, int_value, bp_offset, expr_type);
+            lhs_type, rhs_type, args, int_value, bp_offset, expr_type,
+            is_array, array_len);
 
 }
 
@@ -208,7 +214,8 @@ unsigned Expr_lvls_of_indir(struct Expr *self, const struct ParVarList *vars) {
         unsigned lvls_of_indir =
             m_max(self->lhs_lvls_of_indir, self->rhs_lvls_of_indir);
 
-        if (self->expr_type == ExprType_DEREFERENCE) {
+        if (self->expr_type == ExprType_DEREFERENCE ||
+                self->expr_type == ExprType_L_ARR_SUBSCR) {
             assert(lvls_of_indir > 0);
             --lvls_of_indir;
         }

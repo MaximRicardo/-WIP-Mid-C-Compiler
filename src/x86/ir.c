@@ -497,7 +497,8 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
         lhs_reg = get_expr_instructions(instrs, expr->lhs,
                 expr->expr_type == ExprType_EQUAL ||
                 expr->expr_type == ExprType_REFERENCE ||
-                expr->expr_type == ExprType_L_ARR_SUBSCR);
+                expr->expr_type == ExprType_L_ARR_SUBSCR ||
+                expr->lhs->is_array);
     else
         lhs_reg = alloc_reg(instrs);
 
@@ -562,7 +563,7 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
     }
     else if (expr->expr_type == ExprType_L_ARR_SUBSCR) {
         unsigned deref_ptr_size = PrimitiveType_size(expr->lhs_og_type,
-                        expr->lhs_lvls_of_indir);
+                        expr->lhs_lvls_of_indir-1);
 
         if (expr->rhs->expr_type != ExprType_INT_LIT) {
             instr_reg_and_imm32(instrs, InstrType_SHL, InstrSize_32,
