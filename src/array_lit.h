@@ -13,11 +13,14 @@ struct ArrayLit {
 
     struct Expr **values;
     u32 n_values;
+    /* size of each element in bytes. */
+    unsigned elem_size;
 
 };
 
 struct ArrayLit ArrayLit_init(void);
-struct ArrayLit ArrayLit_create(struct Expr **values, u32 n_values);
+struct ArrayLit ArrayLit_create(struct Expr **values, u32 n_values,
+        unsigned elem_size);
 void ArrayLit_free(struct ArrayLit *self);
 
 struct ArrayLitList {

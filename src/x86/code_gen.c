@@ -77,6 +77,37 @@ const char *size_specifier[] = {
 
 };
 
+const char *elem_size_specifier[] = {
+
+    "db",
+    "dw",
+    "dd",
+
+};
+
+/* returns the log2 of bytes. only works for 1, 2, and 4 bytes. i can't get
+ * log2 and friends to work for some reason, my best guess is that c89 doesn't
+ * support them? */
+static unsigned bytes_log2(unsigned bytes) {
+
+    switch (bytes) {
+
+    case 1:
+        return 0;
+
+    case 2:
+        return 1;
+
+    case 4:
+        return 2;
+
+    default:
+        assert(false);
+
+    }
+
+}
+
 static unsigned type_to_reg(enum InstrOperandType type) {
 
     return type-InstrOperandType_REGISTERS_START-1;
@@ -391,14 +422,17 @@ void CodeGenArch_generate(FILE *output, const struct BlockNode *ast) {
 
     for (i = 0; i < array_lits.size; i++) {
         u32 j;
-        /* ALWAYS USING DB WILL NOT WORK ON NON-CHAR ARRAYS! */
-        fprintf(output, "array_lit_%lu$: db ", (unsigned long)i);
+        fprintf(output, "array_lit_%lu$: %s ", (unsigned long)i,
+                elem_size_specifier[
+                    bytes_log2(array_lits.elems[i].elem_size)
+                ]);
         for (j = 0; j < array_lits.elems[i].n_values; j++) {
             if (j != 0)
                 fprintf(output, ", ");
             fprintf(output, "%d",
                     Expr_evaluate(array_lits.elems[i].values[j]));
         }
+        fprintf(output, "\n");
     }
 
     while (instrs.size > 0) {

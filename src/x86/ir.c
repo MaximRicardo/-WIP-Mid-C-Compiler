@@ -684,7 +684,8 @@ static void get_var_decl_instructions(struct InstrList *instrs,
 
             /* memcpy the array literal into the array itself */
             instr_imm32(instrs, InstrType_PUSH, InstrSize_32,
-                    var_decl->decls.elems[i].value->array_value.n_values);
+                    var_decl->decls.elems[i].value->array_value.n_values*
+                        var_decl->decls.elems[i].value->array_value.elem_size);
             instr_string(instrs, InstrType_PUSH, array_lit_name);
             instr_reg(instrs, InstrType_PUSH, InstrSize_32,
                     reg_idx_to_operand_t(reg.reg_idx), 0);

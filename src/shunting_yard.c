@@ -290,8 +290,8 @@ static void read_array_initializer(const struct TokenList *token_tbl,
     array_expr = safe_malloc(sizeof(*array_expr));
     *array_expr = Expr_create_w_tok(token_tbl->elems[l_curly_idx], NULL, NULL,
             0, 0, PrimType_INVALID, PrimType_INVALID, ExprPtrList_init(), 0,
-            ArrayLit_create(values.elems, values.size), 0, ExprType_ARRAY_LIT,
-            false, 0);
+            ArrayLit_create(values.elems, values.size, 0), 0,
+            ExprType_ARRAY_LIT, false, 0);
 
     ExprPtrList_push_back(output_queue, array_expr);
 
