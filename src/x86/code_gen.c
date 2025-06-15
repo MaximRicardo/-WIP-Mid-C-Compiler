@@ -302,6 +302,8 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
             fprintf(output, "push %s\n",
                     reg_names[type_to_reg(instr->lhs.type)][instr->instr_size]
                     );
+        else if (instr->string)
+            fprintf(output, "push %s\n", instr->string);
         else
             fprintf(output, "push %s %u\n", size_specifier[instr->instr_size],
                     instr->lhs.value.imm);
@@ -366,10 +368,15 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
 
 void CodeGenArch_generate(FILE *output, const struct BlockNode *ast) {
 
+    struct ArrayLitList array_lits = ArrayLitList_init();
+
     struct InstrList instrs = IR_get_instructions(ast);
-    unsigned i;
+    u32 i;
+
+    BlockNode_get_array_lits(ast, &array_lits);
 
     fprintf(output, "[BITS 32]\n\n");
+    fprintf(output, "extern memcpy\n");
     fprintf(output, "extern printf\n");
     fprintf(output, "\nsection .text\n");
     fprintf(output, "global main\n");
@@ -382,9 +389,25 @@ void CodeGenArch_generate(FILE *output, const struct BlockNode *ast) {
     fprintf(output, "\nsection .rodata\n");
     fprintf(output, "msg$: db `result = %%d\\n\\0`\n");
 
+    for (i = 0; i < array_lits.size; i++) {
+        u32 j;
+        /* ALWAYS USING DB WILL NOT WORK ON NON-CHAR ARRAYS! */
+        fprintf(output, "array_lit_%lu$: db ", (unsigned long)i);
+        for (j = 0; j < array_lits.elems[i].n_values; j++) {
+            if (j != 0)
+                fprintf(output, ", ");
+            fprintf(output, "%d",
+                    Expr_evaluate(array_lits.elems[i].values[j]));
+        }
+    }
+
     while (instrs.size > 0) {
         InstrList_pop_back(&instrs, Instruction_free);
     }
     InstrList_free(&instrs);
+
+    /* don't free the individual elements cuz they'll be freed when the ast is
+     * freed. */
+    ArrayLitList_free(&array_lits);
 
 }

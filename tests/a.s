@@ -1,5 +1,6 @@
 [BITS 32]
 
+extern memcpy
 extern printf
 
 section .text
@@ -26,21 +27,13 @@ sub esp, dword 8
 
 lea eax, [ebp+-5]
 
-add eax, dword 0
+push dword 3
 
-mov byte [eax+0], 5
+push array_lit_0$
 
-lea eax, [ebp+-5]
+push eax
 
-add eax, dword 1
-
-mov byte [eax+0], 10
-
-lea eax, [ebp+-5]
-
-add eax, dword 2
-
-mov byte [eax+0], 15
+call memcpy
 
 lea eax, [ebp+-5]
 
@@ -126,3 +119,4 @@ ret
 
 section .rodata
 msg$: db `result = %d\n\0`
+array_lit_0$: db 1, 2, 3

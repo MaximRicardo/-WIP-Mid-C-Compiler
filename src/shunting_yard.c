@@ -1,4 +1,5 @@
 #include "shunting_yard.h"
+#include "array_lit.h"
 #include "ast.h"
 #include "comp_dependent/ints.h"
 #include "parser.h"
@@ -88,7 +89,7 @@ static void push_operator_to_stack(struct ExprPtrList *output_queue,
 
     struct Expr *expr = safe_malloc(sizeof(*expr));
     *expr = Expr_create_w_tok(op_tok, NULL, NULL, 0, 0, PrimType_INVALID,
-            PrimType_INVALID, ExprPtrList_init(), 0, 0,
+            PrimType_INVALID, ExprPtrList_init(), 0, ArrayLit_init(), 0,
             tok_t_to_expr_t(op_tok.type), false, 0);
 
     /* If the operator o2 at the top of the stack has greater precedence than
@@ -169,8 +170,8 @@ static u32 read_func_call(const struct TokenList *token_tbl, u32 f_call_idx,
 
     expr = safe_malloc(sizeof(*expr));
     *expr = Expr_create_w_tok(token_tbl->elems[f_call_idx], NULL, NULL, 0, 0,
-            PrimType_INVALID, PrimType_INVALID, ExprPtrList_init(), 0, 0,
-            ExprType_FUNC_CALL, false, 0);
+            PrimType_INVALID, PrimType_INVALID, ExprPtrList_init(), 0,
+            ArrayLit_init(), 0, ExprType_FUNC_CALL, false, 0);
 
     /* now, we gotta parse every expression inside the parentheses */
     while (arg_start_idx < token_tbl->size &&
@@ -230,11 +231,65 @@ static void push_array_subscr_to_stack(const struct TokenList *token_tbl,
 
     expr = safe_malloc(sizeof(*expr));
     *expr = Expr_create_w_tok(token_tbl->elems[l_arr_subscr], NULL, NULL,
-            0, 0, PrimType_INVALID, PrimType_INVALID, ExprPtrList_init(), 0, 0,
+            0, 0, PrimType_INVALID, PrimType_INVALID, ExprPtrList_init(), 0,
+            ArrayLit_init(), 0,
             tok_t_to_expr_t(token_tbl->elems[l_arr_subscr].type), false, 0);
 
     ExprPtrList_push_back(output_queue, value);
     ExprPtrList_push_back(operator_stack, expr);
+
+}
+
+static void read_array_initializer(const struct TokenList *token_tbl,
+        struct ExprPtrList *output_queue, u32 l_curly_idx, u32 *end_idx,
+        const struct ParVarList *vars, u32 bp) {
+
+    struct Expr *array_expr = NULL;
+    struct ExprPtrList values = ExprPtrList_init();
+    u32 value_idx = l_curly_idx+1;
+
+    assert(token_tbl->elems[l_curly_idx].type == TokenType_L_CURLY);
+
+    while (value_idx < token_tbl->size &&
+            token_tbl->elems[value_idx].type != TokenType_R_CURLY) {
+
+        struct Expr *value = NULL;
+        bool old_error_occurred = SY_error_occurred;
+        enum TokenType stop_types[] = {TokenType_COMMA, TokenType_R_CURLY};
+
+        if (token_tbl->elems[value_idx].type == TokenType_COMMA) {
+            ++value_idx;
+            continue;
+        }
+
+        value = SY_shunting_yard(token_tbl, value_idx, stop_types,
+                sizeof(stop_types)/sizeof(stop_types[0]), &value_idx, vars,
+                bp);
+        SY_error_occurred |= old_error_occurred;
+
+        ExprPtrList_push_back(&values, value);
+
+    }
+
+    if (value_idx >= token_tbl->size) {
+        fprintf(stderr, "missing '}' for the initializer on line %u,"
+                " column %u\n", token_tbl->elems[l_curly_idx].line_num,
+                token_tbl->elems[l_curly_idx].column_num);
+        SY_error_occurred = true;
+    }
+
+    array_expr = safe_malloc(sizeof(*array_expr));
+    *array_expr = Expr_create_w_tok(token_tbl->elems[l_curly_idx], NULL, NULL,
+            0, 0, PrimType_INVALID, PrimType_INVALID, ExprPtrList_init(), 0,
+            ArrayLit_create(values.elems, values.size), 0, ExprType_ARRAY_LIT,
+            false, 0);
+
+    ExprPtrList_push_back(output_queue, array_expr);
+
+    *end_idx = value_idx;
+
+    /* values doesn't need to be freed cuz it's array has been passed to the
+     * array literal */
 
 }
 
@@ -269,7 +324,7 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
             struct Expr *expr = safe_malloc(sizeof(*expr));
             *expr = Expr_create_w_tok(token_tbl->elems[i], NULL, NULL, 0, 0,
                     PrimType_INVALID, PrimType_INVALID, ExprPtrList_init(), 0,
-                    0, ExprType_PAREN, false, 0);
+                    ArrayLit_init(), 0, ExprType_PAREN, false, 0);
             ExprPtrList_push_back(&operator_stack, expr);
             ++n_parens_deep;
         }
@@ -277,6 +332,9 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
             read_r_paren(&output_queue, &operator_stack, &token_tbl->elems[i],
                     vars);
             --n_parens_deep;
+        }
+        else if (token_tbl->elems[i].type == TokenType_L_CURLY) {
+            read_array_initializer(token_tbl, &output_queue, i, &i, vars, bp);
         }
         else if (i+1 < token_tbl->size &&
                 token_tbl->elems[i].type == TokenType_IDENT &&
@@ -313,7 +371,8 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
             *expr = Expr_create_w_tok(token_tbl->elems[i], NULL, NULL,
                     vars->elems[var_idx].lvls_of_indir, 0,
                     vars->elems[var_idx].type, PrimType_INVALID,
-                    ExprPtrList_init(), 0, vars->elems[var_idx].stack_pos-bp,
+                    ExprPtrList_init(), 0, ArrayLit_init(),
+                    vars->elems[var_idx].stack_pos-bp,
                     ExprType_IDENT, vars->elems[var_idx].is_array,
                     vars->elems[var_idx].array_len);
             Expr_lvls_of_indir(expr, vars);
@@ -321,13 +380,16 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
             Expr_type(expr, vars);
             ExprPtrList_push_back(&output_queue, expr);
         }
-        else {
+        else if (token_tbl->elems[i].type == TokenType_INT_LIT) {
             struct Expr *expr = safe_malloc(sizeof(*expr));
             *expr = Expr_create_w_tok(token_tbl->elems[i], NULL, NULL, 0, 0,
                     PrimType_INT, PrimType_INVALID, ExprPtrList_init(),
-                    token_tbl->elems[i].value.int_value, 0, ExprType_INT_LIT,
-                    false, 0);
+                    token_tbl->elems[i].value.int_value, ArrayLit_init(), 0,
+                    ExprType_INT_LIT, false, 0);
             ExprPtrList_push_back(&output_queue, expr);
+        }
+        else {
+            assert(false);
         }
 
     }

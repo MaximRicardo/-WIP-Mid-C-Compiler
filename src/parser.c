@@ -235,7 +235,8 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
     expr = is_func_param ? NULL :
         var_decl_value(lexer, ident_idx, *end_idx, end_idx, bp);
     decl = Declarator_create(expr,
-            Token_src(&lexer->token_tbl.elems[ident_idx]), n_asterisks, 0);
+            Token_src(&lexer->token_tbl.elems[ident_idx]), n_asterisks,
+            is_array, array_len, 0);
 
     /* align the variable to its size */
     if (!is_func_param) {

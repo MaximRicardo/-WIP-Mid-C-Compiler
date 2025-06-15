@@ -1,4 +1,5 @@
 #include "ast.h"
+#include "array_lit.h"
 #include "bool.h"
 #include "comp_dependent/ints.h"
 #include "parser_var.h"
@@ -14,6 +15,7 @@
 #include <string.h>
 
 /* TODO:
+ *    Actually implement Expr_statically_evaluatable
  *    Add comparison operators to ExprType_is_valid_ptr_operation
  *    Add increment/decrement operators to
  *      ExprType_is_valid_single_ptr_operation
@@ -62,6 +64,32 @@ void ASTNode_free(struct ASTNode node) {
             m_free(node.node_struct);
         else
             assert(false);
+    }
+
+}
+
+void ASTNode_get_array_lits(const struct ASTNode *self,
+        struct ArrayLitList *list) {
+
+    if (self->node_struct) {
+        if (self->type == ASTType_EXPR) {
+            ExprNode_get_array_lits(self->node_struct, list);
+        }
+        else if (self->type == ASTType_VAR_DECL) {
+            VarDeclNode_get_array_lits(self->node_struct, list);
+        }
+        else if (self->type == ASTType_FUNC) {
+            FuncDeclNode_get_array_lits(self->node_struct, list);
+        }
+        else if (self->type == ASTType_BLOCK) {
+            BlockNode_get_array_lits(self->node_struct, list);
+        }
+        else if (self->type == ASTType_RETURN) {
+            RetNode_get_array_lits(self->node_struct, list);
+        }
+        else if (self->type == ASTType_IF_STMT) {
+            RetNode_get_array_lits(self->node_struct, list);
+        }
     }
 
 }
@@ -122,6 +150,7 @@ struct Expr Expr_init(void) {
     expr.args = ExprPtrList_init();
     expr.expr_type = ExprType_INVALID;
     expr.int_value = 0;
+    expr.array_value = ArrayLit_init();
     expr.bp_offset = 0;
     expr.is_array = false;
     expr.array_len = 0;
@@ -137,7 +166,8 @@ struct Expr Expr_create(unsigned line_num, unsigned column_num,
         struct Expr *rhs, unsigned lhs_lvls_of_indir,
         unsigned rhs_lvls_of_indir, enum PrimitiveType lhs_type,
         enum PrimitiveType rhs_type, struct ExprPtrList args, u32 int_value,
-        i32 bp_offset, enum ExprType expr_type, bool is_array, u32 array_len) {
+        struct ArrayLit array_value, i32 bp_offset, enum ExprType expr_type,
+        bool is_array, u32 array_len) {
 
     struct Expr expr;
     expr.line_num = line_num;
@@ -156,6 +186,7 @@ struct Expr Expr_create(unsigned line_num, unsigned column_num,
         PrimitiveType_promote(rhs_type, expr.rhs_lvls_of_indir);
     expr.args = args;
     expr.int_value = int_value;
+    expr.array_value = array_value;
     expr.bp_offset = bp_offset;
     expr.expr_type = expr_type;
     expr.is_array = is_array;
@@ -171,12 +202,13 @@ struct Expr Expr_create_w_tok(struct Token token, struct Expr *lhs,
         struct Expr *rhs, unsigned lhs_lvls_of_indir,
         unsigned rhs_lvls_of_indir, enum PrimitiveType lhs_type,
         enum PrimitiveType rhs_type, struct ExprPtrList args, u32 int_value,
-        i32 bp_offset, enum ExprType expr_type, bool is_array, u32 array_len) {
+        struct ArrayLit array_value, i32 bp_offset, enum ExprType expr_type,
+        bool is_array, u32 array_len) {
 
     return Expr_create(token.line_num, token.column_num, token.src_start,
             token.src_len, lhs, rhs, lhs_lvls_of_indir, rhs_lvls_of_indir,
-            lhs_type, rhs_type, args, int_value, bp_offset, expr_type,
-            is_array, array_len);
+            lhs_type, rhs_type, args, int_value, array_value, bp_offset,
+            expr_type, is_array, array_len);
 
 }
 
@@ -193,6 +225,7 @@ void Expr_recur_free_w_self(struct Expr *self) {
     while (self->args.size > 0)
         ExprPtrList_pop_back(&self->args, Expr_recur_free_w_self);
     ExprPtrList_free(&self->args);
+    ArrayLit_free(&self->array_value);
     m_free(self);
 
 }
@@ -335,6 +368,29 @@ char* Expr_src(const struct Expr *self) {
 
 }
 
+void Expr_get_array_lits(const struct Expr *self, struct ArrayLitList *list) {
+
+    if (!self)
+        return;
+
+    if (self->lhs)
+        Expr_get_array_lits(self->lhs, list);
+    if (self->rhs)
+        Expr_get_array_lits(self->rhs, list);
+
+    if (self->expr_type != ExprType_ARRAY_LIT)
+        return;
+
+    ArrayLitList_push_back(list, self->array_value);
+
+}
+
+bool Expr_statically_evaluatable(const struct Expr *self) {
+
+    return self != NULL;
+
+}
+
 struct ExprNode ExprNode_init(void) {
 
     struct ExprNode expr_node;
@@ -355,6 +411,14 @@ void ExprNode_free_w_self(struct ExprNode *self) {
 
     Expr_recur_free_w_self(self->expr);
     m_free(self);
+
+}
+
+void ExprNode_get_array_lits(const struct ExprNode *self,
+        struct ArrayLitList *list) {
+
+    if (self->expr)
+        Expr_get_array_lits(self->expr, list);
 
 }
 
@@ -384,6 +448,19 @@ void BlockNode_free_w_self(struct BlockNode *self) {
 
     ASTNodeList_free(&self->nodes);
     m_free(self);
+
+}
+
+void BlockNode_get_array_lits(const struct BlockNode *self,
+        struct ArrayLitList *list) {
+
+    u32 i;
+
+    for (i = 0; i < self->nodes.size; i++) {
+
+        ASTNode_get_array_lits(&self->nodes.elems[i], list);
+
+    }
 
 }
 
@@ -507,6 +584,9 @@ enum TokenType expr_t_to_tok_t(enum ExprType type) {
     case ExprType_INT_LIT:
         return TokenType_INT_LIT;
 
+    case ExprType_ARRAY_LIT:
+        assert(false);
+
     case ExprType_PAREN:
         return TokenType_L_PAREN;
 
@@ -526,18 +606,22 @@ struct Declarator Declarator_init(void) {
     decl.value = NULL;
     decl.ident = NULL;
     decl.lvls_of_indir = 0;
+    decl.is_array = false;
+    decl.array_len = 0;
     decl.bp_offset = 0;
     return decl;
 
 }
 
 struct Declarator Declarator_create(struct Expr *value, char *ident,
-        unsigned lvls_of_indir, u32 bp_offset) {
+        unsigned lvls_of_indir, bool is_array, u32 array_len, u32 bp_offset) {
 
     struct Declarator decl;
     decl.value = value;
     decl.ident = ident;
     decl.lvls_of_indir = lvls_of_indir;
+    decl.is_array = is_array;
+    decl.array_len = array_len;
     decl.bp_offset = bp_offset;
     return decl;
 
@@ -547,6 +631,16 @@ void Declarator_free(struct Declarator decl) {
 
     Expr_recur_free_w_self(decl.value);
     m_free(decl.ident);
+
+}
+
+void Declarator_get_array_lits(const struct Declarator *self,
+        struct ArrayLitList *list) {
+
+    if (!self->value)
+        return;
+
+    Expr_get_array_lits(self->value, list);
 
 }
 
@@ -575,6 +669,17 @@ void VarDeclNode_free_w_self(struct VarDeclNode *self) {
         DeclList_pop_back(&self->decls, Declarator_free);
     DeclList_free(&self->decls);
     m_free(self);
+
+}
+
+void VarDeclNode_get_array_lits(const struct VarDeclNode *self,
+        struct ArrayLitList *list) {
+
+    u32 i;
+
+    for (i = 0; i < self->decls.size; i++) {
+        Declarator_get_array_lits(&self->decls.elems[i], list);
+    }
 
 }
 
@@ -685,6 +790,14 @@ void FuncDeclNode_free_w_self(struct FuncDeclNode *self) {
 
 }
 
+void FuncDeclNode_get_array_lits(const struct FuncDeclNode *self,
+        struct ArrayLitList *list) {
+
+    if (self->body)
+        BlockNode_get_array_lits(self->body, list);
+
+}
+
 struct RetNode RetNode_init(void) {
 
     struct RetNode ret_node;
@@ -712,6 +825,14 @@ void RetNode_free_w_self(struct RetNode *self) {
 
     Expr_recur_free_w_self(self->value);
     m_free(self);
+
+}
+
+void RetNode_get_array_lits(const struct RetNode *self,
+        struct ArrayLitList *list) {
+
+    if (self->value)
+        Expr_get_array_lits(self->value, list);
 
 }
 
@@ -752,7 +873,18 @@ void IfNode_free_w_self(struct IfNode *self) {
 
 }
 
+void IfNode_get_array_lits(const struct IfNode *self,
+        struct ArrayLitList *list) {
+
+    if (self->body)
+        BlockNode_get_array_lits(self->body, list);
+    if (self->else_body)
+        BlockNode_get_array_lits(self->else_body, list);
+
+}
+
 m_define_VectorImpl_funcs(ASTNodeList, struct ASTNode)
 m_define_VectorImpl_funcs(DeclList, struct Declarator)
 m_define_VectorImpl_funcs(VarDeclPtrList, struct VarDeclNode*)
 m_define_VectorImpl_funcs(ExprPtrList, struct Expr*)
+m_define_VectorImpl_funcs(ExprList, struct Expr)

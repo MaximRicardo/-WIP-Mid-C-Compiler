@@ -5,11 +5,7 @@ char* func(char *x);
 
 int main(void) {
 
-    char array[5];
-
-    array[0] = 5;
-    array[1] = 10;
-    array[2] = 15;
+    char array[5] = {1, 2, 3};
 
     *(array+2);
     :;

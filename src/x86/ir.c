@@ -13,6 +13,7 @@
 #define m_comp_label_name_capacity 1024
 
 unsigned long label_counter = 0;
+unsigned long array_lit_counter = 0;
 
 unsigned next_reg_to_leak = 0;
 
@@ -335,6 +336,23 @@ static void instr_reg_and_imm32(struct InstrList *instrs, enum InstrType type,
 
 }
 
+/*
+static void instr_reg_and_string(struct InstrList *instrs, enum InstrType type,
+        enum InstrSize size, enum InstrOperandType reg, char *str,
+        i32 offset) {
+
+    struct Instruction instr = Instruction_init();
+
+    instr.type = type;
+    instr.instr_size = size;
+    instr.lhs = InstrOperand_create_imm(reg, 0);
+    instr.string = str;
+    instr.offset = offset;
+
+    InstrList_push_back(instrs, instr);
+
+}*/
+
 static void instr_reg(struct InstrList *instrs, enum InstrType type,
         enum InstrSize size, enum InstrOperandType reg, i32 offset) {
 
@@ -349,7 +367,6 @@ static void instr_reg(struct InstrList *instrs, enum InstrType type,
 
 }
 
-/*
 static void instr_imm32(struct InstrList *instrs, enum InstrType type,
         enum InstrSize size, u32 imm) {
 
@@ -361,7 +378,7 @@ static void instr_imm32(struct InstrList *instrs, enum InstrType type,
 
     InstrList_push_back(instrs, instr);
 
-}*/
+}
 
 static void instr_string(struct InstrList *instrs, enum InstrType type,
         char *str) {
@@ -647,7 +664,39 @@ static void get_var_decl_instructions(struct InstrList *instrs,
 
     unsigned i;
     for (i = 0; i < var_decl->decls.size; i++) {
-        if (var_decl->decls.elems[i].value) {
+        if (var_decl->decls.elems[i].value &&
+                var_decl->decls.elems[i].is_array) {
+
+            struct GPReg reg = alloc_reg(instrs);
+
+            char *array_lit_name =
+                safe_malloc(m_comp_label_name_capacity*
+                        sizeof(*array_lit_name));
+            char *memcpy_name = safe_malloc(m_comp_label_name_capacity*
+                    sizeof(*memcpy_name));
+
+            sprintf(array_lit_name, "array_lit_%lu$", array_lit_counter++);
+            sprintf(memcpy_name, "memcpy");
+
+            instr_reg_and_reg(instrs, InstrType_LEA, InstrSize_32,
+                    reg_idx_to_operand_t(reg.reg_idx), InstrOperandType_REG_BP,
+                    var_decl->decls.elems[i].bp_offset);
+
+            /* memcpy the array literal into the array itself */
+            instr_imm32(instrs, InstrType_PUSH, InstrSize_32,
+                    var_decl->decls.elems[i].value->array_value.n_values);
+            instr_string(instrs, InstrType_PUSH, array_lit_name);
+            instr_reg(instrs, InstrType_PUSH, InstrSize_32,
+                    reg_idx_to_operand_t(reg.reg_idx), 0);
+            instr_string(instrs, InstrType_CALL, memcpy_name);
+
+            array_lit_name = NULL;
+            memcpy_name = NULL;
+
+            free_reg(instrs, reg);
+
+        }
+        else if (var_decl->decls.elems[i].value) {
             enum InstrSize instr_size = InstrSize_bytes_to(PrimitiveType_size(
                         var_decl->type, var_decl->decls.elems[i].lvls_of_indir
                         ));

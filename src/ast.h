@@ -5,7 +5,10 @@
 #include "vector_impl.h"
 #include "prim_type.h"
 #include "parser_var.h"
+#include "array_lit.h"
 
+/* make sure to update:
+ *    ASTNode_free, ASTNode_get_array_lits */
 enum ASTNodeType {
 
     ASTType_INVALID,
@@ -33,6 +36,8 @@ struct ASTNode ASTNode_init(void);
 struct ASTNode ASTNode_create(unsigned line_num, unsigned column_num,
         enum ASTNodeType type, void *node_struct);
 void ASTNode_free(struct ASTNode node);
+void ASTNode_get_array_lits(const struct ASTNode *self,
+        struct ArrayLitList *list);
 
 struct ASTNodeList {
 
@@ -55,6 +60,8 @@ struct BlockNode {
 struct BlockNode BlockNode_init(void);
 struct BlockNode BlockNode_create(struct ASTNodeList nodes, u32 var_bytes);
 void BlockNode_free_w_self(struct BlockNode *self);
+void BlockNode_get_array_lits(const struct BlockNode *self,
+        struct ArrayLitList *list);
 
 /* when adding a new type make sure to update:
  *  expr_t_to_tok_t, tok_t_to_expr_t
@@ -65,6 +72,7 @@ enum ExprType {
 
     /* Literals */
     ExprType_INT_LIT,
+    ExprType_ARRAY_LIT,
 
     /* Binary operators */
     ExprType_PLUS,
@@ -109,6 +117,18 @@ struct ExprPtrList {
 
 };
 
+m_declare_VectorImpl_funcs(ExprPtrList, struct Expr*)
+
+struct ExprList {
+
+    struct Expr *elems;
+    u32 size;
+    u32 capacity;
+
+};
+
+m_declare_VectorImpl_funcs(ExprList, struct Expr)
+
 struct Expr {
 
     unsigned line_num, column_num;
@@ -134,6 +154,7 @@ struct Expr {
     enum PrimitiveType non_prom_prim_type;
 
     u32 int_value;
+    struct ArrayLit array_value;
 
     i32 bp_offset;
 
@@ -148,16 +169,16 @@ struct Expr Expr_create(unsigned line_num, unsigned column_num,
         struct Expr *rhs, unsigned lhs_lvls_of_indir,
         unsigned rhs_lvls_of_indir, enum PrimitiveType lhs_type, 
         enum PrimitiveType rhs_type,
-        struct ExprPtrList args, u32 int_value, i32 bp_offset,
-        enum ExprType expr_type, bool is_array, u32 array_len);
+        struct ExprPtrList args, u32 int_value, struct ArrayLit array_value,
+        i32 bp_offset, enum ExprType expr_type, bool is_array, u32 array_len);
 /* Uses the passed, tok_t_to_expr_td column numbers aswell as src_start and
  * src_len. */
 struct Expr Expr_create_w_tok(struct Token token, struct Expr *lhs,
         struct Expr *rhs, unsigned lhs_lvls_of_indir,
         unsigned rhs_lvls_of_indir, enum PrimitiveType lhs_type,
         enum PrimitiveType rhs_type,
-        struct ExprPtrList args, u32 int_value, i32 bp_offset,
-        enum ExprType expr_type, bool is_array, u32 array_len);
+        struct ExprPtrList args, u32 int_value, struct ArrayLit array_value,
+        i32 bp_offset, enum ExprType expr_type, bool is_array, u32 array_len);
 /* Also frees self */
 void Expr_recur_free_w_self(struct Expr *self);
 unsigned Expr_lvls_of_indir(struct Expr *self, const struct ParVarList *vars);
@@ -174,8 +195,8 @@ char* Expr_src(const struct Expr *expr); /* same as Token_src */
 /* checks if there are any errors in the expression that the shunting yard
  * function couldn't catch */
 bool Expr_verify(const struct Expr *expr, const struct ParVarList *vars);
-
-m_declare_VectorImpl_funcs(ExprPtrList, struct Expr*)
+void Expr_get_array_lits(const struct Expr *self, struct ArrayLitList *list);
+bool Expr_statically_evaluatable(const struct Expr *self);
 
 struct ExprNode {
 
@@ -186,20 +207,26 @@ struct ExprNode {
 struct ExprNode ExprNode_init(void);
 struct ExprNode ExprNode_create(struct Expr *expr);
 void ExprNode_free_w_self(struct ExprNode *self);
+void ExprNode_get_array_lits(const struct ExprNode *self,
+        struct ArrayLitList *list);
 
 struct Declarator {
 
     struct Expr *value;
     char *ident;
     unsigned lvls_of_indir;
+    bool is_array;
+    u32 array_len;
     u32 bp_offset;
 
 };
 
 struct Declarator Declarator_init(void);
 struct Declarator Declarator_create(struct Expr *value, char *ident,
-        unsigned lvls_of_indir, u32 bp_offset);
+        unsigned lvls_of_indir, bool is_array, u32 array_len, u32 bp_offset);
 void Declarator_free(struct Declarator decl);
+void Declarator_get_array_lits(const struct Declarator *self,
+        struct ArrayLitList *list);
 
 struct DeclList {
 
@@ -222,6 +249,8 @@ struct VarDeclNode VarDeclNode_init(void);
 struct VarDeclNode VarDeclNode_create(struct DeclList decls,
         enum PrimitiveType type);
 void VarDeclNode_free_w_self(struct VarDeclNode *self);
+void VarDeclNode_get_array_lits(const struct VarDeclNode *self,
+        struct ArrayLitList *list);
 
 struct VarDeclPtrList {
 
@@ -253,6 +282,8 @@ struct FuncDeclNode FuncDeclNode_create(struct VarDeclPtrList args,
         bool void_args, unsigned ret_lvls_of_indir,
         enum PrimitiveType ret_type, struct BlockNode *body, char *name);
 void FuncDeclNode_free_w_self(struct FuncDeclNode *self);
+void FuncDeclNode_get_array_lits(const struct FuncDeclNode *self,
+        struct ArrayLitList *list);
 
 struct RetNode {
 
@@ -267,6 +298,8 @@ struct RetNode RetNode_init(void);
 struct RetNode RetNode_create(struct Expr *value, unsigned lvls_of_indir,
         enum PrimitiveType type, u32 n_stack_frames_deep);
 void RetNode_free_w_self(struct RetNode *self);
+void RetNode_get_array_lits(const struct RetNode *self,
+        struct ArrayLitList *list);
 
 struct IfNode {
 
@@ -284,6 +317,8 @@ struct IfNode IfNode_create(struct Expr *expr, struct BlockNode *body,
         struct BlockNode *else_body, bool body_in_block,
         bool else_body_in_block);
 void IfNode_free_w_self(struct IfNode *self);
+void IfNode_get_array_lits(const struct IfNode *self,
+        struct ArrayLitList *list);
 
 struct DebugPrintRAX {
 
