@@ -15,7 +15,6 @@
 #include <string.h>
 
 /* TODO:
- *    Actually implement Expr_statically_evaluatable
  *    Add comparison operators to ExprType_is_valid_ptr_operation
  *    Add increment/decrement operators to
  *      ExprType_is_valid_single_ptr_operation
@@ -370,9 +369,6 @@ char* Expr_src(const struct Expr *self) {
 
 void Expr_get_array_lits(const struct Expr *self, struct ArrayLitList *list) {
 
-    if (!self)
-        return;
-
     if (self->lhs)
         Expr_get_array_lits(self->lhs, list);
     if (self->rhs)
@@ -387,7 +383,17 @@ void Expr_get_array_lits(const struct Expr *self, struct ArrayLitList *list) {
 
 bool Expr_statically_evaluatable(const struct Expr *self) {
 
-    return self != NULL;
+    if (self->expr_type == ExprType_IDENT ||
+            self->expr_type == ExprType_REFERENCE ||
+            self->expr_type == ExprType_DEREFERENCE)
+        return false;
+
+    if (self->lhs && !Expr_statically_evaluatable(self->lhs))
+        return false;
+    else if (self->rhs && !Expr_statically_evaluatable(self->rhs))
+        return false;
+
+    return true;
 
 }
 

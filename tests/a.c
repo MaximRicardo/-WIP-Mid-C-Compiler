@@ -3,9 +3,10 @@ void free(void *ptr);
 
 char* func(char *x);
 
-int main(void) {
+int main(int argc, char **argv) {
 
-    char array[5] = {1, 2, 3};
+    int array_len = 3;
+    char array[array_len] = {1, 2, 3};
 
     *(array+2);
     :;

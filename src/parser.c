@@ -218,12 +218,31 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
                 ident_idx+2, stop_types,
                 sizeof(stop_types)/sizeof(stop_types[0]), end_idx, &vars, bp);
         ++*end_idx;
-        array_len = Expr_evaluate(len_expr);
+        if (!Expr_statically_evaluatable(len_expr)) {
+            char *var_name = Token_src(&lexer->token_tbl.elems[ident_idx]);
+            fprintf(stderr, "array '%s' must have a statically evaluatable"
+                    " length. line %u\n", var_name,
+                    lexer->token_tbl.elems[ident_idx].line_num);
+            Parser_error_occurred = true;
+            m_free(var_name);
+            array_len = 1;
+        }
+        else
+            array_len = Expr_evaluate(len_expr);
         Expr_recur_free_w_self(len_expr);
         ++n_asterisks;  /* arrays act a lot like a level of pointers */
     }
     else {
         *end_idx = ident_idx+1;
+    }
+
+    if (is_array && array_len == 0) {
+        char *var_name = Token_src(&lexer->token_tbl.elems[ident_idx]);
+        fprintf(stderr, "array '%s' cannot have a length of 0. line %u\n",
+                var_name, lexer->token_tbl.elems[ident_idx].line_num);
+        Parser_error_occurred = true;
+        m_free(var_name);
+        array_len = 1;
     }
 
     if (is_array)
