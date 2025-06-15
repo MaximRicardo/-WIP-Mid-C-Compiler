@@ -9,6 +9,8 @@ extern malloc
 
 extern free
 
+extern putchar
+
 extern func
 
 main:
@@ -23,11 +25,11 @@ push ebp
 
 mov ebp, esp
 
-sub esp, dword 12
+sub esp, dword 8
 
-lea eax, [ebp+-12]
+lea eax, [ebp+-6]
 
-push dword 12
+push dword 6
 
 push array_lit_0$
 
@@ -35,18 +37,111 @@ push eax
 
 call memcpy
 
-lea eax, [ebp+-12]
+sub esp, dword 4
 
-add eax, dword 8
+lea ebx, [ebp+-6]
 
-mov eax, [eax+0]
+add ebx, dword 0
 
-mov ebx, esp
-and esp, -16
-push eax
-push msg$
-call printf
-mov esp, ebx
+mov bl, [ebx+0]
+
+and ebx, dword 255
+
+mov [esp+0], ebx
+
+call putchar
+
+add esp, dword 4
+
+sub esp, dword 4
+
+lea ebx, [ebp+-6]
+
+add ebx, dword 1
+
+mov bl, [ebx+0]
+
+and ebx, dword 255
+
+mov [esp+0], ebx
+
+call putchar
+
+add esp, dword 4
+
+sub esp, dword 4
+
+lea ebx, [ebp+-6]
+
+add ebx, dword 2
+
+mov bl, [ebx+0]
+
+and ebx, dword 255
+
+mov [esp+0], ebx
+
+call putchar
+
+add esp, dword 4
+
+sub esp, dword 4
+
+lea ebx, [ebp+-6]
+
+add ebx, dword 3
+
+mov bl, [ebx+0]
+
+and ebx, dword 255
+
+mov [esp+0], ebx
+
+call putchar
+
+add esp, dword 4
+
+sub esp, dword 4
+
+lea ebx, [ebp+-6]
+
+add ebx, dword 4
+
+mov bl, [ebx+0]
+
+and ebx, dword 255
+
+mov [esp+0], ebx
+
+call putchar
+
+add esp, dword 4
+
+sub esp, dword 4
+
+lea ebx, [ebp+-6]
+
+add ebx, dword 5
+
+mov bl, [ebx+0]
+
+and ebx, dword 255
+
+mov [esp+0], ebx
+
+call putchar
+
+add esp, dword 4
+
+sub esp, dword 4
+
+mov ebx, dword 10
+
+mov [esp+0], ebx
+
+call putchar
+
+add esp, dword 4
 
 mov eax, dword 0
 
@@ -117,4 +212,4 @@ ret
 
 section .rodata
 msg$: db `result = %d\n\0`
-array_lit_0$: dd 1, 2, 3
+array_lit_0$: db 104, 101, 108, 108, 111, 0

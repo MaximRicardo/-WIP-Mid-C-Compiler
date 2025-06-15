@@ -70,6 +70,84 @@ static enum TokenType identifier_keyword(const char *ident_start,
 
 }
 
+static int escape_code_to_int(char code, unsigned line_num,
+        unsigned column_num) {
+
+    switch (code) {
+
+    case 'a':
+        return '\a';
+
+    case 'b':
+        return '\b';
+
+    case 'f':
+        return '\f';
+
+    case 'n':
+        return '\n';
+
+    case 'r':
+        return '\r';
+
+    case 't':
+        return '\t';
+
+    case 'v':
+        return '\v';
+
+    case '\\':
+        return '\\';
+
+    case '\'':
+        return '\'';
+
+    case '\"':
+        return '\"';
+
+    case '\?':
+        return '\?';
+
+    case '0':
+        return '\0';
+
+    default:
+        fprintf(stderr, "invalid escape sequence on line %u, column %u.\n",
+                line_num, column_num);
+        Lexer_error_occurred = true;
+        return 0;
+
+    }
+
+}
+
+/* end_idx points to the closing single quote */
+static int read_single_quote_str(const char *src, u32 single_qt_idx,
+        u32 *end_idx, unsigned line_num, unsigned column_num) {
+
+    int value;
+
+    assert(src[single_qt_idx] == '\'');
+
+    if (src[single_qt_idx+1] == '\\') {
+        value = escape_code_to_int(src[single_qt_idx+2], line_num, column_num);
+        *end_idx = single_qt_idx+3;
+    }
+    else if (src[single_qt_idx+1] == '\n') {
+        fprintf(stderr, "missing terminating single quote for the one on line"
+                " %u, column %u.\n", line_num, column_num);
+        *end_idx = single_qt_idx;
+        value = 0;
+    }
+    else {
+        value = src[single_qt_idx+1];
+        *end_idx = single_qt_idx+2;
+    }
+
+    return value;
+
+}
+
 struct Lexer Lexer_lex(const char *src) {
 
     struct TokenList token_tbl = TokenList_init();
@@ -165,6 +243,18 @@ struct Lexer Lexer_lex(const char *src) {
                         TokenType_INT_LIT, value));
             src_i += chars_moved-1;
             column_num += chars_moved-1;
+        }
+
+        else if (src[src_i] == '\'') {
+            u32 end_idx;
+            union TokenValue value;
+            value.int_value = read_single_quote_str(src, src_i, &end_idx,
+                    line_num, column_num);
+            TokenList_push_back(&token_tbl, Token_create_w_val(line_num,
+                        column_num, &src[src_i], end_idx-src_i+1,
+                        TokenType_INT_LIT, value));
+            column_num += end_idx-src_i;
+            src_i = end_idx;
         }
 
         else if (valid_ident_start_char(src[src_i])) {

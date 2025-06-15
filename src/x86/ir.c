@@ -601,6 +601,11 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
                     InstrSize_bytes_to(deref_ptr_size),
                     reg_idx_to_operand_t(lhs_reg.reg_idx),
                     reg_idx_to_operand_t(lhs_reg.reg_idx), 0);
+            if (deref_ptr_size < 4) {
+                instr_reg_and_imm32(instrs, InstrType_AND, InstrSize_32,
+                        reg_idx_to_operand_t(lhs_reg.reg_idx),
+                        (1<<deref_ptr_size*8)-1, 0);
+            }
         }
     }
     else {

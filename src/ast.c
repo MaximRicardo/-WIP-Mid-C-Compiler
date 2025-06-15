@@ -243,7 +243,7 @@ unsigned Expr_lvls_of_indir(struct Expr *self, const struct ParVarList *vars) {
         self->lvls_of_indir = lvls_of_indir;
     }
     else {
-        unsigned lvls_of_indir =
+        unsigned lvls_of_indir = self->rhs == NULL ? self->lhs_lvls_of_indir :
             m_max(self->lhs_lvls_of_indir, self->rhs_lvls_of_indir);
 
         if (self->expr_type == ExprType_DEREFERENCE ||
@@ -251,6 +251,8 @@ unsigned Expr_lvls_of_indir(struct Expr *self, const struct ParVarList *vars) {
             assert(lvls_of_indir > 0);
             --lvls_of_indir;
         }
+        else if (self->expr_type == ExprType_REFERENCE)
+            ++lvls_of_indir;
 
         self->lvls_of_indir = lvls_of_indir;
     }
@@ -272,6 +274,11 @@ enum PrimitiveType Expr_type(struct Expr *self,
             self->prim_type = rhs_prom;
         else
             self->prim_type = lhs_prom;
+
+        if (self->expr_type == ExprType_L_ARR_SUBSCR &&
+                Expr_lvls_of_indir(self, vars) == 0) {
+            self->prim_type = PrimitiveType_promote(self->prim_type, 0);
+        }
     }
     else if (self->expr_type == ExprType_FUNC_CALL) {
         char *expr_src = Expr_src(self);
@@ -295,7 +302,8 @@ enum PrimitiveType Expr_type(struct Expr *self,
     }
     else {
         self->prim_type =
-            PrimitiveType_promote(self->lhs_type, self->lhs_lvls_of_indir);
+            PrimitiveType_promote(self->lhs_type,
+                    Expr_lvls_of_indir(self, vars));
     }
 
     return self->prim_type;
@@ -708,13 +716,13 @@ bool VarDeclPtrList_equivalent(const struct VarDeclPtrList *self,
                     other->elems[i]->decls.elems[j].lvls_of_indir >= 1)
                 continue;
 
-            if (self->elems[i]->type != other->elems[i]->type) {
-                return false;
-            }
-
             if (self->elems[i]->decls.elems[j].lvls_of_indir !=
                     other->elems[i]->decls.elems[j].lvls_of_indir)
                 return false;
+
+            if (self->elems[i]->type != other->elems[i]->type) {
+                return false;
+            }
 
         }
     }
@@ -744,6 +752,11 @@ bool VarDeclPtrList_equivalent_expr(const struct VarDeclPtrList *self,
             if (self->elems[i]->type != Expr_type(other->elems[i], vars) ||
                     self->elems[i]->decls.elems[j].lvls_of_indir !=
                     other->elems[i]->lvls_of_indir) {
+                printf("left indir = %d, right indir = %d.\n",
+                        self->elems[i]->decls.elems[j].lvls_of_indir,
+                        other->elems[i]->lvls_of_indir);
+                printf("other type = %d\n",
+                        Expr_type(other->elems[i], vars));
                 return false;
             }
         }
