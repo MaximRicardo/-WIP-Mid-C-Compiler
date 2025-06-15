@@ -267,6 +267,15 @@ static void read_array_initializer(const struct TokenList *token_tbl,
                 bp);
         SY_error_occurred |= old_error_occurred;
 
+        if (!Expr_statically_evaluatable(value)) {
+            fprintf(stderr,
+                    "array initializer elements must be statically"
+                    " evaluatable. line %u, column %u\n",
+                    value->line_num, value->column_num
+                    );
+            SY_error_occurred = true;
+        }
+
         ExprPtrList_push_back(&values, value);
 
     }

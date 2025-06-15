@@ -5,8 +5,8 @@ char* func(char *x);
 
 int main(int argc, char **argv) {
 
-    int array_len = 3;
-    char array[array_len] = {1, 2, 3};
+    int x = 3;
+    char array[3] = {x, 2, 3};
 
     *(array+2);
     :;
