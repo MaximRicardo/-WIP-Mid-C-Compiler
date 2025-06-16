@@ -26,4 +26,4 @@ Next thing I'ma implement:
     for loops
 
     Also, the compiler has a custom debugging keyword ':', which prints the
-value current stored in RAX.
+value currently stored in EAX.
