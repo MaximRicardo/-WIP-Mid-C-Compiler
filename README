@@ -19,9 +19,11 @@ Thus far the compiler has:
     function argument error checking
     if/else statements
     pointers
+    arrays
 
 Next thing I'ma implement:
-    arrays
+    while loops
+    for loops
 
     Also, the compiler has a custom debugging keyword ':', which prints the
 value current stored in RAX.

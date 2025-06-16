@@ -1,12 +1,13 @@
 void* malloc(int size);
 void free(void *ptr);
-int puts(char *str);
+/* a hacky way to get variadic functions working for now */
+int printf();
 
 char* func(char *x);
 
 int main(int argc, char **argv) {
 
-    puts({'h', 'e', 'l', 'l', 'o', '\0'});
+    printf("Hello, world!\n");
 
     return 0;
 }
