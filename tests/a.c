@@ -1,20 +1,43 @@
-void* malloc(int size);
-void free(void *ptr);
+int strtol(char *str, char **end, int base);
 /* a hacky way to get variadic functions working for now */
 int printf();
 
-char* func(char *x);
+int fibonacci(int n);
 
 int main(int argc, char **argv) {
 
-    int i = 0;
+    char *end_ptr;
+    int n;
 
-    while (i <= 10 && i < 20) 
-        printf("Hello, world! i = %d\n", i, i = i + 1);
+    if (argc < 2) {
+        printf("give an argument containing which fibonacci number to get.\n");
+        return 1;
+    }
 
-    return 0;
+    n = strtol(argv[1], &end_ptr, 0);
+    printf("fibonacci nr. %d is: %d\n", n, fibonacci(n));
+
 }
 
-char* func(char *x) {
-    return x;
+int fibonacci(int n) {
+
+    int a = 0;
+    int b = 1;
+    int c;
+
+    int i = 0;
+
+    if (n < 2)
+        return n;
+
+    while (i < n-1) {
+        c = a+b;
+        a=b;
+        b=c;
+
+        i = i+1;
+    }
+
+    return c;
+
 }

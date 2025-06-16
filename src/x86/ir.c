@@ -466,11 +466,11 @@ static struct GPReg get_func_call_expr_instructions(struct InstrList *instrs,
     push_used_caller_saved_regs(instrs);
 
     /* the return value always goes in ax, so this is to keep the old value of
-     * rax if it is not to be overwritten, and also to make sure the return
+     * ax if it is not to be overwritten, and also to make sure the return
      * value goes in the correct register */
     if (reg_idx_to_operand_t(ret_reg.reg_idx) != InstrOperandType_REG_AX)
         instr_reg_and_reg(instrs, InstrType_MOV, InstrSize_32,
-                InstrOperandType_REG_AX, reg_idx_to_operand_t(ret_reg.reg_idx),
+                reg_idx_to_operand_t(ret_reg.reg_idx), InstrOperandType_REG_AX,
                 0);
 
     /* make space for every argument on the stack. this method is slightly more
@@ -626,7 +626,6 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
         lhs_reg = get_expr_instructions(instrs, expr->lhs,
                 expr->expr_type == ExprType_EQUAL ||
                 expr->expr_type == ExprType_REFERENCE ||
-                expr->expr_type == ExprType_L_ARR_SUBSCR ||
                 expr->lhs->is_array);
     else
         lhs_reg = alloc_reg(instrs);

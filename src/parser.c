@@ -710,7 +710,7 @@ u32 parse_if_stmt(const struct Lexer *lexer, struct BlockNode *block,
                 bp,
                 if_node->body_in_block ? sp-m_TypeSize_stack_frame_size :
                 sp,
-                body_start_idx, &end_idx, n_blocks_deep+1,
+                body_start_idx, &end_idx, n_blocks_deep+if_node->body_in_block,
                 &missing_r_curly, if_node->body_in_block,
                 !if_node->body_in_block);
 
@@ -732,7 +732,8 @@ u32 parse_if_stmt(const struct Lexer *lexer, struct BlockNode *block,
                 bp,
                 if_node->else_body_in_block ? sp-m_TypeSize_stack_frame_size :
                 sp,
-                else_body_start_idx, &end_idx, n_blocks_deep+1,
+                else_body_start_idx, &end_idx,
+                n_blocks_deep+if_node->else_body_in_block,
                 &missing_r_curly, if_node->else_body_in_block,
                 !if_node->else_body_in_block);
 
@@ -821,7 +822,8 @@ u32 parse_while_stmt(const struct Lexer *lexer, struct BlockNode *block,
                 bp,
                 while_node->body_in_block ? sp-m_TypeSize_stack_frame_size :
                 sp,
-                body_start_idx, &end_idx, n_blocks_deep+1,
+                body_start_idx, &end_idx,
+                n_blocks_deep+while_node->body_in_block,
                 &missing_r_curly, while_node->body_in_block,
                 !while_node->body_in_block);
 
