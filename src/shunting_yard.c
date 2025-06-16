@@ -447,6 +447,9 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
             ExprPtrList_push_back(&output_queue, expr);
         }
         else {
+            fprintf(stderr, "unknown token at %u,%u\n",
+                    token_tbl->elems[i].line_num,
+                    token_tbl->elems[i].column_num);
             assert(false);
         }
 

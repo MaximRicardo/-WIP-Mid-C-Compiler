@@ -920,6 +920,48 @@ static void get_if_stmt_instructions(struct InstrList *instrs,
 
 }
 
+static void get_while_stmt_instructions(struct InstrList *instrs,
+        struct WhileNode *while_node) {
+
+    struct GPReg expr_reg;
+    /* each instruction assumes it can free it's associated string, meaning
+     * each instruction will need to be given a different one */
+    char *while_start_label[2] = {NULL, NULL};
+    char *while_end_label[2] = {NULL, NULL};
+    u32 i;
+
+    for (i = 0; i < sizeof(while_end_label)/sizeof(while_end_label[0]); i++) {
+        while_start_label[i] = safe_malloc(m_comp_label_name_capacity*
+                sizeof(*while_start_label[i]));
+        while_end_label[i] = safe_malloc(m_comp_label_name_capacity*
+                sizeof(*while_end_label[i]));
+        sprintf(while_start_label[i], "_L%lu$", label_counter);
+        sprintf(while_end_label[i], "_L%lu$", label_counter+1);
+    }
+    label_counter += 2;
+
+    instr_string(instrs, InstrType_LABEL, while_start_label[0]);
+
+    expr_reg = get_expr_instructions(instrs, while_node->expr, false);
+
+    instr_reg_and_imm32(instrs, InstrType_CMP, expr_reg.reg_size,
+            reg_idx_to_operand_t(expr_reg.reg_idx), 0, 0);
+    instr_string(instrs, InstrType_JE, while_end_label[0]);
+
+    free_reg(instrs, expr_reg);
+
+    if (while_node->body_in_block)
+        create_stack_frame(instrs, while_node->body->var_bytes);
+    get_block_instructions(instrs, while_node->body);
+    if (while_node->body_in_block)
+        destroy_stack_frame(instrs);
+
+    instr_string(instrs, InstrType_JMP, while_start_label[1]);
+
+    instr_string(instrs, InstrType_LABEL, while_end_label[1]);
+
+}
+
 static void get_block_instructions(struct InstrList *instrs,
         const struct BlockNode *block) {
 
@@ -947,6 +989,9 @@ static void get_block_instructions(struct InstrList *instrs,
         }
         else if (block->nodes.elems[i].type == ASTType_IF_STMT) {
             get_if_stmt_instructions(instrs, node_struct);
+        }
+        else if (block->nodes.elems[i].type == ASTType_WHILE_STMT) {
+            get_while_stmt_instructions(instrs, node_struct);
         }
 
         else if (block->nodes.elems[i].type == ASTType_DEBUG_RAX) {

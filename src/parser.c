@@ -752,6 +752,94 @@ u32 parse_if_stmt(const struct Lexer *lexer, struct BlockNode *block,
 
 }
 
+u32 parse_while_stmt(const struct Lexer *lexer, struct BlockNode *block,
+        u32 n_blocks_deep, u32 while_idx, u32 bp, u32 sp,
+        struct FuncDeclNode *parent_func) {
+
+    struct WhileNode *while_node = NULL;
+
+    u32 r_paren_idx;
+    u32 end_idx;
+
+    if (while_idx+1 >= lexer->token_tbl.size ||
+            lexer->token_tbl.elems[while_idx+1].type != TokenType_L_PAREN) {
+        fprintf(stderr,
+                "expected parentheses after the while statement on line %u\n.",
+                lexer->token_tbl.elems[while_idx].line_num);
+        Parser_error_occurred = true;
+        return skip_to_token_type_alt(while_idx, lexer->token_tbl,
+                TokenType_SEMICOLON);
+    }
+
+    while_node = safe_malloc(sizeof(*while_node));
+    *while_node = WhileNode_init();
+
+    {
+        enum TokenType sy_stop_types[] = {TokenType_R_PAREN};
+        while_node->expr = SY_shunting_yard(&lexer->token_tbl, while_idx+2,
+                sy_stop_types, sizeof(sy_stop_types)/sizeof(sy_stop_types[0]),
+                &r_paren_idx, &vars, bp, false);
+    }
+
+    if (r_paren_idx >= lexer->token_tbl.size) {
+        fprintf(stderr,
+                "expected a ')' after the condition expression on line %u,"
+                " column %u\n", lexer->token_tbl.elems[while_idx+1].line_num,
+                lexer->token_tbl.elems[while_idx+1].column_num);
+        Parser_error_occurred = true;
+        WhileNode_free_w_self(while_node);
+        return skip_to_token_type_alt(while_idx, lexer->token_tbl,
+                TokenType_SEMICOLON);
+    }
+    else if (r_paren_idx+1 < lexer->token_tbl.size &&
+            lexer->token_tbl.elems[r_paren_idx+1].type ==
+            TokenType_SEMICOLON) {
+        ASTNodeList_push_back(&block->nodes, ASTNode_create(
+                    lexer->token_tbl.elems[while_idx].line_num,
+                    lexer->token_tbl.elems[while_idx].column_num,
+                    ASTType_WHILE_STMT, while_node
+                    ));
+        return r_paren_idx;
+    }
+    else if (r_paren_idx+2 >= lexer->token_tbl.size) {
+        fprintf(stderr,
+                "expected a block after the while statement on line %u.\n",
+                lexer->token_tbl.elems[while_idx+1].line_num);
+        Parser_error_occurred = true;
+        WhileNode_free_w_self(while_node);
+        return skip_to_token_type_alt(while_idx, lexer->token_tbl,
+                TokenType_SEMICOLON);
+    }
+
+    while_node->body_in_block = lexer->token_tbl.elems[r_paren_idx+1].type ==
+        TokenType_L_CURLY;
+    {
+        u32 body_start_idx = r_paren_idx+1+while_node->body_in_block;
+        bool missing_r_curly;
+        while_node->body = parse(lexer, parent_func,
+                while_node->body_in_block ? sp-m_TypeSize_stack_frame_size :
+                bp,
+                while_node->body_in_block ? sp-m_TypeSize_stack_frame_size :
+                sp,
+                body_start_idx, &end_idx, n_blocks_deep+1,
+                &missing_r_curly, while_node->body_in_block,
+                !while_node->body_in_block);
+
+        if (!missing_r_curly && while_node->body_in_block)
+            check_if_missing_r_curly(lexer, body_start_idx, end_idx, false,
+                    NULL);
+    }
+
+    ASTNodeList_push_back(&block->nodes, ASTNode_create(
+                lexer->token_tbl.elems[while_idx].line_num,
+                lexer->token_tbl.elems[while_idx].column_num,
+                ASTType_WHILE_STMT, while_node
+                ));
+
+    return end_idx;
+
+}
+
 /*
  * n_instr_to_parse   - if set to 0, parses any nr of instructions.
  */
@@ -843,6 +931,12 @@ static struct BlockNode* parse(const struct Lexer *lexer,
 
         else if (lexer->token_tbl.elems[start_idx].type == TokenType_IF_STMT) {
             prev_end_idx = parse_if_stmt(lexer, block, n_blocks_deep,
+                    start_idx, bp, sp, parent_func);
+        }
+
+        else if (lexer->token_tbl.elems[start_idx].type ==
+                TokenType_WHILE_STMT) {
+            prev_end_idx = parse_while_stmt(lexer, block, n_blocks_deep,
                     start_idx, bp, sp, parent_func);
         }
 

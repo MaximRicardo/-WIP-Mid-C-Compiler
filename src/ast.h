@@ -19,6 +19,7 @@ enum ASTNodeType {
     ASTType_BLOCK,
     ASTType_RETURN,
     ASTType_IF_STMT,
+    ASTType_WHILE_STMT,
 
     ASTType_DEBUG_RAX
 
@@ -319,6 +320,22 @@ struct IfNode IfNode_create(struct Expr *expr, struct BlockNode *body,
         bool else_body_in_block);
 void IfNode_free_w_self(struct IfNode *self);
 void IfNode_get_array_lits(const struct IfNode *self,
+        struct ArrayLitList *list);
+
+struct WhileNode {
+
+    struct Expr *expr;
+    struct BlockNode *body;
+
+    bool body_in_block;
+
+};
+
+struct WhileNode WhileNode_init(void);
+struct WhileNode WhileNode_create(struct Expr *expr, struct BlockNode *body,
+        bool body_in_block);
+void WhileNode_free_w_self(struct WhileNode *self);
+void WhileNode_get_array_lits(const struct WhileNode *self,
         struct ArrayLitList *list);
 
 struct DebugPrintRAX {

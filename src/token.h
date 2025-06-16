@@ -53,6 +53,7 @@ enum TokenType {
      * instead of during lexing */
     TokenType_IF_STMT,
     TokenType_ELSE,
+    TokenType_WHILE_STMT,
 
     TokenType_DEBUG_PRINT_RAX
 

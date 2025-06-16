@@ -25,23 +25,19 @@ push ebp
 
 mov ebp, esp
 
-sub esp, dword 0
-
 sub esp, dword 4
 
-mov ebx, array_lit_0$
+mov eax, dword 10
 
-mov [esp+0], ebx
+mov [ebp+-4], eax
 
-call printf
+_L0$:
 
-add esp, dword 4
-
-mov eax, dword 1
+mov eax, [ebp+-4]
 
 cmp eax, dword 0
 
-je _L0$
+je _L1$
 
 push ebp
 
@@ -49,11 +45,35 @@ mov ebp, esp
 
 sub esp, dword 0
 
+sub esp, dword 8
+
+mov ebx, array_lit_0$
+
+mov [esp+0], ebx
+
+mov ebx, [ebp+4]
+
+mov [esp+4], ebx
+
+call printf
+
+add esp, dword 8
+
+lea eax, [ebp+4]
+
+mov ebx, [ebp+4]
+
+sub ebx, dword 1
+
+mov [eax+0], ebx
+
 mov esp, ebp
 
 pop ebp
 
-_L0$:
+jmp _L0$
+
+_L1$:
 
 mov eax, dword 0
 
@@ -124,4 +144,4 @@ ret
 
 section .rodata
 msg$: db `result = %d\n\0`
-array_lit_0$: db 72, 101, 108, 108, 111, 44, 32, 119, 111, 114, 108, 100, 33, 10, 0
+array_lit_0$: db 72, 101, 108, 108, 111, 44, 32, 119, 111, 114, 108, 100, 33, 32, 105, 32, 61, 32, 37, 100, 10, 0

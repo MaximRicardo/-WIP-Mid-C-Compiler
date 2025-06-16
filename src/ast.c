@@ -58,6 +58,8 @@ void ASTNode_free(struct ASTNode node) {
             RetNode_free_w_self(node.node_struct);
         else if (node.type == ASTType_IF_STMT)
             IfNode_free_w_self(node.node_struct);
+        else if (node.type == ASTType_WHILE_STMT)
+            WhileNode_free_w_self(node.node_struct);
 
         else if (node.type == ASTType_DEBUG_RAX)
             m_free(node.node_struct);
@@ -71,24 +73,20 @@ void ASTNode_get_array_lits(const struct ASTNode *self,
         struct ArrayLitList *list) {
 
     if (self->node_struct) {
-        if (self->type == ASTType_EXPR) {
+        if (self->type == ASTType_EXPR)
             ExprNode_get_array_lits(self->node_struct, list);
-        }
-        else if (self->type == ASTType_VAR_DECL) {
+        else if (self->type == ASTType_VAR_DECL)
             VarDeclNode_get_array_lits(self->node_struct, list);
-        }
-        else if (self->type == ASTType_FUNC) {
+        else if (self->type == ASTType_FUNC)
             FuncDeclNode_get_array_lits(self->node_struct, list);
-        }
-        else if (self->type == ASTType_BLOCK) {
+        else if (self->type == ASTType_BLOCK)
             BlockNode_get_array_lits(self->node_struct, list);
-        }
-        else if (self->type == ASTType_RETURN) {
+        else if (self->type == ASTType_RETURN)
             RetNode_get_array_lits(self->node_struct, list);
-        }
-        else if (self->type == ASTType_IF_STMT) {
-            RetNode_get_array_lits(self->node_struct, list);
-        }
+        else if (self->type == ASTType_IF_STMT)
+            IfNode_get_array_lits(self->node_struct, list);
+        else if (self->type == ASTType_WHILE_STMT)
+            WhileNode_get_array_lits(self->node_struct, list);
     }
 
 }
@@ -900,7 +898,8 @@ struct IfNode IfNode_create(struct Expr *expr, struct BlockNode *body,
 
 void IfNode_free_w_self(struct IfNode *self) {
 
-    Expr_recur_free_w_self(self->expr);
+    if (self->expr)
+        Expr_recur_free_w_self(self->expr);
     if (self->body)
         BlockNode_free_w_self(self->body);
     if (self->else_body)
@@ -912,10 +911,54 @@ void IfNode_free_w_self(struct IfNode *self) {
 void IfNode_get_array_lits(const struct IfNode *self,
         struct ArrayLitList *list) {
 
+    if (self->expr)
+        Expr_get_array_lits(self->expr, list);
     if (self->body)
         BlockNode_get_array_lits(self->body, list);
     if (self->else_body)
         BlockNode_get_array_lits(self->else_body, list);
+
+}
+
+struct WhileNode WhileNode_init(void) {
+
+    struct WhileNode node;
+    node.expr = NULL;
+    node.body = NULL;
+    node.body_in_block = false;
+    return node;
+
+}
+
+struct WhileNode WhileNode_create(struct Expr *expr, struct BlockNode *body,
+        bool body_in_block) {
+
+    struct WhileNode node;
+    node.expr = expr;
+    node.body = body;
+    node.body_in_block = body_in_block;
+    return node;
+
+}
+
+void WhileNode_free_w_self(struct WhileNode *self) {
+
+    if (self->expr)
+        Expr_recur_free_w_self(self->expr);
+    if (self->body)
+        BlockNode_free_w_self(self->body);
+
+    m_free(self);
+
+}
+
+void WhileNode_get_array_lits(const struct WhileNode *self,
+        struct ArrayLitList *list) {
+
+    if (self->expr)
+        Expr_get_array_lits(self->expr, list);
+    if (self->body)
+        BlockNode_get_array_lits(self->body, list);
 
 }
 

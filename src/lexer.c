@@ -69,6 +69,8 @@ static enum TokenType identifier_keyword(const char *ident_start,
         return TokenType_IF_STMT;
     if (strncmp(ident_start, "else", ident_len) == 0 && ident_len == 4)
         return TokenType_ELSE;
+    else if (strncmp(ident_start, "while", ident_len) == 0 && ident_len == 5)
+        return TokenType_WHILE_STMT;
     else
         return TokenType_NONE;
 
