@@ -70,6 +70,10 @@ static void move_operator_to_out_queue(struct ExprPtrList *output_queue,
         operator->rhs_og_type = Expr_type_no_prom(operator->rhs, vars);
     }
 
+    Expr_lvls_of_indir(operator, vars);
+    Expr_type(operator, vars);
+    Expr_type_no_prom(operator, vars);
+
     /* Remove the lhs and rhs from the queue and replace them with the
      * operator. Later on the operator can then act as an operand for the next
      * operator to be pushed to the output queue */
@@ -195,6 +199,10 @@ static u32 read_func_call(const struct TokenList *token_tbl, u32 f_call_idx,
         ExprPtrList_push_back(&expr->args, arg);
 
     }
+
+    Expr_lvls_of_indir(expr, vars);
+    Expr_type(expr, vars);
+    Expr_type_no_prom(expr, vars);
 
     /* the function call is done being constructed */
     ExprPtrList_push_back(output_queue, expr);
@@ -444,6 +452,9 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
                     PrimType_INT, PrimType_INVALID, ExprPtrList_init(),
                     token_tbl->elems[i].value.int_value, ArrayLit_init(), 0,
                     ExprType_INT_LIT, false, 0);
+            Expr_lvls_of_indir(expr, vars);
+            Expr_type_no_prom(expr, vars);
+            Expr_type(expr, vars);
             ExprPtrList_push_back(&output_queue, expr);
         }
         else {

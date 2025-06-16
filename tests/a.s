@@ -39,37 +39,29 @@ cmp eax, dword 0
 
 je _L1$
 
-push ebp
-
-mov ebp, esp
-
-sub esp, dword 0
-
-sub esp, dword 8
+sub esp, dword 12
 
 mov ebx, array_lit_0$
 
 mov [esp+0], ebx
 
-mov ebx, [ebp+4]
+mov ebx, [ebp+-4]
 
 mov [esp+4], ebx
 
+lea ebx, [ebp+-4]
+
+mov ecx, [ebp+-4]
+
+sub ecx, dword 1
+
+mov [ebx+0], ecx
+
+mov [esp+8], ebx
+
 call printf
 
-add esp, dword 8
-
-lea eax, [ebp+4]
-
-mov ebx, [ebp+4]
-
-sub ebx, dword 1
-
-mov [eax+0], ebx
-
-mov esp, ebp
-
-pop ebp
+add esp, dword 12
 
 jmp _L0$
 
