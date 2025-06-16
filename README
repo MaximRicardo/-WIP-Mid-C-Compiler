@@ -2,7 +2,11 @@ MCC/Mid C Compiler
 
     This is a work-in-progress C Compiler written entirely in C89 with no
 non-standard or external libraries or macros.
-    The eventual goal of this project is to port it to a custom ISA.
+    The eventual goal of this project is to port it to a custom ISA, and write
+an OS in it.
+    Currently the compiler uses an x86 backend but that's cuz I haven't
+actually made the ISA yet. Also x86 is easy to use cuz it has a bunch of
+pre-built tools.
 
 Thus far the compiler has:
     variables
