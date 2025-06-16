@@ -111,6 +111,12 @@ unsigned Token_precedence(enum TokenType type) {
     case TokenType_EQUAL:
         return 14;
 
+    case TokenType_BOOLEAN_OR:
+        return 12;
+
+    case TokenType_BOOLEAN_AND:
+        return 11;
+
     case TokenType_BITWISE_AND:
         return 8;
 
@@ -134,6 +140,7 @@ unsigned Token_precedence(enum TokenType type) {
         return 3;
 
     case TokenType_BITWISE_NOT:
+    case TokenType_BOOLEAN_NOT:
     case TokenType_POSITIVE:
     case TokenType_NEGATIVE:
     case TokenType_DEREFERENCE:

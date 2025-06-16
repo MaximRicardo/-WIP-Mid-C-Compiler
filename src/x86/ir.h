@@ -30,6 +30,7 @@ enum InstrType {
     InstrType_MODULO,
     InstrType_IMODULO,
     InstrType_AND,
+    InstrType_OR,
     InstrType_CMP,
     InstrType_SHL,
     InstrType_SHR,

@@ -25,6 +25,8 @@ enum TokenType {
     TokenType_COMMA,
     TokenType_L_ARR_SUBSCR,
     TokenType_BITWISE_AND,
+    TokenType_BOOLEAN_OR,
+    TokenType_BOOLEAN_AND,
     TokenType_EQUAL_TO,
     TokenType_NOT_EQUAL_TO,
     TokenType_L_THAN,
@@ -36,6 +38,7 @@ enum TokenType {
     /* unary operators */
     TokenType_UNARY_OPS_START,
     TokenType_BITWISE_NOT,
+    TokenType_BOOLEAN_NOT,
     TokenType_REFERENCE,
     TokenType_DEREFERENCE,
     TokenType_POSITIVE,

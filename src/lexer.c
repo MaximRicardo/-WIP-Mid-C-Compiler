@@ -241,6 +241,18 @@ struct Lexer Lexer_lex(const char *src) {
             ++column_num;
         }
 
+        else if (src[src_i] == '|' && src[src_i+1] == '|') {
+            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+                        &src[src_i], 1, TokenType_BOOLEAN_OR));
+            ++src_i;
+            ++column_num;
+        }
+        else if (src[src_i] == '&' && src[src_i+1] == '&') {
+            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+                        &src[src_i], 1, TokenType_BOOLEAN_AND));
+            ++src_i;
+            ++column_num;
+        }
         else if (src[src_i] == '=' && src[src_i+1] == '=') {
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, TokenType_EQUAL_TO));
@@ -307,6 +319,9 @@ struct Lexer Lexer_lex(const char *src) {
         else if (src[src_i] == '~')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, TokenType_BITWISE_NOT));
+        else if (src[src_i] == '!')
+            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+                        &src[src_i], 1, TokenType_BOOLEAN_NOT));
 
         else if (src[src_i] == '(')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,

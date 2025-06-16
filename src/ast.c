@@ -530,6 +530,12 @@ enum ExprType tok_t_to_expr_t(enum TokenType type) {
     case TokenType_BITWISE_AND:
         return ExprType_BITWISE_AND;
 
+    case TokenType_BOOLEAN_OR:
+        return ExprType_BOOLEAN_OR;
+
+    case TokenType_BOOLEAN_AND:
+        return ExprType_BOOLEAN_AND;
+
     case TokenType_EQUAL_TO:
         return ExprType_EQUAL_TO;
 
@@ -550,6 +556,9 @@ enum ExprType tok_t_to_expr_t(enum TokenType type) {
 
     case TokenType_BITWISE_NOT:
         return ExprType_BITWISE_NOT;
+
+    case TokenType_BOOLEAN_NOT:
+        return ExprType_BOOLEAN_NOT;
 
     case TokenType_POSITIVE:
         return ExprType_POSITIVE;
@@ -616,6 +625,12 @@ enum TokenType expr_t_to_tok_t(enum ExprType type) {
     case ExprType_BITWISE_AND:
         return TokenType_BITWISE_AND;
 
+    case ExprType_BOOLEAN_OR:
+        return TokenType_BOOLEAN_OR;
+
+    case ExprType_BOOLEAN_AND:
+        return TokenType_BOOLEAN_AND;
+
     case ExprType_EQUAL_TO:
         return TokenType_EQUAL_TO;
 
@@ -636,6 +651,9 @@ enum TokenType expr_t_to_tok_t(enum ExprType type) {
 
     case ExprType_BITWISE_NOT:
         return TokenType_BITWISE_NOT;
+
+    case ExprType_BOOLEAN_NOT:
+        return TokenType_BOOLEAN_NOT;
 
     case ExprType_POSITIVE:
         return TokenType_POSITIVE;

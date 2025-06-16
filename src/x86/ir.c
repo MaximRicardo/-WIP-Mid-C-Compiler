@@ -545,6 +545,65 @@ static void get_cmp_instructions(struct InstrList *instrs,
 
 }
 
+static void get_boolean_and_instructions(struct InstrList *instrs,
+        const struct Expr *expr, struct GPReg lhs_reg, struct GPReg rhs_reg,
+        unsigned long end_label_id) {
+
+    char *end_label =
+        safe_malloc(m_comp_label_name_capacity*sizeof(*end_label));
+
+    if (expr->rhs->expr_type != ExprType_INT_LIT)
+        instr_reg_and_reg(instrs, InstrType_AND, InstrSize_32,
+                reg_idx_to_operand_t(lhs_reg.reg_idx),
+                reg_idx_to_operand_t(rhs_reg.reg_idx), 0);
+    else
+        instr_reg_and_imm32(instrs, InstrType_AND, InstrSize_32,
+                reg_idx_to_operand_t(lhs_reg.reg_idx),
+                expr->rhs->int_value, 0);
+
+    instr_reg_and_imm32(instrs, InstrType_CMP, InstrSize_32,
+            reg_idx_to_operand_t(lhs_reg.reg_idx), 0, 0);
+    instr_reg(instrs, InstrType_SETNE, InstrSize_8,
+            reg_idx_to_operand_t(lhs_reg.reg_idx), 0);
+    instr_reg_and_imm32(instrs, InstrType_AND, InstrSize_32,
+            reg_idx_to_operand_t(lhs_reg.reg_idx), 0xff, 0);
+
+    sprintf(end_label, "_L%lu$", end_label_id);
+    instr_string(instrs, InstrType_LABEL, end_label);
+
+}
+
+static void get_boolean_or_instructions(struct InstrList *instrs,
+        const struct Expr *expr, struct GPReg lhs_reg, struct GPReg rhs_reg,
+        unsigned long end_label_id) {
+
+    char *end_label =
+        safe_malloc(m_comp_label_name_capacity*sizeof(*end_label));
+
+    if (expr->rhs->expr_type != ExprType_INT_LIT)
+        instr_reg_and_reg(instrs, InstrType_OR, InstrSize_32,
+                reg_idx_to_operand_t(lhs_reg.reg_idx),
+                reg_idx_to_operand_t(rhs_reg.reg_idx), 0);
+    else
+        instr_reg_and_imm32(instrs, InstrType_OR, InstrSize_32,
+                reg_idx_to_operand_t(lhs_reg.reg_idx),
+                expr->rhs->int_value, 0);
+
+    instr_reg_and_imm32(instrs, InstrType_CMP, InstrSize_32,
+            reg_idx_to_operand_t(lhs_reg.reg_idx), 0, 0);
+    instr_reg(instrs, InstrType_SETNE, InstrSize_8,
+            reg_idx_to_operand_t(lhs_reg.reg_idx), 0);
+
+    sprintf(end_label, "_L%lu$", end_label_id);
+    instr_string(instrs, InstrType_LABEL, end_label);
+
+    /* this is placed after the label to ensure that if the lhs is already
+     * not 0, the result becomes exactly 1 and not some non-zero value */
+    instr_reg_and_imm32(instrs, InstrType_AND, InstrSize_32,
+            reg_idx_to_operand_t(lhs_reg.reg_idx), 0xff, 0);
+
+}
+
 /* load_reference is only used on identifier nodes and dereference nodes, else
  * it's ignored */
 static struct GPReg get_expr_instructions(struct InstrList *instrs,
@@ -552,6 +611,12 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
 
     struct GPReg lhs_reg = GPReg_init(), rhs_reg = GPReg_init();
     enum InstrSize instr_size = InstrSize_32;
+
+    unsigned long old_label_count = label_counter;
+
+    if (expr->expr_type == ExprType_BOOLEAN_OR ||
+            expr->expr_type == ExprType_BOOLEAN_AND)
+        ++label_counter;
 
     if (expr->expr_type == ExprType_FUNC_CALL) {
         return get_func_call_expr_instructions(instrs, expr);
@@ -565,6 +630,18 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
                 expr->lhs->is_array);
     else
         lhs_reg = alloc_reg(instrs);
+
+    if (expr->expr_type == ExprType_BOOLEAN_OR ||
+            expr->expr_type == ExprType_BOOLEAN_AND) {
+        enum InstrType jmp_instr = expr->expr_type == ExprType_BOOLEAN_OR ?
+            InstrType_JNE : InstrType_JE;
+        char *end_label =
+            safe_malloc(m_comp_label_name_capacity*sizeof(*end_label));
+        sprintf(end_label, "_L%lu$", old_label_count);
+        instr_reg_and_imm32(instrs, InstrType_CMP, InstrSize_32,
+                reg_idx_to_operand_t(lhs_reg.reg_idx), 0, 0);
+        instr_string(instrs, jmp_instr, end_label);
+    }
 
     if (expr->rhs && expr->rhs->expr_type != ExprType_INT_LIT)
         rhs_reg = get_expr_instructions(instrs, expr->rhs, false);
@@ -663,6 +740,22 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
     }
     else if (ExprType_is_cmp_operator(expr->expr_type)) {
         get_cmp_instructions(instrs, expr, lhs_reg, rhs_reg);
+    }
+    else if (expr->expr_type == ExprType_BOOLEAN_OR) {
+        get_boolean_or_instructions(instrs, expr, lhs_reg, rhs_reg,
+                old_label_count);
+    }
+    else if (expr->expr_type == ExprType_BOOLEAN_AND) {
+        get_boolean_and_instructions(instrs, expr, lhs_reg, rhs_reg,
+                old_label_count);
+    }
+    else if (expr->expr_type == ExprType_BOOLEAN_NOT) {
+        instr_reg_and_imm32(instrs, InstrType_CMP, InstrSize_32,
+                reg_idx_to_operand_t(lhs_reg.reg_idx), 0, 0);
+        instr_reg(instrs, InstrType_SETE, InstrSize_8,
+                reg_idx_to_operand_t(lhs_reg.reg_idx), 0);
+        instr_reg_and_imm32(instrs, InstrType_AND, InstrSize_32,
+                reg_idx_to_operand_t(lhs_reg.reg_idx), 0xff, 0);
     }
     else {
         struct Instruction instr = Instruction_init();

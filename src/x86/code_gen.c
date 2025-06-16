@@ -47,6 +47,7 @@ const char *instr_type_to_asm[] = {
     "div",
     "idiv",
     "and",
+    "or",
     "cmp",
     "shl",
     "shr",
@@ -141,7 +142,7 @@ static bool regular_2_oper_instr(enum InstrType type) {
 
     return type == InstrType_ADD || type == InstrType_SUB ||
         type == InstrType_MOV || type == InstrType_AND ||
-        type == InstrType_CMP;
+        type == InstrType_OR || type == InstrType_CMP;
 
 }
 

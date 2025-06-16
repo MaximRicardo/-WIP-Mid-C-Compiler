@@ -85,6 +85,8 @@ enum ExprType {
     ExprType_COMMA,
     ExprType_L_ARR_SUBSCR,
     ExprType_BITWISE_AND,
+    ExprType_BOOLEAN_OR,
+    ExprType_BOOLEAN_AND,
     ExprType_EQUAL_TO,
     ExprType_NOT_EQUAL_TO,
     ExprType_L_THAN,
@@ -94,6 +96,7 @@ enum ExprType {
 
     /* Unary operators */
     ExprType_BITWISE_NOT,
+    ExprType_BOOLEAN_NOT,
     ExprType_POSITIVE,
     ExprType_NEGATIVE,
     ExprType_REFERENCE,
