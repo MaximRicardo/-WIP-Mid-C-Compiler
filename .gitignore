@@ -11,3 +11,7 @@ compile_commands.json
 
 src/'
 src/.clangd
+
+tests/a
+tests/a.o
+tests/a.s
