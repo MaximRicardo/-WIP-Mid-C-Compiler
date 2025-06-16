@@ -42,6 +42,15 @@ enum InstrType {
     InstrType_NEGATIVE,
     InstrType_SETE,
     InstrType_SETNE,
+    InstrType_SETL,
+    InstrType_SETLE,
+    InstrType_SETG,
+    InstrType_SETGE,
+    InstrType_SETB,
+    InstrType_SETBE,
+    InstrType_SETA,
+    InstrType_SETAE,
+
     InstrType_UNARY_END,
 
     /* stack operations */

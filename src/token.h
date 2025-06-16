@@ -27,6 +27,10 @@ enum TokenType {
     TokenType_BITWISE_AND,
     TokenType_EQUAL_TO,
     TokenType_NOT_EQUAL_TO,
+    TokenType_L_THAN,
+    TokenType_L_THAN_OR_E,
+    TokenType_G_THAN,
+    TokenType_G_THAN_OR_E,
     TokenType_BINARY_OPS_END,
 
     /* unary operators */
@@ -99,6 +103,7 @@ void Token_free(struct Token token);
 bool Token_is_unary_operator(enum TokenType type);
 bool Token_is_bin_operator(enum TokenType type);
 bool Token_is_operator(enum TokenType type);
+bool Token_is_cmp_operator(enum TokenType type);
 bool Token_is_literal(enum TokenType type);
 /* only works on token types that have a unary equivalent, such as
  * TokenType_MINUS->TokenType_NEGATIVE */

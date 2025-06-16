@@ -154,25 +154,52 @@ static enum InstrType expr_to_instr_t(const struct Expr *expr) {
         return InstrType_SUB;
 
     case ExprType_MUL:
-        if (PrimitiveType_signed(expr->prim_type,
-                    expr->lvls_of_indir))
+        if (PrimitiveType_signed(expr->prim_type, expr->lvls_of_indir))
             return InstrType_IMUL;
         else
             return InstrType_MUL;
 
     case ExprType_DIV:
-        if (PrimitiveType_signed(expr->prim_type,
-                    expr->lvls_of_indir))
+        if (PrimitiveType_signed(expr->prim_type, expr->lvls_of_indir))
             return InstrType_IDIV;
         else
             return InstrType_DIV;
 
     case ExprType_MODULUS:
-        if (PrimitiveType_signed(expr->prim_type,
-                    expr->lvls_of_indir))
+        if (PrimitiveType_signed(expr->prim_type, expr->lvls_of_indir))
             return InstrType_IMODULO;
         else
             return InstrType_MODULO;
+
+    case ExprType_EQUAL_TO:
+        return InstrType_SETE;
+
+    case ExprType_NOT_EQUAL_TO:
+        return InstrType_SETNE;
+
+    case ExprType_L_THAN:
+        if (PrimitiveType_signed(expr->prim_type, expr->lvls_of_indir))
+            return InstrType_SETL;
+        else
+            return InstrType_SETB;
+
+    case ExprType_L_THAN_OR_E:
+        if (PrimitiveType_signed(expr->prim_type, expr->lvls_of_indir))
+            return InstrType_SETLE;
+        else
+            return InstrType_SETBE;
+
+    case ExprType_G_THAN:
+        if (PrimitiveType_signed(expr->prim_type, expr->lvls_of_indir))
+            return InstrType_SETG;
+        else
+            return InstrType_SETA;
+
+    case ExprType_G_THAN_OR_E:
+        if (PrimitiveType_signed(expr->prim_type, expr->lvls_of_indir))
+            return InstrType_SETGE;
+        else
+            return InstrType_SETAE;
 
     case ExprType_BITWISE_NOT:
         return InstrType_BITWISE_NOT;
@@ -510,21 +537,7 @@ static void get_cmp_instructions(struct InstrList *instrs,
                 reg_idx_to_operand_t(lhs_reg.reg_idx),
                 expr->rhs->int_value, 0);
 
-    switch (expr->expr_type) {
-
-    case ExprType_EQUAL_TO:
-        set_instr = InstrType_SETE;
-        break;
-
-    case ExprType_NOT_EQUAL_TO:
-        set_instr = InstrType_SETNE;
-        break;
-
-    default:
-        assert(false);
-
-    }
-
+    set_instr = expr_to_instr_t(expr);
     instr_reg(instrs, set_instr, InstrSize_8,
             reg_idx_to_operand_t(lhs_reg.reg_idx), 0);
     instr_reg_and_imm32(instrs, InstrType_AND, InstrSize_32,

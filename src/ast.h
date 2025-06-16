@@ -65,7 +65,7 @@ void BlockNode_get_array_lits(const struct BlockNode *self,
         struct ArrayLitList *list);
 
 /* when adding a new type make sure to update:
- *  expr_t_to_tok_t, tok_t_to_expr_t
+ *  tok_t_to_expr_t, expr_t_to_tok_t
  */
 enum ExprType {
 
@@ -87,6 +87,10 @@ enum ExprType {
     ExprType_BITWISE_AND,
     ExprType_EQUAL_TO,
     ExprType_NOT_EQUAL_TO,
+    ExprType_L_THAN,
+    ExprType_L_THAN_OR_E,
+    ExprType_G_THAN,
+    ExprType_G_THAN_OR_E,
 
     /* Unary operators */
     ExprType_BITWISE_NOT,

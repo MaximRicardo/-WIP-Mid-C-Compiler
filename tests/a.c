@@ -7,10 +7,10 @@ char* func(char *x);
 
 int main(int argc, char **argv) {
 
-    int i = 10;
+    int i = 0;
 
-    while (i != 5)
-        printf("Hello, world! i = %d\n", i, i = i - 1);
+    while (i <= 10)
+        printf("Hello, world! i = %d\n", i, i = i + 1);
 
     return 0;
 }

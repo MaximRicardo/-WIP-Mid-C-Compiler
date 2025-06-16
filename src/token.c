@@ -57,6 +57,14 @@ bool Token_is_operator(enum TokenType type) {
 
 }
 
+bool Token_is_cmp_operator(enum TokenType type) {
+
+    return type == TokenType_EQUAL_TO || type == TokenType_NOT_EQUAL_TO ||
+        type == TokenType_L_THAN || type == TokenType_L_THAN_OR_E ||
+        type == TokenType_G_THAN || type == TokenType_G_THAN_OR_E;
+
+}
+
 bool Token_is_literal(enum TokenType type) {
 
     return type == TokenType_INT_LIT;
@@ -109,6 +117,12 @@ unsigned Token_precedence(enum TokenType type) {
     case TokenType_EQUAL_TO:
     case TokenType_NOT_EQUAL_TO:
         return 7;
+
+    case TokenType_L_THAN:
+    case TokenType_L_THAN_OR_E:
+    case TokenType_G_THAN:
+    case TokenType_G_THAN_OR_E:
+        return 6;
 
     case TokenType_PLUS:
     case TokenType_MINUS:

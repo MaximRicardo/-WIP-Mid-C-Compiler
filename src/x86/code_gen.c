@@ -58,6 +58,14 @@ const char *instr_type_to_asm[] = {
     "neg",  /* hmm */
     "sete",
     "setne",
+    "setl",
+    "setle",
+    "setg",
+    "setge",
+    "setb",
+    "setbe",
+    "seta",
+    "setae",
     "UNARY OPERATORS END",
 
     "push",

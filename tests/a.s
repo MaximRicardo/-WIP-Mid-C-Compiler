@@ -27,7 +27,7 @@ mov ebp, esp
 
 sub esp, dword 4
 
-mov eax, dword 10
+mov eax, dword 0
 
 mov [ebp+-4], eax
 
@@ -35,9 +35,9 @@ _L0$:
 
 mov eax, [ebp+-4]
 
-cmp eax, dword 5
+cmp eax, dword 10
 
-setne al
+setle al
 
 and eax, dword 255
 
@@ -59,7 +59,7 @@ lea ebx, [ebp+-4]
 
 mov ecx, [ebp+-4]
 
-sub ecx, dword 1
+add ecx, dword 1
 
 mov [ebx+0], ecx
 

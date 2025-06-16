@@ -111,7 +111,7 @@ bool ExprType_is_operator(enum ExprType type) {
 
 bool ExprType_is_cmp_operator(enum ExprType type) {
 
-    return type == ExprType_EQUAL_TO || type == ExprType_NOT_EQUAL_TO;
+    return Token_is_cmp_operator(expr_t_to_tok_t(type));
 
 }
 
@@ -536,6 +536,18 @@ enum ExprType tok_t_to_expr_t(enum TokenType type) {
     case TokenType_NOT_EQUAL_TO:
         return ExprType_NOT_EQUAL_TO;
 
+    case TokenType_L_THAN:
+        return ExprType_L_THAN;
+
+    case TokenType_L_THAN_OR_E:
+        return ExprType_L_THAN_OR_E;
+
+    case TokenType_G_THAN:
+        return ExprType_G_THAN;
+
+    case TokenType_G_THAN_OR_E:
+        return ExprType_G_THAN_OR_E;
+
     case TokenType_BITWISE_NOT:
         return ExprType_BITWISE_NOT;
 
@@ -609,6 +621,18 @@ enum TokenType expr_t_to_tok_t(enum ExprType type) {
 
     case ExprType_NOT_EQUAL_TO:
         return TokenType_NOT_EQUAL_TO;
+
+    case ExprType_L_THAN:
+        return TokenType_L_THAN;
+
+    case ExprType_L_THAN_OR_E:
+        return TokenType_L_THAN_OR_E;
+
+    case ExprType_G_THAN:
+        return TokenType_G_THAN;
+
+    case ExprType_G_THAN_OR_E:
+        return TokenType_G_THAN_OR_E;
 
     case ExprType_BITWISE_NOT:
         return TokenType_BITWISE_NOT;
