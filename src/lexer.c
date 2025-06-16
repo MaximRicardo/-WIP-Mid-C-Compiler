@@ -233,7 +233,10 @@ struct Lexer Lexer_lex(const char *src) {
                     column_num = 0;
                 }
                 ++src_i;
+                ++column_num;
             }
+            ++src_i;
+            ++column_num;
         }
 
         else if (src[src_i] == ';')

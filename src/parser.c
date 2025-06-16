@@ -175,6 +175,7 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
 
     bool is_array = false;
     u32 array_len = 0;
+    bool len_defined = true;
 
     unsigned n_asterisks = 0;
     u32 ident_idx = v_decl_idx+1;
@@ -218,7 +219,7 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
                 ident_idx+2, stop_types,
                 sizeof(stop_types)/sizeof(stop_types[0]), end_idx, &vars, bp);
         ++*end_idx;
-        if (!Expr_statically_evaluatable(len_expr)) {
+        if (len_expr && !Expr_statically_evaluatable(len_expr)) {
             char *var_name = Token_src(&lexer->token_tbl.elems[ident_idx]);
             fprintf(stderr, "array '%s' must have a statically evaluatable"
                     " length. line %u\n", var_name,
@@ -226,6 +227,10 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
             Parser_error_occurred = true;
             m_free(var_name);
             array_len = 1;
+        }
+        else if (!len_expr) {
+            array_len = 1;
+            len_defined = false;
         }
         else
             array_len = Expr_evaluate(len_expr);
@@ -245,12 +250,13 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
         array_len = 1;
     }
 
-    if (is_array)
+    if (is_array && len_defined)
         var_size = PrimitiveType_size(var_type, n_asterisks-1)*array_len;
-    else
+    else if (!is_array)
         var_size = PrimitiveType_size(var_type, n_asterisks);
+    /* var size not defined yet if this variable is an array that hasn't been
+     * given a length */
 
-    var_decl = safe_malloc(sizeof(*var_decl));
     expr = is_func_param ? NULL :
         var_decl_value(lexer, ident_idx, *end_idx, end_idx, bp);
     decl = Declarator_create(expr,
@@ -268,7 +274,21 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
         m_free(var_name);
     }
     else if (decl.is_array && decl.value) {
+        if (!len_defined) {
+            array_len = decl.value->array_value.n_values;
+            var_size = PrimitiveType_size(var_type, n_asterisks-1)*array_len;
+            decl.array_len = array_len;
+        }
         decl.value->array_value.elem_size = var_size/array_len;
+    }
+    else if (decl.is_array && !len_defined) {
+        char *var_name = Token_src(&lexer->token_tbl.elems[ident_idx]);
+        fprintf(stderr, "array '%s' hasn't been given a length. line %u,"
+                " column %u.\n", var_name,
+                lexer->token_tbl.elems[ident_idx].line_num,
+                lexer->token_tbl.elems[ident_idx].column_num);
+        Parser_error_occurred = true;
+        m_free(var_name);
     }
 
     /* align the variable to its size */
@@ -284,6 +304,7 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
         *end_idx = ident_idx+1;
     }
 
+    var_decl = safe_malloc(sizeof(*var_decl));
     *var_decl = VarDeclNode_init();
     var_decl->type = var_type;
     DeclList_push_back(&var_decl->decls, decl);

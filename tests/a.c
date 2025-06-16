@@ -1,13 +1,12 @@
 void* malloc(int size);
 void free(void *ptr);
-int putchar(int c);
 int puts(char *str);
 
 char* func(char *x);
 
 int main(int argc, char **argv) {
 
-    char string[7] = "hello\n";
+    char string[] = "Hello, world!\n";
     puts(string);
 
     return 0;
