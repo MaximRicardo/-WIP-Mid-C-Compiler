@@ -336,7 +336,6 @@ static void instr_reg_and_imm32(struct InstrList *instrs, enum InstrType type,
 
 }
 
-/*
 static void instr_reg_and_string(struct InstrList *instrs, enum InstrType type,
         enum InstrSize size, enum InstrOperandType reg, char *str,
         i32 offset) {
@@ -351,7 +350,7 @@ static void instr_reg_and_string(struct InstrList *instrs, enum InstrType type,
 
     InstrList_push_back(instrs, instr);
 
-}*/
+}
 
 static void instr_reg(struct InstrList *instrs, enum InstrType type,
         enum InstrSize size, enum InstrOperandType reg, i32 offset) {
@@ -607,6 +606,12 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
                         (1<<deref_ptr_size*8)-1, 0);
             }
         }
+    }
+    else if (expr->expr_type == ExprType_ARRAY_LIT) {
+        char *str = safe_malloc(m_comp_label_name_capacity*sizeof(*str));
+        sprintf(str, "array_lit_%lu$", array_lit_counter++);
+        instr_reg_and_string(instrs, InstrType_MOV, InstrSize_32,
+                reg_idx_to_operand_t(lhs_reg.reg_idx), str, 0);
     }
     else {
         struct Instruction instr = Instruction_init();

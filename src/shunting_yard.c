@@ -2,6 +2,7 @@
 #include "array_lit.h"
 #include "ast.h"
 #include "comp_dependent/ints.h"
+#include "backend_dependent/type_sizes.h"
 #include "parser.h"
 #include "prim_type.h"
 #include "safe_mem.h"
@@ -294,6 +295,10 @@ static void read_array_initializer(const struct TokenList *token_tbl,
             ArrayLit_create(values.elems, values.size, 0), 0,
             ExprType_ARRAY_LIT, false, 0);
 
+    Expr_lvls_of_indir(array_expr, vars);
+    Expr_type(array_expr, vars);
+    Expr_type_no_prom(array_expr, vars);
+
     ExprPtrList_push_back(output_queue, array_expr);
 
     *end_idx = value_idx;
@@ -304,7 +309,8 @@ static void read_array_initializer(const struct TokenList *token_tbl,
 }
 
 static void read_string(const struct TokenList *token_tbl,
-        struct ExprPtrList *output_queue, u32 str_idx, u32 *end_idx) {
+        struct ExprPtrList *output_queue, u32 str_idx, u32 *end_idx,
+        const struct ParVarList *vars) {
 
     struct Expr *str_expr = NULL;
     struct ExprPtrList values = ExprPtrList_init();
@@ -329,8 +335,12 @@ static void read_string(const struct TokenList *token_tbl,
     str_expr = safe_malloc(sizeof(*str_expr));
     *str_expr = Expr_create_w_tok(token_tbl->elems[str_idx], NULL, NULL,
             0, 0, PrimType_INVALID, PrimType_INVALID, ExprPtrList_init(), 0,
-            ArrayLit_create(values.elems, values.size, 0), 0,
+            ArrayLit_create(values.elems, values.size, m_TypeSize_char), 0,
             ExprType_ARRAY_LIT, false, 0);
+
+    Expr_lvls_of_indir(str_expr, vars);
+    Expr_type(str_expr, vars);
+    Expr_type_no_prom(str_expr, vars);
 
     ExprPtrList_push_back(output_queue, str_expr);
 
@@ -382,7 +392,7 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
             read_array_initializer(token_tbl, &output_queue, i, &i, vars, bp);
         }
         else if (token_tbl->elems[i].type == TokenType_STR_LIT) {
-            read_string(token_tbl, &output_queue, i, &i);
+            read_string(token_tbl, &output_queue, i, &i, vars);
         }
         else if (i+1 < token_tbl->size &&
                 token_tbl->elems[i].type == TokenType_IDENT &&

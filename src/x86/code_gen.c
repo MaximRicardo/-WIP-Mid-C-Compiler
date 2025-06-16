@@ -227,6 +227,9 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
             fprintf(output, ", %s\n",
                     reg_names[type_to_reg(instr->rhs.type)][instr->instr_size]
                     );
+        else if (instr->string) {
+            fprintf(output, ", %s\n", instr->string);
+        }
         else
             fprintf(output, ", %s %d\n", size_specifier[instr->instr_size],
                     instr->rhs.value.imm);

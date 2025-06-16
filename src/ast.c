@@ -242,6 +242,10 @@ unsigned Expr_lvls_of_indir(struct Expr *self, const struct ParVarList *vars) {
 
         self->lvls_of_indir = lvls_of_indir;
     }
+    else if (self->expr_type == ExprType_ARRAY_LIT) {
+        /* assume the array is a string */
+        self->lvls_of_indir = 1;
+    }
     else {
         unsigned lvls_of_indir = self->rhs == NULL ? self->lhs_lvls_of_indir :
             m_max(self->lhs_lvls_of_indir, self->rhs_lvls_of_indir);
@@ -300,9 +304,12 @@ enum PrimitiveType Expr_type(struct Expr *self,
 
         self->prim_type = PrimitiveType_promote(type, lvls_of_indir);
     }
+    else if (self->expr_type == ExprType_ARRAY_LIT) {
+        /* assume the array is a string */
+        self->prim_type = PrimType_CHAR;
+    }
     else {
-        self->prim_type =
-            PrimitiveType_promote(self->lhs_type,
+        self->prim_type = PrimitiveType_promote(self->lhs_type,
                     Expr_lvls_of_indir(self, vars));
     }
 
@@ -323,6 +330,10 @@ enum PrimitiveType Expr_type_no_prom(struct Expr *self,
         m_free(expr_src);
 
         self->non_prom_prim_type = type;
+    }
+    else if (self->expr_type == ExprType_ARRAY_LIT) {
+        /* assume the array is a string */
+        self->non_prom_prim_type = PrimType_CHAR;
     }
     else if (self->rhs && self->rhs_lvls_of_indir > self->lhs_lvls_of_indir)
         self->non_prom_prim_type = self->rhs_og_type;
@@ -377,10 +388,16 @@ char* Expr_src(const struct Expr *self) {
 
 void Expr_get_array_lits(const struct Expr *self, struct ArrayLitList *list) {
 
+    u32 i;
+
     if (self->lhs)
         Expr_get_array_lits(self->lhs, list);
     if (self->rhs)
         Expr_get_array_lits(self->rhs, list);
+
+    for (i = 0; i < self->args.size; i++) {
+        Expr_get_array_lits(self->args.elems[i], list);
+    }
 
     if (self->expr_type != ExprType_ARRAY_LIT)
         return;
