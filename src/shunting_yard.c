@@ -10,6 +10,7 @@
 #include <assert.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <string.h>
 
 bool SY_error_occurred = false;
 
@@ -302,6 +303,41 @@ static void read_array_initializer(const struct TokenList *token_tbl,
 
 }
 
+static void read_string(const struct TokenList *token_tbl,
+        struct ExprPtrList *output_queue, u32 str_idx, u32 *end_idx) {
+
+    struct Expr *str_expr = NULL;
+    struct ExprPtrList values = ExprPtrList_init();
+
+    u32 i;
+    /* account for the NULL terminator */
+    u32 str_len = strlen(token_tbl->elems[str_idx].value.string)+1;
+
+    for (i = 0; i < str_len; i++) {
+
+        struct Expr *value = safe_malloc(sizeof(*value));
+
+        *value = Expr_create_w_tok(token_tbl->elems[i], NULL, NULL, 0, 0,
+                PrimType_INT, PrimType_INVALID, ExprPtrList_init(),
+                token_tbl->elems[str_idx].value.string[i], ArrayLit_init(), 0,
+                ExprType_INT_LIT, false, 0);
+
+        ExprPtrList_push_back(&values, value);
+
+    }
+
+    str_expr = safe_malloc(sizeof(*str_expr));
+    *str_expr = Expr_create_w_tok(token_tbl->elems[str_idx], NULL, NULL,
+            0, 0, PrimType_INVALID, PrimType_INVALID, ExprPtrList_init(), 0,
+            ArrayLit_create(values.elems, values.size, 0), 0,
+            ExprType_ARRAY_LIT, false, 0);
+
+    ExprPtrList_push_back(output_queue, str_expr);
+
+    *end_idx = str_idx;
+
+}
+
 struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
         enum TokenType *stop_types, u32 n_stop_types, u32 *end_idx,
         const struct ParVarList *vars, u32 bp) {
@@ -344,6 +380,9 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
         }
         else if (token_tbl->elems[i].type == TokenType_L_CURLY) {
             read_array_initializer(token_tbl, &output_queue, i, &i, vars, bp);
+        }
+        else if (token_tbl->elems[i].type == TokenType_STR_LIT) {
+            read_string(token_tbl, &output_queue, i, &i);
         }
         else if (i+1 < token_tbl->size &&
                 token_tbl->elems[i].type == TokenType_IDENT &&
@@ -406,8 +445,9 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
     if (end_idx)
         *end_idx = i;
 
-    if (i == start_idx)
+    if (i == start_idx) {
         return NULL;
+    }
 
     while (operator_stack.size > 0) {
         if (operator_stack.size > 0 && output_queue.size <

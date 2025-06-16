@@ -43,6 +43,7 @@ enum TokenType {
     TokenType_R_ARR_SUBSCR,
 
     TokenType_INT_LIT,
+    TokenType_STR_LIT,
 
     TokenType_IDENT,
     TokenType_FUNC_CALL,
@@ -59,6 +60,7 @@ enum TokenType {
 
 union TokenValue {
     u32 int_value;
+    char *string;
 };
 
 struct Token {
@@ -89,6 +91,7 @@ struct Token Token_create(unsigned line_num, unsigned column_num,
 struct Token Token_create_w_val(unsigned line_num, unsigned column_num,
         const char *src_start, unsigned src_len, enum TokenType type,
         union TokenValue value);
+void Token_free(struct Token token);
 
 bool Token_is_unary_operator(enum TokenType type);
 bool Token_is_bin_operator(enum TokenType type);

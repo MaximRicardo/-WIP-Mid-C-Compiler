@@ -29,6 +29,14 @@ struct Token Token_create_w_val(unsigned line_num, unsigned column_num,
 
 }
 
+void Token_free(struct Token token) {
+
+    if (token.type == TokenType_STR_LIT) {
+        m_free(token.value.string);
+    }
+
+}
+
 bool Token_is_unary_operator(enum TokenType type) {
 
     return type > TokenType_UNARY_OPS_START &&

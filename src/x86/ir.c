@@ -527,8 +527,8 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
                 reg_idx_to_operand_t(lhs_reg.reg_idx), expr->int_value, 0);
     }
     else if (expr->expr_type == ExprType_IDENT) {
-        enum InstrType type = load_reference ? InstrType_LEA :
-            InstrType_MOV_F_LOC;
+        enum InstrType type = load_reference || expr->is_array ?
+            InstrType_LEA : InstrType_MOV_F_LOC;
         unsigned var_size = PrimitiveType_size(expr->non_prom_prim_type,
                 expr->lvls_of_indir+load_reference);
         instr_reg_and_reg(instrs, type, InstrSize_bytes_to(var_size),

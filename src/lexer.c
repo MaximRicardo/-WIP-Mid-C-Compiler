@@ -1,4 +1,5 @@
 #include "lexer.h"
+#include "safe_mem.h"
 #include "token.h"
 #include <assert.h>
 #include <ctype.h>
@@ -26,6 +27,9 @@ struct Lexer Lexer_create(struct TokenList token_tbl) {
 
 void Lexer_free(struct Lexer *lexer) {
 
+    while (lexer->token_tbl.size > 0) {
+        TokenList_pop_back(&lexer->token_tbl, Token_free);
+    }
     TokenList_free(&lexer->token_tbl);
 
 }
@@ -148,6 +152,59 @@ static int read_single_quote_str(const char *src, u32 single_qt_idx,
 
 }
 
+/* returns the index of the closing double quote */
+static int read_string(const char *src, u32 str_start, unsigned line_num,
+        unsigned column_num, struct TokenList *token_tbl) {
+
+    union TokenValue value;
+
+    u32 src_i = str_start+1;
+    u32 cur_column_num = column_num+1;
+    char *string = NULL;
+    u32 string_len = 0;
+    /* must be initialized to a value greater than 0 */
+    u32 string_capacity = 128;
+
+    assert(src[str_start] == '\"');
+
+    string = safe_malloc(string_capacity*sizeof(*string));
+
+    while (src[src_i] != '\0' && src[src_i] != '\"' && src[src_i] != '\n') {
+
+        if (string_len >= string_capacity) {
+            string_capacity *= string_capacity;
+            string = safe_realloc(string, string_capacity*sizeof(*string));
+        }
+
+        if (src[src_i-1] == '\\') {
+            string[string_len-1] = escape_code_to_int(src[src_i], line_num,
+                    cur_column_num);
+            ++src_i;
+        }
+        else
+            string[string_len++] = src[src_i++];
+        ++cur_column_num;
+
+    }
+
+    string = safe_realloc(string, (string_len+1)*sizeof(*string));
+    string[string_len++] = '\0';
+
+    value.string = string;
+    TokenList_push_back(token_tbl, Token_create_w_val(line_num, column_num,
+                &src[str_start+1], src_i-str_start, TokenType_STR_LIT, value));
+
+    if (src[src_i] == '\0' || src[src_i] == '\n') {
+        fprintf(stderr, "expected a closing '\"' for the string on line %u,"
+                " column %u.\n", line_num, column_num);
+        Lexer_error_occurred = true;
+        --src_i;
+    }
+
+    return src_i;
+
+}
+
 struct Lexer Lexer_lex(const char *src) {
 
     struct TokenList token_tbl = TokenList_init();
@@ -253,6 +310,12 @@ struct Lexer Lexer_lex(const char *src) {
             TokenList_push_back(&token_tbl, Token_create_w_val(line_num,
                         column_num, &src[src_i], end_idx-src_i+1,
                         TokenType_INT_LIT, value));
+            column_num += end_idx-src_i;
+            src_i = end_idx;
+        }
+        else if (src[src_i] == '\"') {
+            u32 end_idx = read_string(src, src_i, line_num, column_num,
+                    &token_tbl);
             column_num += end_idx-src_i;
             src_i = end_idx;
         }
