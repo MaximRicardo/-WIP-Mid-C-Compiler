@@ -85,6 +85,8 @@ enum ExprType {
     ExprType_COMMA,
     ExprType_L_ARR_SUBSCR,
     ExprType_BITWISE_AND,
+    ExprType_EQUAL_TO,
+    ExprType_NOT_EQUAL_TO,
 
     /* Unary operators */
     ExprType_BITWISE_NOT,
@@ -104,6 +106,7 @@ enum ExprType {
 bool ExprType_is_bin_operator(enum ExprType type);
 bool ExprType_is_unary_operator(enum ExprType type);
 bool ExprType_is_operator(enum ExprType type);
+bool ExprType_is_cmp_operator(enum ExprType type);
 /* is the type a valid operation on an expr with 2 ptr operands */
 bool ExprType_is_valid_ptr_operation(enum ExprType type);
 /* is the type a valid operation on an expr with a ptr and an integer */

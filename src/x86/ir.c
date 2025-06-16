@@ -241,7 +241,6 @@ struct Instruction Instruction_init(void) {
 
     struct Instruction instr;
     instr.type = InstrType_INVALID;
-    instr.is_unary = false;
     instr.instr_size = 0;
     instr.offset = 0;
     instr.lhs = InstrOperand_init();
@@ -497,6 +496,42 @@ static struct GPReg get_func_call_expr_instructions(struct InstrList *instrs,
 
 }
 
+static void get_cmp_instructions(struct InstrList *instrs,
+        const struct Expr *expr, struct GPReg lhs_reg, struct GPReg rhs_reg) {
+
+    enum InstrType set_instr = InstrType_INVALID;
+
+    if (expr->rhs->expr_type != ExprType_INT_LIT)
+        instr_reg_and_reg(instrs, InstrType_CMP, InstrSize_32,
+                reg_idx_to_operand_t(lhs_reg.reg_idx),
+                reg_idx_to_operand_t(rhs_reg.reg_idx), 0);
+    else
+        instr_reg_and_imm32(instrs, InstrType_CMP, InstrSize_32,
+                reg_idx_to_operand_t(lhs_reg.reg_idx),
+                expr->rhs->int_value, 0);
+
+    switch (expr->expr_type) {
+
+    case ExprType_EQUAL_TO:
+        set_instr = InstrType_SETE;
+        break;
+
+    case ExprType_NOT_EQUAL_TO:
+        set_instr = InstrType_SETNE;
+        break;
+
+    default:
+        assert(false);
+
+    }
+
+    instr_reg(instrs, set_instr, InstrSize_8,
+            reg_idx_to_operand_t(lhs_reg.reg_idx), 0);
+    instr_reg_and_imm32(instrs, InstrType_AND, InstrSize_32,
+            reg_idx_to_operand_t(lhs_reg.reg_idx), 0xff, 0);
+
+}
+
 /* load_reference is only used on identifier nodes and dereference nodes, else
  * it's ignored */
 static struct GPReg get_expr_instructions(struct InstrList *instrs,
@@ -613,6 +648,9 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
         instr_reg_and_string(instrs, InstrType_MOV, InstrSize_32,
                 reg_idx_to_operand_t(lhs_reg.reg_idx), str, 0);
     }
+    else if (ExprType_is_cmp_operator(expr->expr_type)) {
+        get_cmp_instructions(instrs, expr, lhs_reg, rhs_reg);
+    }
     else {
         struct Instruction instr = Instruction_init();
         bool is_ptr_int_operation =
@@ -626,13 +664,10 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
         instr.instr_size = instr_size;
         instr.lhs = InstrOperand_create_imm(
                 reg_idx_to_operand_t(lhs_reg.reg_idx), 0);
-        if (!expr->rhs) {
-            instr.is_unary = true;
-        }
-        else if (expr->rhs->expr_type != ExprType_INT_LIT)
+        if (expr->rhs && expr->rhs->expr_type != ExprType_INT_LIT)
             instr.rhs = InstrOperand_create_imm(
                     reg_idx_to_operand_t(rhs_reg.reg_idx), 0);
-        else
+        else if (expr->rhs)
             instr.rhs = InstrOperand_create_imm(InstrOperandType_IMM_32,
                     expr->rhs->int_value);
 

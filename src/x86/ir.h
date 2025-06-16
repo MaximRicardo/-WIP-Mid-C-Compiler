@@ -4,7 +4,7 @@
 #include "../ast.h"
 
 /* when changing make sure to update:
- *  expr_t_to_instr_t() in ir.c, instr_type_to_asm
+ *  expr_to_instr_t() in ir.c, instr_type_to_asm
  *  in code_gen.c, regular_2_oper_instr in code_gen.c
  */
 enum InstrType {
@@ -20,6 +20,7 @@ enum InstrType {
     InstrType_XCHG,
 
     /* binary operations */
+    InstrType_BINARY_START,
     InstrType_ADD,
     InstrType_SUB,
     InstrType_MUL,
@@ -33,10 +34,15 @@ enum InstrType {
     InstrType_SHL,
     InstrType_SHR,
     InstrType_ASHR,
+    InstrType_BINARY_END,
 
     /* unary operations */
+    InstrType_UNARY_START,
     InstrType_BITWISE_NOT,
     InstrType_NEGATIVE,
+    InstrType_SETE,
+    InstrType_SETNE,
+    InstrType_UNARY_END,
 
     /* stack operations */
     InstrType_PUSH,
@@ -111,7 +117,6 @@ struct Instruction {
 
     struct InstrOperand lhs, rhs;
     enum InstrType type;
-    bool is_unary;
     enum InstrSize instr_size;
     i32 offset;
     char *string;

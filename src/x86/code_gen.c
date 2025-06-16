@@ -37,6 +37,7 @@ const char *instr_type_to_asm[] = {
 
     "xchg",
 
+    "BINARY OPERATORS START",
     "add",
     "sub",
     "mul",
@@ -50,9 +51,14 @@ const char *instr_type_to_asm[] = {
     "shl",
     "shr",
     "ashr",
+    "BINARY OPERATORS END",
 
+    "UNARY OPERATORS START",
     "not",
-    "neg",
+    "neg",  /* hmm */
+    "sete",
+    "setne",
+    "UNARY OPERATORS END",
 
     "push",
     "pop",
@@ -128,6 +134,12 @@ static bool regular_2_oper_instr(enum InstrType type) {
     return type == InstrType_ADD || type == InstrType_SUB ||
         type == InstrType_MOV || type == InstrType_AND ||
         type == InstrType_CMP;
+
+}
+
+static bool unary_instr(enum InstrType type) {
+
+    return type > InstrType_UNARY_START && type < InstrType_UNARY_END;
 
 }
 
@@ -211,7 +223,7 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
                 reg_names[type_to_reg(instr->rhs.type)][instr->instr_size]);
     }
 
-    else if (instr->is_unary) {
+    else if (unary_instr(instr->type)) {
         assert(type_is_reg(instr->lhs.type));
         fprintf(output, "%s %s\n", instr_type_to_asm[instr->type],
                 reg_names[type_to_reg(instr->lhs.type)][instr->instr_size]);

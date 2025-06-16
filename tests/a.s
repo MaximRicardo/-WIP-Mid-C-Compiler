@@ -35,6 +35,12 @@ _L0$:
 
 mov eax, [ebp+-4]
 
+cmp eax, dword 5
+
+setne al
+
+and eax, dword 255
+
 cmp eax, dword 0
 
 je _L1$

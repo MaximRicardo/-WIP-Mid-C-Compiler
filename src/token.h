@@ -25,6 +25,8 @@ enum TokenType {
     TokenType_COMMA,
     TokenType_L_ARR_SUBSCR,
     TokenType_BITWISE_AND,
+    TokenType_EQUAL_TO,
+    TokenType_NOT_EQUAL_TO,
     TokenType_BINARY_OPS_END,
 
     /* unary operators */

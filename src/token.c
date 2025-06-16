@@ -106,6 +106,10 @@ unsigned Token_precedence(enum TokenType type) {
     case TokenType_BITWISE_AND:
         return 8;
 
+    case TokenType_EQUAL_TO:
+    case TokenType_NOT_EQUAL_TO:
+        return 7;
+
     case TokenType_PLUS:
     case TokenType_MINUS:
         return 4;
