@@ -15,9 +15,9 @@ Thus far the compiler has:
     if/else statements
     pointers
     arrays
+    while loops
 
 Next thing I'ma implement:
-    while loops
     for loops
 
     Also, the compiler has a custom debugging keyword ':', which prints the
