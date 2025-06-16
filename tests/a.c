@@ -6,7 +6,7 @@ char* func(char *x);
 
 int main(int argc, char **argv) {
 
-    puts("Hello, world!");
+    puts({'h', 'e', 'l', 'l', 'o', '\0'});
 
     return 0;
 }

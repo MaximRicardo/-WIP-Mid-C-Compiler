@@ -194,7 +194,8 @@ u32 Expr_evaluate(const struct Expr *expr);
 char* Expr_src(const struct Expr *expr); /* same as Token_src */
 /* checks if there are any errors in the expression that the shunting yard
  * function couldn't catch */
-bool Expr_verify(const struct Expr *expr, const struct ParVarList *vars);
+bool Expr_verify(const struct Expr *expr, const struct ParVarList *vars,
+        bool is_initializer);
 void Expr_get_array_lits(const struct Expr *self, struct ArrayLitList *list);
 bool Expr_statically_evaluatable(const struct Expr *self);
 

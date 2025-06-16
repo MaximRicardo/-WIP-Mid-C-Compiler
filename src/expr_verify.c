@@ -106,14 +106,15 @@ static bool verify_single_ptr_operation(const struct Expr *expr) {
 }
 
 static bool verify_expr(const struct Expr *expr, const struct ParVarList *vars,
-        bool is_root) {
+        bool is_root, bool is_initializer) {
 
     bool error = false;
+    u32 i;
 
     if (expr->lhs)
-        error |= verify_expr(expr->lhs, vars, false);
+        error |= verify_expr(expr->lhs, vars, false, is_initializer);
     if (expr->rhs)
-        error |= verify_expr(expr->rhs, vars, false);
+        error |= verify_expr(expr->rhs, vars, false, is_initializer);
 
     if (expr->expr_type == ExprType_FUNC_CALL) {
         error |= verify_func_call(expr, vars, is_root);
@@ -146,13 +147,26 @@ static bool verify_expr(const struct Expr *expr, const struct ParVarList *vars,
             ExprType_is_bin_operator(expr->expr_type)) {
         error |= verify_single_ptr_operation(expr);
     }
+    else if (!is_initializer && expr->expr_type == ExprType_ARRAY_LIT &&
+            expr->array_value.elem_size == 0) {
+        /* an elem size of 0 means the array isn't a string literal */
+        fprintf(stderr, "cannot use array literals outside of initializers."
+                " line num = %u, column num = %u.\n", expr->line_num,
+                expr->column_num);
+        error = true;
+    }
+
+    for (i = 0; i < expr->args.size; i++) {
+        verify_expr(expr->args.elems[i], vars, false, false);
+    }
 
     return error;
 
 }
 
-bool Expr_verify(const struct Expr *expr, const struct ParVarList *vars) {
+bool Expr_verify(const struct Expr *expr, const struct ParVarList *vars,
+        bool is_initializer) {
 
-    return verify_expr(expr, vars, true);
+    return verify_expr(expr, vars, true, is_initializer);
 
 }

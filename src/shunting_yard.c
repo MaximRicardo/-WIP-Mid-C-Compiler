@@ -186,7 +186,7 @@ static u32 read_func_call(const struct TokenList *token_tbl, u32 f_call_idx,
         struct Expr *arg = SY_shunting_yard(token_tbl,
                 arg_start_idx+on_a_comma, stop_types,
                 sizeof(stop_types)/sizeof(stop_types[0]), &arg_start_idx, vars,
-                bp);
+                bp, false);
         SY_error_occurred |= old_error_occurred;
 
         if (!arg)
@@ -228,7 +228,7 @@ static void push_array_subscr_to_stack(const struct TokenList *token_tbl,
     assert(token_tbl->elems[l_arr_subscr].type == TokenType_L_ARR_SUBSCR);
 
     value = SY_shunting_yard(token_tbl, l_arr_subscr+1, stop_types,
-            sizeof(stop_types)/sizeof(stop_types[0]), end_idx, vars, bp);
+            sizeof(stop_types)/sizeof(stop_types[0]), end_idx, vars, bp, false);
     Parser_error_occurred |= old_error_occurred;
 
     expr = safe_malloc(sizeof(*expr));
@@ -266,7 +266,7 @@ static void read_array_initializer(const struct TokenList *token_tbl,
 
         value = SY_shunting_yard(token_tbl, value_idx, stop_types,
                 sizeof(stop_types)/sizeof(stop_types[0]), &value_idx, vars,
-                bp);
+                bp, false);
         SY_error_occurred |= old_error_occurred;
 
         if (!Expr_statically_evaluatable(value)) {
@@ -350,7 +350,7 @@ static void read_string(const struct TokenList *token_tbl,
 
 struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
         enum TokenType *stop_types, u32 n_stop_types, u32 *end_idx,
-        const struct ParVarList *vars, u32 bp) {
+        const struct ParVarList *vars, u32 bp, bool is_initializer) {
 
     struct ExprPtrList output_queue = ExprPtrList_init();
     struct ExprPtrList operator_stack = ExprPtrList_init();
@@ -478,7 +478,7 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
     if (output_queue.size == 1) {
         struct Expr *expr = output_queue.elems[0];
         ExprPtrList_free(&output_queue);
-        SY_error_occurred |= Expr_verify(expr, vars);
+        SY_error_occurred |= Expr_verify(expr, vars, is_initializer);
         return expr;
     }
     else {

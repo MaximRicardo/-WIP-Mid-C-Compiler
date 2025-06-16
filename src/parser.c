@@ -114,7 +114,7 @@ static struct Expr* parse_expr(const struct Lexer *lexer, u32 start_idx,
         u32 *sy_end_idx, u32 bp) {
 
     struct Expr *expr = SY_shunting_yard(&lexer->token_tbl, start_idx, NULL, 0,
-            sy_end_idx, &vars, bp);
+            sy_end_idx, &vars, bp, false);
     Parser_error_occurred |= SY_error_occurred;
 
     if (*sy_end_idx == lexer->token_tbl.size) {
@@ -151,7 +151,7 @@ static struct Expr* var_decl_value(const struct Lexer *lexer, u32 ident_idx,
     }
 
     expr = SY_shunting_yard(&lexer->token_tbl, equal_sign_idx+1, NULL, 0,
-            semicolon_idx, &vars, bp);
+            semicolon_idx, &vars, bp, true);
     Parser_error_occurred |= SY_error_occurred;
 
     return expr;
@@ -217,7 +217,8 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
         enum TokenType stop_types[] = {TokenType_R_ARR_SUBSCR};
         struct Expr *len_expr = SY_shunting_yard(&lexer->token_tbl,
                 ident_idx+2, stop_types,
-                sizeof(stop_types)/sizeof(stop_types[0]), end_idx, &vars, bp);
+                sizeof(stop_types)/sizeof(stop_types[0]), end_idx, &vars, bp,
+                false);
         ++*end_idx;
         if (len_expr && !Expr_statically_evaluatable(len_expr)) {
             char *var_name = Token_src(&lexer->token_tbl.elems[ident_idx]);
@@ -613,7 +614,7 @@ static u32 parse_ret_stmt(const struct Lexer *lexer, struct BlockNode *block,
         enum TokenType stop_types[] = {TokenType_SEMICOLON};
         ret_node->value = SY_shunting_yard(&lexer->token_tbl, ret_idx+1,
                 stop_types, sizeof(stop_types)/sizeof(stop_types[0]), &end_idx,
-                &vars, bp);
+                &vars, bp, false);
         ret_node->lvls_of_indir = ret_node->value->lvls_of_indir;
         ret_node->type = Expr_type(ret_node->value, &vars);
     }
@@ -664,7 +665,7 @@ u32 parse_if_stmt(const struct Lexer *lexer, struct BlockNode *block,
         enum TokenType sy_stop_types[] = {TokenType_R_PAREN};
         if_node->expr = SY_shunting_yard(&lexer->token_tbl, if_idx+2,
                 sy_stop_types, sizeof(sy_stop_types)/sizeof(sy_stop_types[0]),
-                &r_paren_idx, &vars, bp);
+                &r_paren_idx, &vars, bp, false);
     }
 
     if (r_paren_idx >= lexer->token_tbl.size) {

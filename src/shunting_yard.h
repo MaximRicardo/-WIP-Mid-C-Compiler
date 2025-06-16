@@ -20,4 +20,4 @@ extern bool SY_error_occurred;
  */
 struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
         enum TokenType *stop_types, u32 n_stop_types, u32 *end_idx,
-        const struct ParVarList *vars, u32 bp);
+        const struct ParVarList *vars, u32 bp, bool is_initializer);
