@@ -37,6 +37,24 @@ call printf
 
 add esp, dword 4
 
+mov eax, dword 1
+
+cmp eax, dword 0
+
+je _L0$
+
+push ebp
+
+mov ebp, esp
+
+sub esp, dword 0
+
+mov esp, ebp
+
+pop ebp
+
+_L0$:
+
 mov eax, dword 0
 
 mov esp, ebp

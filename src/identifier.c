@@ -1,5 +1,4 @@
 #include "identifier.h"
-#include "ast.h"
 #include <string.h>
 
 enum PrimitiveType Ident_type_spec(const char *ident) {

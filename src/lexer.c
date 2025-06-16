@@ -65,9 +65,9 @@ static unsigned get_identifier_len(const char *ident_start) {
 static enum TokenType identifier_keyword(const char *ident_start,
         u32 ident_len) {
 
-    if (strncmp(ident_start, "if", ident_len) == 0)
+    if (strncmp(ident_start, "if", ident_len) == 0 && ident_len == 2)
         return TokenType_IF_STMT;
-    if (strncmp(ident_start, "else", ident_len) == 0)
+    if (strncmp(ident_start, "else", ident_len) == 0 && ident_len == 4)
         return TokenType_ELSE;
     else
         return TokenType_NONE;
