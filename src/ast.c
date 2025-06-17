@@ -830,7 +830,10 @@ bool VarDeclPtrList_equivalent(const struct VarDeclPtrList *self,
                     other->elems[i]->decls.elems[j].lvls_of_indir)
                 return false;
 
-            if (self->elems[i]->type != other->elems[i]->type) {
+            if (PrimitiveType_promote(self->elems[i]->type,
+                        self->elems[i]->decls.elems[j].lvls_of_indir) !=
+                    PrimitiveType_promote(other->elems[i]->type,
+                        other->elems[i]->decls.elems[j].lvls_of_indir)) {
                 return false;
             }
 
@@ -859,7 +862,9 @@ bool VarDeclPtrList_equivalent_expr(const struct VarDeclPtrList *self,
                     other->elems[i]->lvls_of_indir >= 1)
                 continue;
 
-            if (self->elems[i]->type != Expr_type(other->elems[i], vars) ||
+            if (PrimitiveType_promote(self->elems[i]->type,
+                        self->elems[i]->decls.elems[j].lvls_of_indir) !=
+                    Expr_type(other->elems[i], vars) ||
                     self->elems[i]->decls.elems[j].lvls_of_indir !=
                     other->elems[i]->lvls_of_indir) {
                 printf("left indir = %d, right indir = %d.\n",

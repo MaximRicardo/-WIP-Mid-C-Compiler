@@ -2,7 +2,7 @@ int strtol(char *str, char **end, int base);
 /* a hacky way to get variadic functions working for now */
 int printf();
 
-int fibonacci(int n);
+int fibonacci(char n, char test);
 
 int main(int argc, char **argv) {
 
@@ -15,17 +15,19 @@ int main(int argc, char **argv) {
     }
 
     n = strtol(argv[1], &end_ptr, 0);
-    printf("fibonacci nr. %d is: %d\n", n, fibonacci(n));
+    printf("fibonacci nr. %d is: %d\n", n, fibonacci(n, n));
 
 }
 
-int fibonacci(int n) {
+int fibonacci(char n, char test) {
 
     int a = 0;
     int b = 1;
     int c;
 
     int i = 0;
+
+    test;
 
     if (n < 2)
         return n;
