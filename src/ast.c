@@ -60,6 +60,8 @@ void ASTNode_free(struct ASTNode node) {
             IfNode_free_w_self(node.node_struct);
         else if (node.type == ASTType_WHILE_STMT)
             WhileNode_free_w_self(node.node_struct);
+        else if (node.type == ASTType_FOR_STMT)
+            ForNode_free_w_self(node.node_struct);
 
         else if (node.type == ASTType_DEBUG_RAX)
             m_free(node.node_struct);
@@ -87,6 +89,8 @@ void ASTNode_get_array_lits(const struct ASTNode *self,
             IfNode_get_array_lits(self->node_struct, list);
         else if (self->type == ASTType_WHILE_STMT)
             WhileNode_get_array_lits(self->node_struct, list);
+        else if (self->type == ASTType_FOR_STMT)
+            ForNode_get_array_lits(self->node_struct, list);
     }
 
 }
@@ -1017,6 +1021,62 @@ void WhileNode_get_array_lits(const struct WhileNode *self,
 
     if (self->expr)
         Expr_get_array_lits(self->expr, list);
+    if (self->body)
+        BlockNode_get_array_lits(self->body, list);
+
+}
+
+struct ForNode ForNode_init(void) {
+
+    struct ForNode node;
+    node.init = NULL;
+    node.condition = NULL;
+    node.inc = NULL;
+    node.body = NULL;
+    node.body_in_block = false;
+    return node;
+
+}
+
+struct ForNode ForNode_create(struct Expr *init, struct Expr *condition,
+        struct Expr *inc, struct BlockNode *body, bool body_in_block) {
+
+    struct ForNode node;
+    node.init = init;
+    node.condition = condition;
+    node.inc = inc;
+    node.body = body;
+    node.body_in_block = body_in_block;
+    return node;
+
+}
+
+void ForNode_free_w_self(struct ForNode *self) {
+
+    if (self->init)
+        Expr_recur_free_w_self(self->init);
+    if (self->condition)
+        Expr_recur_free_w_self(self->condition);
+    if (self->inc)
+        Expr_recur_free_w_self(self->inc);
+
+    if (self->body)
+        BlockNode_free_w_self(self->body);
+
+    m_free(self);
+
+}
+
+void ForNode_get_array_lits(const struct ForNode *self,
+        struct ArrayLitList *list) {
+
+    if (self->init)
+        Expr_get_array_lits(self->init, list);
+    if (self->condition)
+        Expr_get_array_lits(self->condition, list);
+    if (self->inc)
+        Expr_get_array_lits(self->inc, list);
+
     if (self->body)
         BlockNode_get_array_lits(self->body, list);
 

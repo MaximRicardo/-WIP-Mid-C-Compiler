@@ -1007,7 +1007,7 @@ static void get_ret_stmt_instructions(struct InstrList *instrs,
 static void get_if_stmt_instructions(struct InstrList *instrs,
         struct IfNode *if_node) {
 
-    struct GPReg expr_reg;
+    struct GPReg expr_reg = GPReg_init();
     /* each instruction assumes it can free it's associated string, meaning
      * each instruction will need to be given a different one */
     char *if_end_label[2] = {NULL, NULL};
@@ -1063,7 +1063,7 @@ static void get_if_stmt_instructions(struct InstrList *instrs,
 static void get_while_stmt_instructions(struct InstrList *instrs,
         struct WhileNode *while_node) {
 
-    struct GPReg expr_reg;
+    struct GPReg expr_reg = GPReg_init();
     /* each instruction assumes it can free it's associated string, meaning
      * each instruction will need to be given a different one */
     char *while_start_label[2] = {NULL, NULL};
@@ -1102,6 +1102,57 @@ static void get_while_stmt_instructions(struct InstrList *instrs,
 
 }
 
+static void get_for_stmt_instructions(struct InstrList *instrs,
+        struct ForNode *for_node) {
+
+    struct GPReg cond_reg = GPReg_init();
+    /* each instruction assumes it can free it's associated string, meaning
+     * each instruction will need to be given a different one */
+    char *for_start_label[2] = {NULL, NULL};
+    char *for_end_label[2] = {NULL, NULL};
+
+    u32 i;
+
+    for (i = 0; i < sizeof(for_end_label)/sizeof(for_end_label[0]); i++) {
+        for_start_label[i] = safe_malloc(m_comp_label_name_capacity*
+                sizeof(*for_start_label[i]));
+        for_end_label[i] = safe_malloc(m_comp_label_name_capacity*
+                sizeof(*for_end_label[i]));
+        sprintf(for_start_label[i], "_L%lu$", label_counter);
+        sprintf(for_end_label[i], "_L%lu$", label_counter+1);
+    }
+    label_counter += 2;
+
+    /* the init expr goes before the label cuz it's technically done outside of
+     * the loop */
+    if (for_node->init)
+        free_reg(instrs, get_expr_instructions(instrs, for_node->init, false));
+
+    instr_string(instrs, InstrType_LABEL, for_start_label[0]);
+
+    if (for_node->condition)
+        cond_reg = get_expr_instructions(instrs, for_node->condition, false);
+
+    instr_reg_and_imm32(instrs, InstrType_CMP, cond_reg.reg_size,
+        reg_idx_to_operand_t(cond_reg.reg_idx), 0, 0);
+    instr_string(instrs, InstrType_JE, for_end_label[0]);
+
+    free_reg(instrs, cond_reg);
+
+    if (for_node->body_in_block)
+        create_stack_frame(instrs, for_node->body->var_bytes);
+    get_block_instructions(instrs, for_node->body);
+    if (for_node->body_in_block)
+        destroy_stack_frame(instrs);
+
+    if (for_node->inc)
+        free_reg(instrs, get_expr_instructions(instrs, for_node->inc, false));
+    instr_string(instrs, InstrType_JMP, for_start_label[1]);
+
+    instr_string(instrs, InstrType_LABEL, for_end_label[1]);
+
+}
+
 static void get_block_instructions(struct InstrList *instrs,
         const struct BlockNode *block) {
 
@@ -1132,6 +1183,9 @@ static void get_block_instructions(struct InstrList *instrs,
         }
         else if (block->nodes.elems[i].type == ASTType_WHILE_STMT) {
             get_while_stmt_instructions(instrs, node_struct);
+        }
+        else if (block->nodes.elems[i].type == ASTType_FOR_STMT) {
+            get_for_stmt_instructions(instrs, node_struct);
         }
 
         else if (block->nodes.elems[i].type == ASTType_DEBUG_RAX) {
