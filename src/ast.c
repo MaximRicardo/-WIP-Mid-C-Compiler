@@ -119,6 +119,13 @@ bool ExprType_is_cmp_operator(enum ExprType type) {
 
 }
 
+bool ExprType_is_inc_or_dec_operator(enum ExprType type) {
+
+    return type == ExprType_PREFIX_INC || type == ExprType_PREFIX_DEC ||
+        type == ExprType_POSTFIX_INC || type == ExprType_POSTFIX_DEC;
+
+}
+
 bool ExprType_is_valid_ptr_operation(enum ExprType type) {
 
     /* add comparison operators later */
@@ -576,6 +583,18 @@ enum ExprType tok_t_to_expr_t(enum TokenType type) {
     case TokenType_DEREFERENCE:
         return ExprType_DEREFERENCE;
 
+    case TokenType_PREFIX_INC:
+        return ExprType_PREFIX_INC;
+
+    case TokenType_PREFIX_DEC:
+        return ExprType_PREFIX_DEC;
+
+    case TokenType_POSTFIX_INC:
+        return ExprType_POSTFIX_INC;
+
+    case TokenType_POSTFIX_DEC:
+        return ExprType_POSTFIX_DEC;
+
     case TokenType_FUNC_CALL:
         return ExprType_FUNC_CALL;
 
@@ -670,6 +689,18 @@ enum TokenType expr_t_to_tok_t(enum ExprType type) {
 
     case ExprType_DEREFERENCE:
         return TokenType_DEREFERENCE;
+
+    case ExprType_PREFIX_INC:
+        return TokenType_PREFIX_INC;
+
+    case ExprType_PREFIX_DEC:
+        return TokenType_PREFIX_DEC;
+
+    case ExprType_POSTFIX_INC:
+        return TokenType_POSTFIX_INC;
+
+    case ExprType_POSTFIX_DEC:
+        return TokenType_POSTFIX_DEC;
 
     case ExprType_FUNC_CALL:
         return TokenType_FUNC_CALL;

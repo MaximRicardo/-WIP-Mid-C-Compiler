@@ -30,7 +30,7 @@ int fibonacci(int n) {
     if (n < 2)
         return n;
 
-    for (i = 0; i < n-1; i=i+1) {
+    for (i = 0; i < n-1; i++) {
         c = a+b;
         a=b;
         b=c;

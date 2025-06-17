@@ -3,6 +3,10 @@
 #include <assert.h>
 #include <stdio.h>
 
+/* ts is honestly so fucking cooked ngl gang. normally i would look into
+ * refactoring this code, but this x86 backend is only temporary, so im not
+ * gonna bother. */
+
 const char *reg_names[][3] = {
     {"al", "ax", "eax"},
     {"bl", "bx", "ebx"},
@@ -67,6 +71,10 @@ const char *instr_type_to_asm[] = {
     "setbe",
     "seta",
     "setae",
+    "inc",
+    "dec",
+    "inc",
+    "dec",
     "UNARY OPERATORS END",
 
     "push",
@@ -230,6 +238,21 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
         fprintf(output, "xchg %s, %s\n",
                 reg_names[type_to_reg(instr->lhs.type)][instr->instr_size],
                 reg_names[type_to_reg(instr->rhs.type)][instr->instr_size]);
+    }
+
+    else if (instr->type == InstrType_INC_LOC ||
+            instr->type == InstrType_DEC_LOC) {
+        if (type_is_reg(instr->lhs.type))
+            fprintf(output, "%s %s [%s]\n", instr_type_to_asm[instr->type],
+                    size_specifier[instr->instr_size],
+                    reg_names[type_to_reg(instr->lhs.type)][InstrSize_32]
+                    );
+        else if (instr->string)
+            fprintf(output, "%s %s [%s]\n", instr_type_to_asm[instr->type],
+                    size_specifier[instr->instr_size], instr->string);
+        else
+            fprintf(output, "%s %s [%u]\n", instr_type_to_asm[instr->type],
+                    size_specifier[instr->instr_size], instr->lhs.value.imm);
     }
 
     else if (unary_instr(instr->type)) {

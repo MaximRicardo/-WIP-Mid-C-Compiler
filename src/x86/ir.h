@@ -51,6 +51,10 @@ enum InstrType {
     InstrType_SETBE,
     InstrType_SETA,
     InstrType_SETAE,
+    InstrType_INC,
+    InstrType_DEC,
+    InstrType_INC_LOC,
+    InstrType_DEC_LOC,
 
     InstrType_UNARY_END,
 

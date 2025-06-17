@@ -43,6 +43,11 @@ enum TokenType {
     TokenType_DEREFERENCE,
     TokenType_POSITIVE,
     TokenType_NEGATIVE,
+    /* the lexer assumes all incs and decs are prefix by default */
+    TokenType_PREFIX_INC,
+    TokenType_PREFIX_DEC,
+    TokenType_POSTFIX_INC,
+    TokenType_POSTFIX_DEC,
     TokenType_UNARY_OPS_END,
 
     TokenType_L_PAREN,

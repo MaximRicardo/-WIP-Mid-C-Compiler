@@ -626,6 +626,7 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
         lhs_reg = get_expr_instructions(instrs, expr->lhs,
                 expr->expr_type == ExprType_EQUAL ||
                 expr->expr_type == ExprType_REFERENCE ||
+                ExprType_is_inc_or_dec_operator(expr->expr_type) ||
                 expr->lhs->is_array);
     else
         lhs_reg = alloc_reg(instrs);
@@ -755,6 +756,39 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
                 reg_idx_to_operand_t(lhs_reg.reg_idx), 0);
         instr_reg_and_imm32(instrs, InstrType_AND, InstrSize_32,
                 reg_idx_to_operand_t(lhs_reg.reg_idx), 0xff, 0);
+    }
+    else if (ExprType_is_inc_or_dec_operator(expr->expr_type)) {
+        enum InstrType instr_type =
+            expr->expr_type == ExprType_PREFIX_INC ||
+            expr->expr_type == ExprType_POSTFIX_INC ?
+            InstrType_INC_LOC : InstrType_DEC_LOC;
+        enum InstrSize size = InstrSize_bytes_to(
+                PrimitiveType_size(expr->lhs_og_type, expr->lhs_lvls_of_indir)
+                );
+
+        bool is_postfix = expr->expr_type == ExprType_POSTFIX_INC ||
+                expr->expr_type == ExprType_POSTFIX_DEC;
+
+        if (is_postfix) {
+            struct GPReg temp_reg = alloc_reg(instrs);
+
+            instr_reg_and_reg(instrs, InstrType_MOV_F_LOC, size,
+                    reg_idx_to_operand_t(temp_reg.reg_idx),
+                    reg_idx_to_operand_t(lhs_reg.reg_idx), 0);
+            instr_reg(instrs, instr_type, size,
+                    reg_idx_to_operand_t(lhs_reg.reg_idx), 0);
+
+            free_reg(instrs, lhs_reg);
+            lhs_reg = temp_reg;
+        }
+        else {
+            instr_reg(instrs, instr_type, size,
+                    reg_idx_to_operand_t(lhs_reg.reg_idx), 0);
+            instr_reg_and_reg(instrs, InstrType_MOV_F_LOC, size,
+                    reg_idx_to_operand_t(lhs_reg.reg_idx),
+                    reg_idx_to_operand_t(lhs_reg.reg_idx), 0);
+        }
+
     }
     else {
         struct Instruction instr = Instruction_init();

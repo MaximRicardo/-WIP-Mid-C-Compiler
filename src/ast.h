@@ -102,6 +102,10 @@ enum ExprType {
     ExprType_NEGATIVE,
     ExprType_REFERENCE,
     ExprType_DEREFERENCE,
+    ExprType_PREFIX_INC,
+    ExprType_PREFIX_DEC,
+    ExprType_POSTFIX_INC,
+    ExprType_POSTFIX_DEC,
 
     /* parentheses are only used in the shunting yard algorithm */
     ExprType_PAREN,
@@ -115,6 +119,7 @@ bool ExprType_is_bin_operator(enum ExprType type);
 bool ExprType_is_unary_operator(enum ExprType type);
 bool ExprType_is_operator(enum ExprType type);
 bool ExprType_is_cmp_operator(enum ExprType type);
+bool ExprType_is_inc_or_dec_operator(enum ExprType type);
 /* is the type a valid operation on an expr with 2 ptr operands */
 bool ExprType_is_valid_ptr_operation(enum ExprType type);
 /* is the type a valid operation on an expr with a ptr and an integer */

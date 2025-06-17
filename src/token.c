@@ -145,9 +145,13 @@ unsigned Token_precedence(enum TokenType type) {
     case TokenType_NEGATIVE:
     case TokenType_DEREFERENCE:
     case TokenType_REFERENCE:
+    case TokenType_PREFIX_INC:
+    case TokenType_PREFIX_DEC:
         return 2;
 
     case TokenType_L_ARR_SUBSCR:
+    case TokenType_POSTFIX_INC:
+    case TokenType_POSTFIX_DEC:
         return 1;
 
     default:

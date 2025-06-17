@@ -279,6 +279,18 @@ struct Lexer Lexer_lex(const char *src) {
             ++src_i;
             ++column_num;
         }
+        else if (src[src_i] == '+' && src[src_i+1] == '+') {
+            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+                        &src[src_i], 2, TokenType_PREFIX_INC));
+            ++src_i;
+            ++column_num;
+        }
+        else if (src[src_i] == '-' && src[src_i+1] == '-') {
+            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+                        &src[src_i], 2, TokenType_PREFIX_DEC));
+            ++src_i;
+            ++column_num;
+        }
 
         else if (src[src_i] == ';')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
