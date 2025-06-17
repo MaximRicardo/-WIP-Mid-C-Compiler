@@ -666,7 +666,7 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
     }
     else if (expr->expr_type == ExprType_EQUAL) {
         enum InstrSize assignment_size = InstrSize_bytes_to(
-                PrimitiveType_size(expr->lhs_type,
+                PrimitiveType_size(expr->lhs->non_prom_prim_type,
                     expr->lhs_lvls_of_indir));
 
         if (expr->rhs->expr_type != ExprType_INT_LIT)
