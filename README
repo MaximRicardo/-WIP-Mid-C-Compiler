@@ -20,9 +20,11 @@ Thus far the compiler has:
     pointers
     arrays
     while loops
+    for loops
+    typedefs
 
 Next thing I'ma implement:
-    for loops
+    type casts
 
     Also, the compiler has a custom debugging keyword ':', which prints the
 value currently stored in EAX.
