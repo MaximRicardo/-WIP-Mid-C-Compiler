@@ -6,7 +6,7 @@ non-standard or external libraries or macros.
 an OS in it.
     Currently the compiler uses an x86 backend but that's cuz I haven't
 actually made the ISA yet. Also x86 is easy to use cuz it has a bunch of
-pre-built tools.
+pre-built debuggers and it has glibc.
 
 Thus far the compiler has:
     variables
