@@ -245,37 +245,37 @@ struct Lexer Lexer_lex(const char *src) {
 
         else if (src[src_i] == '|' && src[src_i+1] == '|') {
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 1, TokenType_BOOLEAN_OR));
+                        &src[src_i], 2, TokenType_BOOLEAN_OR));
             ++src_i;
             ++column_num;
         }
         else if (src[src_i] == '&' && src[src_i+1] == '&') {
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 1, TokenType_BOOLEAN_AND));
+                        &src[src_i], 2, TokenType_BOOLEAN_AND));
             ++src_i;
             ++column_num;
         }
         else if (src[src_i] == '=' && src[src_i+1] == '=') {
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 1, TokenType_EQUAL_TO));
+                        &src[src_i], 2, TokenType_EQUAL_TO));
             ++src_i;
             ++column_num;
         }
         else if (src[src_i] == '!' && src[src_i+1] == '=') {
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 1, TokenType_NOT_EQUAL_TO));
+                        &src[src_i], 2, TokenType_NOT_EQUAL_TO));
             ++src_i;
             ++column_num;
         }
         else if (src[src_i] == '<' && src[src_i+1] == '=') {
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 1, TokenType_L_THAN_OR_E));
+                        &src[src_i], 2, TokenType_L_THAN_OR_E));
             ++src_i;
             ++column_num;
         }
         else if (src[src_i] == '>' && src[src_i+1] == '=') {
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 1, TokenType_G_THAN_OR_E));
+                        &src[src_i], 2, TokenType_G_THAN_OR_E));
             ++src_i;
             ++column_num;
         }
