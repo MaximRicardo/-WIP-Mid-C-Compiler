@@ -1,6 +1,4 @@
 #include "bin_to_unary.h"
-#include "identifier.h"
-#include "prim_type.h"
 #include "safe_mem.h"
 #include "token.h"
 #include <stdio.h>
@@ -23,8 +21,7 @@ void BinToUnary_convert(struct TokenList *token_tbl) {
         should_convert = i == 0 ||
             (token_tbl->elems[i-1].type != TokenType_R_PAREN &&
             !Token_is_literal(token_tbl->elems[i-1].type) &&
-            (token_tbl->elems[i-1].type != TokenType_IDENT ||
-             Ident_type_spec(prev_token_src) != PrimType_INVALID));
+            token_tbl->elems[i-1].type != TokenType_IDENT);
 
         m_free(prev_token_src);
 

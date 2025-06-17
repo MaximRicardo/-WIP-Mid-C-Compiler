@@ -9,8 +9,8 @@
 #include "safe_mem.h"
 #include "lexer.h"
 #include "parser.h"
-#include "bin_to_unary.h"
 #include "pre_to_post_fix.h"
+#include "bin_to_unary.h"
 
 #define m_build_bug_on(condition) \
     ((void)sizeof(char[1 - 2*!!(condition)]))

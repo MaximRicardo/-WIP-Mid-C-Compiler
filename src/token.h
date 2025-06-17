@@ -69,6 +69,7 @@ enum TokenType {
     TokenType_ELSE,
     TokenType_WHILE_STMT,
     TokenType_FOR_STMT,
+    TokenType_TYPEDEF,
 
     TokenType_DEBUG_PRINT_RAX
 
