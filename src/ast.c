@@ -14,12 +14,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* TODO:
- *    Add comparison operators to ExprType_is_valid_ptr_operation
- *    Add increment/decrement operators to
- *      ExprType_is_valid_single_ptr_operation
- */
-
 struct ASTNode ASTNode_init(void) {
 
     struct ASTNode node;
@@ -129,7 +123,10 @@ bool ExprType_is_inc_or_dec_operator(enum ExprType type) {
 bool ExprType_is_valid_ptr_operation(enum ExprType type) {
 
     /* add comparison operators later */
-    return type == ExprType_EQUAL || type == ExprType_MINUS;
+    return type == ExprType_EQUAL || type == ExprType_MINUS ||
+        type == ExprType_EQUAL_TO || type == ExprType_NOT_EQUAL_TO ||
+        type == ExprType_L_THAN || type == ExprType_L_THAN_OR_E ||
+        type == ExprType_G_THAN || type == ExprType_G_THAN_OR_E;
 
 }
 
@@ -143,7 +140,7 @@ bool ExprType_is_valid_single_ptr_operation(enum ExprType type) {
 bool ExprType_is_valid_unary_ptr_operation(enum ExprType type) {
 
     return type == ExprType_REFERENCE || type == ExprType_DEREFERENCE ||
-        type == ExprType_TYPECAST;
+        type == ExprType_TYPECAST || ExprType_is_inc_or_dec_operator(type);
 
 }
 

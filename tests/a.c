@@ -8,8 +8,6 @@ i32 fibonacci(i32 n);
 
 int main(int argc, char **argv) {
 
-    typedef char* string;
-
     char *end_ptr;
     i32 n;
 

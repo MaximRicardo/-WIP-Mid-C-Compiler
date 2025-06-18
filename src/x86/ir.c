@@ -766,24 +766,33 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
                 PrimitiveType_size(expr->lhs_og_type, expr->lhs_lvls_of_indir)
                 );
 
+        unsigned n_times_to_inc = expr->lhs_lvls_of_indir == 0 ? 1 :
+                    PrimitiveType_size(expr->lhs_og_type,
+                        expr->lhs_lvls_of_indir-1);
+
         bool is_postfix = expr->expr_type == ExprType_POSTFIX_INC ||
                 expr->expr_type == ExprType_POSTFIX_DEC;
 
         if (is_postfix) {
+            u32 i;
             struct GPReg temp_reg = alloc_reg(instrs);
 
             instr_reg_and_reg(instrs, InstrType_MOV_F_LOC, size,
                     reg_idx_to_operand_t(temp_reg.reg_idx),
                     reg_idx_to_operand_t(lhs_reg.reg_idx), 0);
-            instr_reg(instrs, instr_type, size,
-                    reg_idx_to_operand_t(lhs_reg.reg_idx), 0);
+            /* i'm sorry */
+            for (i = 0; i < n_times_to_inc; i++)
+                instr_reg(instrs, instr_type, size,
+                        reg_idx_to_operand_t(lhs_reg.reg_idx), 0);
 
             free_reg(instrs, lhs_reg);
             lhs_reg = temp_reg;
         }
         else {
-            instr_reg(instrs, instr_type, size,
-                    reg_idx_to_operand_t(lhs_reg.reg_idx), 0);
+            u32 i;
+            for (i = 0; i < n_times_to_inc; i++)
+                instr_reg(instrs, instr_type, size,
+                        reg_idx_to_operand_t(lhs_reg.reg_idx), 0);
             instr_reg_and_reg(instrs, InstrType_MOV_F_LOC, size,
                     reg_idx_to_operand_t(lhs_reg.reg_idx),
                     reg_idx_to_operand_t(lhs_reg.reg_idx), 0);
