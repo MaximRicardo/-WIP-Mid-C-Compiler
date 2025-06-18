@@ -11,6 +11,7 @@
 #include "parser.h"
 #include "pre_to_post_fix.h"
 #include "bin_to_unary.h"
+#include "merge_strings.h"
 
 #define m_build_bug_on(condition) \
     ((void)sizeof(char[1 - 2*!!(condition)]))
@@ -47,6 +48,7 @@ void compile(char *src, FILE *output, bool *error_occurred) {
     }
 #endif
 
+    MergeStrings_merge(&lexer.token_tbl);
     BinToUnary_convert(&lexer.token_tbl);
     PreToPostFix_convert(&lexer.token_tbl);
 
