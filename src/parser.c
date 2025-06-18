@@ -129,6 +129,46 @@ static struct Expr* parse_expr(const struct Lexer *lexer, u32 start_idx,
 
 }
 
+/* returns the index of the next token after the type name and the asterisks */
+static u32 read_type_spec(const struct Lexer *lexer, u32 type_spec_idx,
+        enum PrimitiveType *type, unsigned *lvls_of_indir) {
+
+    enum PrimitiveType spec_type;
+    unsigned spec_lvls_of_indir;
+    char *type_name = Token_src(&lexer->token_tbl.elems[type_spec_idx]);
+    unsigned n_asterisks = 0;
+
+    spec_type = Ident_type_spec(type_name, &typedefs);
+    spec_lvls_of_indir = Ident_type_lvls_of_indir(type_name, &typedefs);
+
+    while (lexer->token_tbl.elems[type_spec_idx+1+n_asterisks].type ==
+            TokenType_DEREFERENCE ||
+            lexer->token_tbl.elems[type_spec_idx+1+n_asterisks].type ==
+            TokenType_MUL) {
+        ++n_asterisks;
+    }
+
+    if (spec_type == PrimType_INVALID) {
+        fprintf(stderr, "unknown type '%s' on line %u, column %u.\n",
+                type_name, lexer->token_tbl.elems[type_spec_idx].line_num,
+                lexer->token_tbl.elems[type_spec_idx].column_num);
+        Parser_error_occurred = true;
+    }
+    else {
+        spec_lvls_of_indir += n_asterisks;
+    }
+
+    if (type)
+        *type = spec_type;
+    if (lvls_of_indir)
+        *lvls_of_indir = spec_lvls_of_indir;
+
+    m_free(type_name);
+
+    return type_spec_idx+n_asterisks+1;
+
+}
+
 static struct Expr* var_decl_value(const struct Lexer *lexer, u32 ident_idx,
         u32 equal_sign_idx, u32 *semicolon_idx, u32 bp) {
 
@@ -166,8 +206,8 @@ static struct Expr* var_decl_value(const struct Lexer *lexer, u32 ident_idx,
  * sp                   - can be NULL if is_func_param is true.
  */
 static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
-        enum PrimitiveType var_type, u32 v_decl_idx, u32 *end_idx, u32 bp,
-        u32 *sp, bool is_func_param, unsigned *n_func_param_bytes) {
+        u32 v_decl_idx, u32 *end_idx, u32 bp, u32 *sp, bool is_func_param,
+        unsigned *n_func_param_bytes) {
 
     unsigned var_size;
 
@@ -179,16 +219,10 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
     u32 array_len = 0;
     bool len_defined = true;
 
-    unsigned n_asterisks = 0;
-    u32 ident_idx = v_decl_idx+1;
-    while (v_decl_idx+1+n_asterisks < lexer->token_tbl.size &&
-            (lexer->token_tbl.elems[v_decl_idx+1+n_asterisks].type ==
-                TokenType_DEREFERENCE ||
-            lexer->token_tbl.elems[v_decl_idx+1+n_asterisks].type ==
-                TokenType_MUL)) {
-        ++ident_idx;
-        ++n_asterisks;
-    }
+    enum PrimitiveType var_type;
+    u32 n_lvls_of_indir;
+    u32 ident_idx = read_type_spec(lexer, v_decl_idx, &var_type,
+            &n_lvls_of_indir);
 
     if (ident_idx >= lexer->token_tbl.size ||
             lexer->token_tbl.elems[ident_idx].type != TokenType_IDENT) {
@@ -202,7 +236,7 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
                 stop_types, sizeof(stop_types)/sizeof(stop_types[0]));
         return NULL;
     }
-    else if (var_type == PrimType_VOID && n_asterisks == 0) {
+    else if (var_type == PrimType_VOID && n_lvls_of_indir == 0) {
         char *var_name = Token_src(&lexer->token_tbl.elems[ident_idx]);
         fprintf(stderr, "variable '%s' of type 'void' on line %u,"
                 " column %u.\n", var_name,
@@ -241,7 +275,7 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
         else
             array_len = Expr_evaluate(len_expr);
         Expr_recur_free_w_self(len_expr);
-        ++n_asterisks;  /* arrays act a lot like a level of pointers */
+        ++n_lvls_of_indir;  /* arrays act a lot like a level of pointers */
     }
     else {
         *end_idx = ident_idx+1;
@@ -257,9 +291,9 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
     }
 
     if (is_array && len_defined)
-        var_size = PrimitiveType_size(var_type, n_asterisks-1)*array_len;
+        var_size = PrimitiveType_size(var_type, n_lvls_of_indir-1)*array_len;
     else if (!is_array)
-        var_size = PrimitiveType_size(var_type, n_asterisks);
+        var_size = PrimitiveType_size(var_type, n_lvls_of_indir);
     if (is_func_param)
         var_size = round_up(var_size, m_TypeSize_stack_min_alignment);
     /* var size not defined yet if this variable is an array that hasn't been
@@ -268,7 +302,7 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
     expr = is_func_param ? NULL :
         var_decl_value(lexer, ident_idx, *end_idx, end_idx, bp);
     decl = Declarator_create(expr,
-            Token_src(&lexer->token_tbl.elems[ident_idx]), n_asterisks,
+            Token_src(&lexer->token_tbl.elems[ident_idx]), n_lvls_of_indir,
             is_array, array_len, 0);
 
     if (decl.is_array && decl.value &&
@@ -284,7 +318,8 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
     else if (decl.is_array && decl.value) {
         if (!len_defined) {
             array_len = decl.value->array_value.n_values;
-            var_size = PrimitiveType_size(var_type, n_asterisks-1)*array_len;
+            var_size =
+                PrimitiveType_size(var_type, n_lvls_of_indir-1)*array_len;
             decl.array_len = array_len;
         }
         decl.value->array_value.elem_size = var_size/array_len;
@@ -320,7 +355,7 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
     ParVarList_push_back(&vars, ParserVar_create(
                 lexer->token_tbl.elems[v_decl_idx].line_num,
                 lexer->token_tbl.elems[v_decl_idx].column_num,
-                Token_src(&lexer->token_tbl.elems[ident_idx]), n_asterisks,
+                Token_src(&lexer->token_tbl.elems[ident_idx]), n_lvls_of_indir,
                 var_type, is_array, array_len, decl.bp_offset+bp, NULL, false,
                 false));
     if (!is_func_param)
@@ -436,9 +471,8 @@ static u32 parse_func_args(const struct Lexer *lexer, u32 arg_decl_start_idx,
                     sizeof(stop_types)/sizeof(stop_types[0])) - 1;
         }
 
-        arg = parse_var_decl(lexer, Ident_type_spec(type_spec_src, &typedefs),
-                arg_decl_idx, &arg_decl_end_idx, bp, NULL, true,
-                &n_func_param_bytes);
+        arg = parse_var_decl(lexer, arg_decl_idx, &arg_decl_end_idx, bp, NULL,
+                true, &n_func_param_bytes);
 
         if (arg) {
             VarDeclPtrList_push_back(args, arg);
@@ -476,7 +510,7 @@ static u32 parse_func_args(const struct Lexer *lexer, u32 arg_decl_start_idx,
 }
 
 static void parse_func_decl(const struct Lexer *lexer, struct BlockNode *block,
-        enum PrimitiveType func_type, u32 f_decl_idx, u32 *end_idx, u32 bp) {
+        u32 f_decl_idx, u32 *end_idx, u32 bp) {
 
     struct FuncDeclNode *func = safe_malloc(sizeof(*func));
     struct VarDeclPtrList args = VarDeclPtrList_init();
@@ -486,15 +520,10 @@ static void parse_func_decl(const struct Lexer *lexer, struct BlockNode *block,
     char *func_name = NULL;
     u32 prev_func_decl_var_idx;
 
-    u32 func_n_asterisks = 0;
-    u32 f_ident_idx = f_decl_idx+1;
-    while (lexer->token_tbl.elems[f_decl_idx+1+func_n_asterisks].type ==
-            TokenType_DEREFERENCE ||
-            lexer->token_tbl.elems[f_decl_idx+1+func_n_asterisks].type ==
-            TokenType_MUL) {
-        ++f_ident_idx;
-        ++func_n_asterisks;
-    }
+    enum PrimitiveType func_type;
+    u32 func_lvls_of_indir;
+    u32 f_ident_idx = read_type_spec(lexer, f_decl_idx, &func_type,
+            &func_lvls_of_indir);
 
     func_name = Token_src(&lexer->token_tbl.elems[f_ident_idx]);
 
@@ -506,7 +535,7 @@ static void parse_func_decl(const struct Lexer *lexer, struct BlockNode *block,
                     lexer->token_tbl.elems[f_decl_idx].line_num,
                     lexer->token_tbl.elems[f_decl_idx].column_num,
                     Token_src(&lexer->token_tbl.elems[f_ident_idx]),
-                    func_n_asterisks, func_type, false, 0, 0, &func->args,
+                    func_lvls_of_indir, func_type, false, 0, 0, &func->args,
                     void_args, false));
         ++old_vars_size;
     }
@@ -527,7 +556,7 @@ static void parse_func_decl(const struct Lexer *lexer, struct BlockNode *block,
         return;
     }
 
-    *func = FuncDeclNode_create(args, void_args, func_n_asterisks, func_type,
+    *func = FuncDeclNode_create(args, void_args, func_lvls_of_indir, func_type,
                 NULL, Token_src(&lexer->token_tbl.elems[f_ident_idx]));
 
     if (prev_func_decl_var_idx != m_u32_max && func_prototypes_match(lexer,
@@ -975,34 +1004,12 @@ u32 parse_typedef(const struct Lexer *lexer, u32 typedef_idx) {
 
     u32 conv_type_idx = typedef_idx+1;
 
-    char *conv_type_src = Token_src(&lexer->token_tbl.elems[conv_type_idx]);
     char *type_name = NULL;
 
-    enum PrimitiveType conv_type = Ident_type_spec(conv_type_src, &typedefs);
-    unsigned conv_lvls_of_indir =
-        Ident_type_lvls_of_indir(conv_type_src, &typedefs);
-
-    unsigned n_asterisks = 0;
-    unsigned type_name_idx = conv_type_idx+1;
-
-    if (conv_type == PrimType_INVALID) {
-        fprintf(stderr, "unknown type '%s' on line %u, column %u.\n",
-                conv_type_src, lexer->token_tbl.elems[conv_type_idx].line_num,
-                lexer->token_tbl.elems[conv_type_idx].column_num);
-        Parser_error_occurred = true;
-        m_free(conv_type_src);
-        return skip_to_token_type_alt(typedef_idx, lexer->token_tbl,
-                TokenType_SEMICOLON);
-    }
-    m_free(conv_type_src);
-
-    while (lexer->token_tbl.elems[conv_type_idx+1+n_asterisks].type ==
-            TokenType_DEREFERENCE ||
-            lexer->token_tbl.elems[conv_type_idx+1+n_asterisks].type ==
-            TokenType_MUL) {
-        ++n_asterisks;
-        ++type_name_idx;
-    }
+    enum PrimitiveType conv_type;
+    unsigned conv_lvls_of_indir;
+    unsigned type_name_idx = read_type_spec(lexer, conv_type_idx, &conv_type,
+            &conv_lvls_of_indir); 
 
     if (lexer->token_tbl.elems[type_name_idx].type != TokenType_IDENT) {
         fprintf(stderr, "expected an identifier at the end of the typedef on"
@@ -1097,21 +1104,14 @@ static struct BlockNode* parse(const struct Lexer *lexer,
                         n_blocks_deep);
         }
         else if (Ident_type_spec(token_src, &typedefs) != PrimType_INVALID) {
-            unsigned ident_idx = start_idx+1;
-            while (ident_idx < lexer->token_tbl.size &&
-                    (lexer->token_tbl.elems[ident_idx].type ==
-                    TokenType_DEREFERENCE ||
-                    lexer->token_tbl.elems[ident_idx].type ==
-                    TokenType_MUL)) {
-                ++ident_idx;
-            }
+            unsigned ident_idx = read_type_spec(lexer, start_idx, NULL, NULL);
+
             if (ident_idx+1 >= lexer->token_tbl.size ||
                     lexer->token_tbl.elems[ident_idx+1].type !=
                     TokenType_L_PAREN) {
                 u32 old_sp = sp;
                 struct VarDeclNode *var_decl = parse_var_decl(lexer,
-                        Ident_type_spec(token_src, &typedefs), start_idx,
-                        &prev_end_idx, bp, &sp, false, NULL);
+                        start_idx, &prev_end_idx, bp, &sp, false, NULL);
                 ASTNodeList_push_back(&block->nodes,
                         ASTNode_create(
                             lexer->token_tbl.elems[start_idx].line_num,
@@ -1122,7 +1122,6 @@ static struct BlockNode* parse(const struct Lexer *lexer,
             else if (lexer->token_tbl.elems[ident_idx+1].type ==
                     TokenType_L_PAREN) {
                 parse_func_decl(lexer, block,
-                        Ident_type_spec(token_src, &typedefs),
                         start_idx, &prev_end_idx, bp);
             }
             else {
