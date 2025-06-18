@@ -7,7 +7,16 @@ enum PrimitiveType {
     PrimType_INVALID,
 
     PrimType_CHAR,
+    PrimType_UCHAR,
+
+    PrimType_SHORT,
+    PrimType_USHORT,
+
     PrimType_INT,
+    PrimType_UINT,
+
+    PrimType_LONG,
+    PrimType_ULONG,
 
     PrimType_VOID
 

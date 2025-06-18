@@ -1,14 +1,14 @@
-typedef int i32;
+typedef uint u32;
 
 int strtol(char *str, char **end, int base);
 int printf(char *str, ...);
 
-i32 fibonacci(i32 n);
+u32 fibonacci(u32 n);
 
 int main(int argc, char **argv) {
 
     char *end_ptr;
-    i32 n;
+    u32 n;
 
     if (argc < 2) {
         printf("give an argument containing which fibonacci number to get.\n");
@@ -20,13 +20,13 @@ int main(int argc, char **argv) {
 
 }
 
-i32 fibonacci(i32 n) {
+u32 fibonacci(u32 n) {
 
-    i32 a = 0;
-    i32 b = 1;
-    i32 c;
+    u32 a = 0;
+    u32 b = 1;
+    u32 c;
 
-    i32 i = 0;
+    u32 i = 0;
 
     if (n < 2)
         return n;

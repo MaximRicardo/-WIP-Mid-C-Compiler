@@ -293,8 +293,22 @@ enum PrimitiveType Expr_type(struct Expr *self,
 
         if (self->rhs_lvls_of_indir > self->lhs_lvls_of_indir)
             self->prim_type = rhs_prom;
-        else
+        else if (self->lhs_lvls_of_indir > self->rhs_lvls_of_indir)
             self->prim_type = lhs_prom;
+        else {
+            if (lhs_prom == rhs_prom)
+                self->prim_type = lhs_prom;
+            else if (PrimitiveType_size(lhs_prom, self->lhs_lvls_of_indir) >
+                    PrimitiveType_size(rhs_prom, self->rhs_lvls_of_indir))
+                self->prim_type = lhs_prom;
+            else if (PrimitiveType_size(lhs_prom, self->lhs_lvls_of_indir) <
+                    PrimitiveType_size(rhs_prom, self->rhs_lvls_of_indir))
+                self->prim_type = rhs_prom;
+            else if (PrimitiveType_signed(lhs_prom, self->lhs_lvls_of_indir))
+                self->prim_type = rhs_prom;
+            else
+                self->prim_type = lhs_prom;
+        }
 
         if (self->expr_type == ExprType_L_ARR_SUBSCR &&
                 Expr_lvls_of_indir(self, vars) == 0) {

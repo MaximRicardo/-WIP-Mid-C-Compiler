@@ -10,7 +10,7 @@ pre-built debuggers and I get to use glibc.
 
 Thus far the compiler has:
     variables
-    multiple variable types (char, int)
+    multiple types (char, uchar, short, ushort, int, uint, long, ulong, void)
     function definitions
     function calls
     function prototyping
