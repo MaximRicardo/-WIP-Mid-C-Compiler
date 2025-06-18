@@ -25,6 +25,7 @@ Thus far the compiler has:
 
 Next thing I'ma implement:
     type casts
+    variable shadowing
 
     Also, the compiler has a custom debugging keyword ':', which prints the
 value currently stored in EAX.
