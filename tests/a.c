@@ -1,8 +1,7 @@
 typedef int i32;
 
 int strtol(char *str, char **end, int base);
-/* a hacky way to get variadic functions working for now */
-int printf();
+int printf(char *str, ...);
 
 i32 fibonacci(i32 n);
 

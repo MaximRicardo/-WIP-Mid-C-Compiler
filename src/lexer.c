@@ -214,6 +214,7 @@ static int read_string(const char *src, u32 str_start, unsigned line_num,
 struct Lexer Lexer_lex(const char *src) {
 
     struct TokenList token_tbl = TokenList_init();
+    u32 src_len = strlen(src);
     u32 src_i;
     unsigned line_num=1, column_num=1;
 
@@ -243,6 +244,14 @@ struct Lexer Lexer_lex(const char *src) {
             }
             ++src_i;
             ++column_num;
+        }
+
+        else if (src_i+2 < src_len && src[src_i] == '.' &&
+                src[src_i+1] == '.' && src[src_i+2] == '.') {
+            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+                        &src[src_i], 2, TokenType_VARIADIC));
+            src_i += 2;
+            column_num += 2;
         }
 
         else if (src[src_i] == '|' && src[src_i+1] == '|') {

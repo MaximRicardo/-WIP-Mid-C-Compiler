@@ -279,15 +279,15 @@ struct VarDeclPtrList {
 
 };
 
-bool VarDeclPtrList_equivalent(const struct VarDeclPtrList *self,
-        const struct VarDeclPtrList *other);
 bool VarDeclPtrList_equivalent_expr(const struct VarDeclPtrList *self,
-        const struct ExprPtrList *other, const struct ParVarList *vars);
+        const struct ExprPtrList *other, const struct ParVarList *vars,
+        bool self_is_variadic);
 m_declare_VectorImpl_funcs(VarDeclPtrList, struct VarDeclNode*)
 
 struct FuncDeclNode {
 
     struct VarDeclPtrList args;
+    bool variadic_args;
     bool void_args;
     unsigned ret_lvls_of_indir;
     enum PrimitiveType ret_type;
@@ -298,7 +298,7 @@ struct FuncDeclNode {
 
 struct FuncDeclNode FuncDeclNode_init(void);
 struct FuncDeclNode FuncDeclNode_create(struct VarDeclPtrList args,
-        bool void_args, unsigned ret_lvls_of_indir,
+        bool variadic_args, bool void_args, unsigned ret_lvls_of_indir,
         enum PrimitiveType ret_type, struct BlockNode *body, char *name);
 void FuncDeclNode_free_w_self(struct FuncDeclNode *self);
 void FuncDeclNode_get_array_lits(const struct FuncDeclNode *self,

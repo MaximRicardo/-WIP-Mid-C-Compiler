@@ -27,7 +27,7 @@ static bool verify_func_call(const struct Expr *expr,
     if ((vars->elems[var_idx].void_args && expr->args.size > 0) ||
             (vars->elems[var_idx].args->size > 0 &&
             !VarDeclPtrList_equivalent_expr(vars->elems[var_idx].args,
-                &expr->args, vars))) {
+                &expr->args, vars, vars->elems[var_idx].variadic_args))) {
         fprintf(stderr,
                 "mismatching arguments for the call to '%s' on line %u,"
                 " column %u.\n", func_name, expr->line_num, expr->column_num);

@@ -13,6 +13,7 @@ struct ParserVar ParserVar_init(void) {
     var.array_len = 0;
     var.stack_pos = 0;
     var.args = NULL;
+    var.variadic_args = false;
     var.void_args = false;
     var.has_been_defined = false;
     var.is_func_arg = false;
@@ -24,7 +25,8 @@ struct ParserVar ParserVar_init(void) {
 struct ParserVar ParserVar_create(unsigned line_num, unsigned column_num,
         char *name, unsigned lvls_of_indir, enum PrimitiveType type,
         bool is_array, u32 array_len, u32 stack_pos,
-        struct VarDeclPtrList *args, bool void_args, bool has_been_defined,
+        struct VarDeclPtrList *args, bool variadic_args, bool void_args,
+        bool has_been_defined,
         bool is_func_arg, void *parent) {
 
     struct ParserVar var;
@@ -37,6 +39,7 @@ struct ParserVar ParserVar_create(unsigned line_num, unsigned column_num,
     var.array_len = array_len;
     var.stack_pos = stack_pos;
     var.args = args;
+    var.variadic_args = variadic_args;
     var.void_args = void_args;
     var.has_been_defined = has_been_defined;
     var.is_func_arg = is_func_arg;

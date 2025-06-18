@@ -820,49 +820,15 @@ void VarDeclNode_get_array_lits(const struct VarDeclNode *self,
 
 }
 
-bool VarDeclPtrList_equivalent(const struct VarDeclPtrList *self,
-        const struct VarDeclPtrList *other) {
-
-    u32 i;
-
-    if (self->size != other->size)
-        return false;
-
-    for (i = 0; i < self->size; i++) {
-        u32 j;
-
-        for (j = 0; j < self->elems[i]->decls.size; j++) {
-
-            /* any pointer can be casted to a void pointer */
-            if (self->elems[i]->decls.elems[j].lvls_of_indir == 1 &&
-                    self->elems[i]->type == PrimType_VOID &&
-                    other->elems[i]->decls.elems[j].lvls_of_indir >= 1)
-                continue;
-
-            if (self->elems[i]->decls.elems[j].lvls_of_indir !=
-                    other->elems[i]->decls.elems[j].lvls_of_indir)
-                return false;
-
-            if (PrimitiveType_promote(self->elems[i]->type,
-                        self->elems[i]->decls.elems[j].lvls_of_indir) !=
-                    PrimitiveType_promote(other->elems[i]->type,
-                        other->elems[i]->decls.elems[j].lvls_of_indir)) {
-                return false;
-            }
-
-        }
-    }
-
-    return true;
-
-}
-
 bool VarDeclPtrList_equivalent_expr(const struct VarDeclPtrList *self,
-        const struct ExprPtrList *other, const struct ParVarList *vars) {
+        const struct ExprPtrList *other, const struct ParVarList *vars,
+        bool self_is_variadic) {
 
     u32 i;
 
-    if (self->size != other->size)
+    if (self_is_variadic && other->size < self->size)
+        return false;
+    else if (!self_is_variadic && self->size != other->size)
         return false;
 
     for (i = 0; i < self->size; i++) {
@@ -899,6 +865,7 @@ struct FuncDeclNode FuncDeclNode_init(void) {
 
     struct FuncDeclNode func_decl;
     func_decl.args = VarDeclPtrList_init();
+    func_decl.variadic_args = false;
     func_decl.void_args = false;
     func_decl.ret_lvls_of_indir = 0;
     func_decl.ret_type = PrimType_INVALID;
@@ -909,11 +876,12 @@ struct FuncDeclNode FuncDeclNode_init(void) {
 }
 
 struct FuncDeclNode FuncDeclNode_create(struct VarDeclPtrList args,
-        bool void_args, unsigned ret_lvls_of_indir,
+        bool variadic_args, bool void_args, unsigned ret_lvls_of_indir,
         enum PrimitiveType ret_type, struct BlockNode *body, char *name) {
 
     struct FuncDeclNode func_decl;
     func_decl.args = args;
+    func_decl.variadic_args = variadic_args;
     func_decl.void_args = void_args;
     func_decl.ret_lvls_of_indir = ret_lvls_of_indir;
     func_decl.ret_type = ret_type;

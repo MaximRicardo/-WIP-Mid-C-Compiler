@@ -74,6 +74,8 @@ enum TokenType {
     TokenType_FOR_STMT,
     TokenType_TYPEDEF,
 
+    TokenType_VARIADIC,
+
     TokenType_DEBUG_PRINT_RAX
 
 };
