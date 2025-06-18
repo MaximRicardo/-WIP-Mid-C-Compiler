@@ -25,7 +25,6 @@ Thus far the compiler has:
     type casts
 
 Next thing I'ma implement:
-    variable shadowing
     static functions
     global variables
 

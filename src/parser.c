@@ -168,7 +168,7 @@ static struct Expr* var_decl_value(const struct Lexer *lexer, u32 ident_idx,
  */
 static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
         u32 v_decl_idx, u32 *end_idx, u32 bp, u32 *sp, bool is_func_param,
-        unsigned *n_func_param_bytes) {
+        unsigned *n_func_param_bytes, void *par_var_parent) {
 
     unsigned var_size;
 
@@ -313,12 +313,24 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
     var_decl->type = var_type;
     DeclList_push_back(&var_decl->decls, decl);
 
+    {
+        char *var_name = Token_src(&lexer->token_tbl.elems[ident_idx]);
+        u32 prev_decl_idx = ParVarList_find_var(&vars, var_name);
+        if (prev_decl_idx != m_u32_max &&
+                vars.elems[prev_decl_idx].parent == par_var_parent) {
+            fprintf(stderr, "variable '%s' redeclared on line %u.\n", var_name,
+                    lexer->token_tbl.elems[v_decl_idx].line_num);
+            Parser_error_occurred = true;
+        }
+        m_free(var_name);
+    }
+
     ParVarList_push_back(&vars, ParserVar_create(
                 lexer->token_tbl.elems[v_decl_idx].line_num,
                 lexer->token_tbl.elems[v_decl_idx].column_num,
                 Token_src(&lexer->token_tbl.elems[ident_idx]), n_lvls_of_indir,
                 var_type, is_array, array_len, decl.bp_offset+bp, NULL, false,
-                false));
+                false, is_func_param, par_var_parent));
     if (!is_func_param)
         *sp -= var_size;
     else
@@ -385,7 +397,8 @@ static bool is_unnamed_void_var(const struct Lexer *lexer, u32 type_spec_idx) {
 
 /* returns the right parenthesis of after the function arguments */
 static u32 parse_func_args(const struct Lexer *lexer, u32 arg_decl_start_idx,
-        struct VarDeclPtrList *args, bool *void_args, u32 bp) {
+        struct VarDeclPtrList *args, bool *void_args, u32 bp,
+        struct FuncDeclNode *func_node) {
 
     u32 arg_decl_idx = arg_decl_start_idx;
     u32 arg_decl_end_idx = arg_decl_idx;
@@ -433,7 +446,7 @@ static u32 parse_func_args(const struct Lexer *lexer, u32 arg_decl_start_idx,
         }
 
         arg = parse_var_decl(lexer, arg_decl_idx, &arg_decl_end_idx, bp, NULL,
-                true, &n_func_param_bytes);
+                true, &n_func_param_bytes, func_node);
 
         if (arg) {
             VarDeclPtrList_push_back(args, arg);
@@ -497,11 +510,12 @@ static void parse_func_decl(const struct Lexer *lexer, struct BlockNode *block,
                     lexer->token_tbl.elems[f_decl_idx].column_num,
                     Token_src(&lexer->token_tbl.elems[f_ident_idx]),
                     func_lvls_of_indir, func_type, false, 0, 0, &func->args,
-                    void_args, false));
+                    void_args, false, false, block));
         ++old_vars_size;
     }
 
-    args_end_idx = parse_func_args(lexer, f_ident_idx+2, &args, &void_args, bp);
+    args_end_idx = parse_func_args(lexer, f_ident_idx+2, &args, &void_args,
+            bp, func);
     vars.elems[old_vars_size-1].void_args = void_args;
 
     if (args_end_idx == m_u32_max) {
@@ -1074,7 +1088,7 @@ static struct BlockNode* parse(const struct Lexer *lexer,
                     TokenType_L_PAREN) {
                 u32 old_sp = sp;
                 struct VarDeclNode *var_decl = parse_var_decl(lexer,
-                        start_idx, &prev_end_idx, bp, &sp, false, NULL);
+                        start_idx, &prev_end_idx, bp, &sp, false, NULL, block);
                 ASTNodeList_push_back(&block->nodes,
                         ASTNode_create(
                             lexer->token_tbl.elems[start_idx].line_num,
