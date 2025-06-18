@@ -1055,6 +1055,9 @@ static struct BlockNode* parse(const struct Lexer *lexer,
     u32 old_vars_size = vars.size;
     u32 old_typedefs_size = typedefs.size;
 
+    /* var declarations are only allowed at the top of the scope */
+    bool can_decl_vars = true;
+
     u32 prev_end_idx = block_start_idx-1;
     struct BlockNode *block = safe_malloc(sizeof(*block));
     *block = BlockNode_init();
@@ -1066,6 +1069,7 @@ static struct BlockNode* parse(const struct Lexer *lexer,
 
         u32 start_idx = prev_end_idx+1;
         char *token_src = NULL;
+        bool declared_var = false;
 
         ++n_instrs_parsed;
         if (n_instr_to_parse > 0 && n_instrs_parsed == n_instr_to_parse) {
@@ -1100,11 +1104,22 @@ static struct BlockNode* parse(const struct Lexer *lexer,
             unsigned ident_idx = read_type_spec(&lexer->token_tbl, start_idx,
                     NULL, NULL, &typedefs, &Parser_error_occurred);
 
+            /* should probably move this into it's own function at some
+             * point */
             if (ident_idx+1 >= lexer->token_tbl.size ||
                     lexer->token_tbl.elems[ident_idx+1].type !=
                     TokenType_L_PAREN) {
                 u32 old_sp = sp;
-                struct VarDeclNode *var_decl = parse_var_decl(lexer,
+                struct VarDeclNode *var_decl = NULL;
+
+                if (!can_decl_vars) {
+                    fprintf(stderr, "mixing declarations and code is a C99"
+                            " extension. line %u.\n",
+                            lexer->token_tbl.elems[start_idx].line_num);
+                    Parser_error_occurred = true;
+                }
+
+                var_decl = parse_var_decl(lexer,
                         start_idx, &prev_end_idx, bp, &sp, false, NULL, block);
                 ASTNodeList_push_back(&block->nodes,
                         ASTNode_create(
@@ -1112,6 +1127,7 @@ static struct BlockNode* parse(const struct Lexer *lexer,
                             lexer->token_tbl.elems[start_idx].column_num,
                             ASTType_VAR_DECL, var_decl));
                 block->var_bytes = block->var_bytes + old_sp-sp;
+                declared_var = true;
             }
             else if (lexer->token_tbl.elems[ident_idx+1].type ==
                     TokenType_L_PAREN) {
@@ -1174,6 +1190,12 @@ static struct BlockNode* parse(const struct Lexer *lexer,
         }
 
         free(token_src);
+
+        /* check if there is a parent function cuz global variables can be
+         * declared anywhere */
+        if (!declared_var && parent_func) {
+            can_decl_vars = false;
+        }
 
     }
 
