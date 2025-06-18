@@ -790,6 +790,10 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
         }
 
     }
+    else if (expr->expr_type == ExprType_TYPECAST) {
+        /* doesn't actually do anything from the machine's perspective.
+         * unless i ever add floats */
+    }
     else {
         struct Instruction instr = Instruction_init();
         bool is_ptr_int_operation =

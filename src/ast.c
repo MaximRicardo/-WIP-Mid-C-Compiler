@@ -142,7 +142,8 @@ bool ExprType_is_valid_single_ptr_operation(enum ExprType type) {
 
 bool ExprType_is_valid_unary_ptr_operation(enum ExprType type) {
 
-    return type == ExprType_REFERENCE || type == ExprType_DEREFERENCE;
+    return type == ExprType_REFERENCE || type == ExprType_DEREFERENCE ||
+        type == ExprType_TYPECAST;
 
 }
 
@@ -246,7 +247,9 @@ void Expr_recur_free_w_self(struct Expr *self) {
 
 unsigned Expr_lvls_of_indir(struct Expr *self, const struct ParVarList *vars) {
 
-    if (self->expr_type == ExprType_FUNC_CALL) {
+    if (self->expr_type == ExprType_TYPECAST) {
+    }
+    else if (self->expr_type == ExprType_FUNC_CALL) {
         char *expr_src = Expr_src(self);
 
         u32 var_idx = ParVarList_find_var(vars, expr_src);
@@ -283,7 +286,9 @@ unsigned Expr_lvls_of_indir(struct Expr *self, const struct ParVarList *vars) {
 enum PrimitiveType Expr_type(struct Expr *self,
         const struct ParVarList *vars) {
 
-    if (self->rhs) {
+    if (self->expr_type == ExprType_TYPECAST) {
+    }
+    else if (self->rhs) {
         enum PrimitiveType lhs_prom = PrimitiveType_promote(self->lhs_type,
                 self->lhs_lvls_of_indir);
         enum PrimitiveType rhs_prom = PrimitiveType_promote(self->rhs_type,
@@ -317,7 +322,10 @@ enum PrimitiveType Expr_type(struct Expr *self,
 
         m_free(expr_src);
 
-        self->prim_type = PrimitiveType_promote(type, lvls_of_indir);
+        if (type == PrimType_VOID)
+            self->prim_type = PrimType_VOID;
+        else
+            self->prim_type = PrimitiveType_promote(type, lvls_of_indir);
     }
     else if (self->expr_type == ExprType_ARRAY_LIT) {
         /* assume the array is a string */
@@ -335,7 +343,9 @@ enum PrimitiveType Expr_type(struct Expr *self,
 enum PrimitiveType Expr_type_no_prom(struct Expr *self,
         const struct ParVarList *vars) {
 
-    if (self->expr_type == ExprType_FUNC_CALL) {
+    if (self->expr_type == ExprType_TYPECAST) {
+    }
+    else if (self->expr_type == ExprType_FUNC_CALL) {
         char *expr_src = Expr_src(self);
 
         u32 var_idx = ParVarList_find_var(vars, expr_src);
@@ -595,6 +605,9 @@ enum ExprType tok_t_to_expr_t(enum TokenType type) {
     case TokenType_POSTFIX_DEC:
         return ExprType_POSTFIX_DEC;
 
+    case TokenType_TYPECAST:
+        return ExprType_TYPECAST;
+
     case TokenType_FUNC_CALL:
         return ExprType_FUNC_CALL;
 
@@ -701,6 +714,9 @@ enum TokenType expr_t_to_tok_t(enum ExprType type) {
 
     case ExprType_POSTFIX_DEC:
         return TokenType_POSTFIX_DEC;
+
+    case ExprType_TYPECAST:
+        return TokenType_TYPECAST;
 
     case ExprType_FUNC_CALL:
         return TokenType_FUNC_CALL;

@@ -22,9 +22,9 @@ Thus far the compiler has:
     while loops
     for loops
     typedefs
+    type casts
 
 Next thing I'ma implement:
-    type casts
     variable shadowing
 
     Also, the compiler has a custom debugging keyword ':', which prints the

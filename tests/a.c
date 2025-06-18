@@ -12,7 +12,6 @@ int main(int argc, char **argv) {
 
     char *end_ptr;
     i32 n;
-    string str = "fibonacci nr. %d is: %d\n";
 
     if (argc < 2) {
         printf("give an argument containing which fibonacci number to get.\n");
@@ -20,7 +19,7 @@ int main(int argc, char **argv) {
     }
 
     n = strtol(argv[1], &end_ptr, 0);
-    printf(str, n, fibonacci(n));
+    printf("fibonacci nr. %d is: %d\n", n, fibonacci(n));
 
 }
 

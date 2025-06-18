@@ -106,6 +106,7 @@ enum ExprType {
     ExprType_PREFIX_DEC,
     ExprType_POSTFIX_INC,
     ExprType_POSTFIX_DEC,
+    ExprType_TYPECAST,
 
     /* parentheses are only used in the shunting yard algorithm */
     ExprType_PAREN,
