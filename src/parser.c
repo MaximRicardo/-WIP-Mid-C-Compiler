@@ -256,7 +256,7 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
     else if (!is_array)
         var_size = PrimitiveType_size(var_type, n_lvls_of_indir);
     if (is_func_param)
-        var_size = round_up(var_size, m_TypeSize_stack_min_alignment);
+        var_size = round_up(var_size, m_TypeSize_stack_arg_min_size);
     /* var size not defined yet if this variable is an array that hasn't been
      * given a length */
 

@@ -10,6 +10,9 @@
 #define m_TypeSize_ptr 4
 
 /* in bytes */
+#define m_TypeSize_stack_arg_min_size 4
+
+/* in bytes */
 #define m_TypeSize_stack_min_alignment 4
 
 /* how many bytes it takes to make a new stack frame */
