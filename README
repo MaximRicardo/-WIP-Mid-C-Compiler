@@ -26,6 +26,8 @@ Thus far the compiler has:
 
 Next thing I'ma implement:
     variable shadowing
+    static functions
+    global variables
 
     Also, the compiler has a custom debugging keyword ':', which prints the
 value currently stored in EAX.
