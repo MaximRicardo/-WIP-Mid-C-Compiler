@@ -25,6 +25,7 @@ Thus far the compiler has:
     type casts
 
 Next thing I'ma implement:
+    const keyword
     static functions
     global variables
 
