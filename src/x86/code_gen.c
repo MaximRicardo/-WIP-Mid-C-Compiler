@@ -89,6 +89,7 @@ const char *instr_type_to_asm[] = {
     "LABEL INSTRUCTION",
 
     "extern",
+    "global",
 };
 
 /* used in stuff like pushing an immediate */
@@ -412,7 +413,8 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
         fprintf(output, "%s:\n", instr->string);
     }
 
-    else if (instr->type == InstrType_EXTERN) {
+    else if (instr->type == InstrType_EXTERN ||
+            instr->type == InstrType_GLOBAL) {
         assert(instr->string);
         fprintf(output, "%s %s\n", instr_type_to_asm[instr->type],
                 instr->string);

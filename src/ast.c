@@ -6,6 +6,7 @@
 #include "prim_type.h"
 #include "safe_mem.h"
 #include "token.h"
+#include "type_mods.h"
 #include "vector_impl.h"
 #include "macros.h"
 #include <assert.h>
@@ -800,16 +801,18 @@ struct VarDeclNode VarDeclNode_init(void) {
     struct VarDeclNode node;
     node.decls = DeclList_init();
     node.type = PrimType_INVALID;
+    node.mods = TypeModifiers_init();
     return node;
 
 }
 
 struct VarDeclNode VarDeclNode_create(struct DeclList decls,
-        enum PrimitiveType type) {
+        enum PrimitiveType type, struct TypeModifiers mods) {
 
     struct VarDeclNode node;
     node.decls = decls;
     node.type = type;
+    node.mods = mods;
     return node;
 
 }
@@ -882,6 +885,7 @@ struct FuncDeclNode FuncDeclNode_init(void) {
     func_decl.variadic_args = false;
     func_decl.void_args = false;
     func_decl.ret_lvls_of_indir = 0;
+    func_decl.ret_type_mods = TypeModifiers_init();
     func_decl.ret_type = PrimType_INVALID;
     func_decl.body = NULL;
     func_decl.name = NULL;
@@ -891,6 +895,7 @@ struct FuncDeclNode FuncDeclNode_init(void) {
 
 struct FuncDeclNode FuncDeclNode_create(struct VarDeclPtrList args,
         bool variadic_args, bool void_args, unsigned ret_lvls_of_indir,
+        struct TypeModifiers ret_type_mods,
         enum PrimitiveType ret_type, struct BlockNode *body, char *name) {
 
     struct FuncDeclNode func_decl;
@@ -898,6 +903,7 @@ struct FuncDeclNode FuncDeclNode_create(struct VarDeclPtrList args,
     func_decl.variadic_args = variadic_args;
     func_decl.void_args = void_args;
     func_decl.ret_lvls_of_indir = ret_lvls_of_indir;
+    func_decl.ret_type_mods = ret_type_mods;
     func_decl.ret_type = ret_type;
     func_decl.body = body;
     func_decl.name = name;
@@ -924,6 +930,35 @@ void FuncDeclNode_get_array_lits(const struct FuncDeclNode *self,
 
     if (self->body)
         BlockNode_get_array_lits(self->body, list);
+
+}
+
+bool FuncDeclNode_defined(const struct FuncDeclNode *self,
+        const struct BlockNode *transl_unit) {
+
+    u32 i;
+
+    if (self->body)
+        return true;
+
+    for (i = 0; i < transl_unit->nodes.size; i++) {
+
+        const struct FuncDeclNode *func = NULL;
+
+        if (transl_unit->nodes.elems[i].type != ASTType_FUNC)
+            continue;
+
+        func = transl_unit->nodes.elems[i].node_struct;
+
+        if (!func->body)
+            continue;
+
+        if (strcmp(self->name, func->name) == 0)
+            return true;
+
+    }
+
+    return false;
 
 }
 

@@ -2,6 +2,7 @@
 
 #include "comp_dependent/ints.h"
 #include "token.h"
+#include "type_mods.h"
 #include "vector_impl.h"
 #include "prim_type.h"
 #include "parser_var.h"
@@ -261,12 +262,13 @@ struct VarDeclNode {
 
     struct DeclList decls;
     enum PrimitiveType type;
+    struct TypeModifiers mods;
 
 };
 
 struct VarDeclNode VarDeclNode_init(void);
 struct VarDeclNode VarDeclNode_create(struct DeclList decls,
-        enum PrimitiveType type);
+        enum PrimitiveType type, struct TypeModifiers mods);
 void VarDeclNode_free_w_self(struct VarDeclNode *self);
 void VarDeclNode_get_array_lits(const struct VarDeclNode *self,
         struct ArrayLitList *list);
@@ -290,6 +292,7 @@ struct FuncDeclNode {
     bool variadic_args;
     bool void_args;
     unsigned ret_lvls_of_indir;
+    struct TypeModifiers ret_type_mods;
     enum PrimitiveType ret_type;
     struct BlockNode *body;
     char *name;
@@ -299,10 +302,13 @@ struct FuncDeclNode {
 struct FuncDeclNode FuncDeclNode_init(void);
 struct FuncDeclNode FuncDeclNode_create(struct VarDeclPtrList args,
         bool variadic_args, bool void_args, unsigned ret_lvls_of_indir,
+        struct TypeModifiers ret_type_mods,
         enum PrimitiveType ret_type, struct BlockNode *body, char *name);
 void FuncDeclNode_free_w_self(struct FuncDeclNode *self);
 void FuncDeclNode_get_array_lits(const struct FuncDeclNode *self,
         struct ArrayLitList *list);
+bool FuncDeclNode_defined(const struct FuncDeclNode *self,
+        const struct BlockNode *transl_unit);
 
 struct RetNode {
 

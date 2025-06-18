@@ -72,6 +72,7 @@ enum InstrType {
     InstrType_LABEL,
 
     InstrType_EXTERN,
+    InstrType_GLOBAL,
 
     InstrType_DEBUG_EAX
 

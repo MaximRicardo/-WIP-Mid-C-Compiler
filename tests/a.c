@@ -3,7 +3,7 @@ typedef uint u32;
 int strtol(char *str, char **end, int base);
 int printf(char *str, ...);
 
-u32 fibonacci(u32 n);
+static u32 fibonacci(u32 n);
 
 int main(int argc, char **argv) {
 
@@ -20,7 +20,7 @@ int main(int argc, char **argv) {
 
 }
 
-u32 fibonacci(u32 n) {
+static u32 fibonacci(u32 n) {
 
     u32 a = 0;
     u32 b = 1;

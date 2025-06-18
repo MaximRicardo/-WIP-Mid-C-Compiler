@@ -9,6 +9,7 @@
 #include "safe_mem.h"
 #include "token.h"
 #include "macros.h"
+#include "type_mods.h"
 #include "typedef.h"
 #include "type_spec.h"
 #include <assert.h>
@@ -371,8 +372,17 @@ static void read_type_cast(const struct TokenList *token_tbl,
 
     enum PrimitiveType type;
     unsigned lvls_of_indir;
-    *end_idx = read_type_spec(token_tbl, type_idx, &type, &lvls_of_indir,
+    struct TypeModifiers mods;
+    *end_idx = TypeSpec_read(token_tbl, type_idx,
+            &type, &lvls_of_indir, &mods,
             typedefs, &SY_error_occurred);
+
+    if (mods.is_static) {
+        fprintf(stderr, "storage specifier in type cast. line %u, column %u.",
+                token_tbl->elems[type_idx].line_num,
+                token_tbl->elems[type_idx].column_num);
+        SY_error_occurred = true;
+    }
 
     expr = safe_malloc(sizeof(*expr));
     *expr = Expr_create_w_tok(token_tbl->elems[l_paren_idx], NULL, NULL, 0, 0,

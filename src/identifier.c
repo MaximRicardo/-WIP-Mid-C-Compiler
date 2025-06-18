@@ -1,5 +1,7 @@
 #include "identifier.h"
 #include "prim_type.h"
+#include "token.h"
+#include "type_mods.h"
 #include <string.h>
 
 enum PrimitiveType Ident_type_spec(const char *ident,
@@ -40,7 +42,7 @@ enum PrimitiveType Ident_type_spec(const char *ident,
 
 }
 
-enum PrimitiveType Ident_type_lvls_of_indir(const char *ident,
+u32 Ident_type_lvls_of_indir(const char *ident,
         const struct TypedefList *typedefs) {
 
     u32 i;
@@ -51,5 +53,28 @@ enum PrimitiveType Ident_type_lvls_of_indir(const char *ident,
     }
 
     return 0;
+
+}
+
+struct TypeModifiers Ident_type_modifiers(const char *ident,
+        const struct TypedefList *typedefs) {
+
+    u32 i;
+
+    for (i = 0; i < typedefs->size; i++) {
+        if (strcmp(ident, typedefs->elems[i].type_name) == 0)
+            return typedefs->elems[i].conv_mods;
+    }
+
+    return TypeModifiers_init();
+
+}
+
+enum TokenType Ident_modifier_str_to_tok(const char *ident) {
+
+    if (strcmp(ident, "static") == 0)
+        return TokenType_STATIC;
+    else
+        return TokenType_NONE;
 
 }

@@ -989,15 +989,27 @@ static void destroy_stack_frame(struct InstrList *instrs) {
 }
 
 static void get_func_decl_instructions(struct InstrList *instrs,
-        const struct FuncDeclNode *func) {
+        const struct FuncDeclNode *func, const struct BlockNode *transl_unit) {
 
     char *label = NULL;
 
     if (!func->body) {
+        if (!func->ret_type_mods.is_static &&
+                !FuncDeclNode_defined(func, transl_unit)) {
+            /* only non-static funcs have external linking, and if they func's
+             * never defined within this translation unit, it's defined
+             * externally */
+            char *copy = safe_malloc((strlen(func->name)+1)*sizeof(*copy));
+            strcpy(copy, func->name);
+            instr_string(instrs, InstrType_EXTERN, copy);
+        }
+        return;
+    }
+    else if (!func->ret_type_mods.is_static) {
+        /* only non-static funcs have external linking */
         char *copy = safe_malloc((strlen(func->name)+1)*sizeof(*copy));
         strcpy(copy, func->name);
-        instr_string(instrs, InstrType_EXTERN, copy);
-        return;
+        instr_string(instrs, InstrType_GLOBAL, copy);
     }
 
     label = safe_malloc((strlen(func->name)+1)*sizeof(*label));
@@ -1215,7 +1227,7 @@ static void get_block_instructions(struct InstrList *instrs,
         else if (block->nodes.elems[i].type == ASTType_VAR_DECL)
             get_var_decl_instructions(instrs, node_struct);
         else if (block->nodes.elems[i].type == ASTType_FUNC)
-            get_func_decl_instructions(instrs, node_struct);
+            get_func_decl_instructions(instrs, node_struct, block);
         else if (block->nodes.elems[i].type == ASTType_BLOCK) {
             create_stack_frame(instrs,
                     ((const struct BlockNode*)node_struct)->var_bytes);

@@ -73,6 +73,7 @@ enum TokenType {
     TokenType_WHILE_STMT,
     TokenType_FOR_STMT,
     TokenType_TYPEDEF,
+    TokenType_STATIC,
 
     TokenType_VARIADIC,
 

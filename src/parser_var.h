@@ -3,6 +3,7 @@
 #include "bool.h"
 #include "prim_type.h"
 #include "comp_dependent/ints.h"
+#include "type_mods.h"
 #include "vector_impl.h"
 
 struct ParserVar {
@@ -10,6 +11,7 @@ struct ParserVar {
     unsigned line_num, column_num;
     char *name;
     unsigned lvls_of_indir;
+    struct TypeModifiers mods;
     enum PrimitiveType type;
     bool is_array;
     u32 array_len;
@@ -30,7 +32,8 @@ struct ParserVar {
 
 struct ParserVar ParserVar_init(void);
 struct ParserVar ParserVar_create(unsigned line_num, unsigned column_num,
-        char *name, unsigned lvls_of_indir, enum PrimitiveType type,
+        char *name, unsigned lvls_of_indir, struct TypeModifiers mods,
+        enum PrimitiveType type,
         bool is_array, u32 array_len, u32 stack_pos,
         struct VarDeclPtrList *args, bool variadic_args, bool void_args,
         bool has_been_defined, bool is_func_arg, void *parent);
