@@ -31,9 +31,10 @@ static char *read_file(char *file_path) {
 
 }
 
-void compile(char *src, FILE *output, bool *error_occurred) {
+void compile(char *src, const char *src_f_path, FILE *output,
+        bool *error_occurred) {
 
-    struct Lexer lexer = Lexer_lex(src);
+    struct Lexer lexer = Lexer_lex(src, src_f_path);
 
     *error_occurred = false;
 
@@ -104,7 +105,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    compile(src, output, &error_occurred);
+    compile(src, argv[1], output, &error_occurred);
 
     m_free(src);
     if (output)

@@ -95,6 +95,9 @@ struct Token {
     const char *src_start;
     unsigned src_len;
 
+    /* the file the token is in */
+    const char *file_path;
+
     enum TokenType type;
     union TokenValue value;
 
@@ -110,10 +113,11 @@ struct TokenList {
 
 /* Memsets value to all 0s */
 struct Token Token_create(unsigned line_num, unsigned column_num,
-        const char *src_start, unsigned src_len, enum TokenType type);
+        const char *src_start, unsigned src_len, const char *file_path,
+        enum TokenType type);
 struct Token Token_create_w_val(unsigned line_num, unsigned column_num,
-        const char *src_start, unsigned src_len, enum TokenType type,
-        union TokenValue value);
+        const char *src_start, unsigned src_len, const char *file_path,
+        enum TokenType type, union TokenValue value);
 void Token_free(struct Token token);
 
 bool Token_is_unary_operator(enum TokenType type);

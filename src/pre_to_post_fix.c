@@ -1,7 +1,6 @@
 #include "pre_to_post_fix.h"
 #include "token.h"
 #include <assert.h>
-#include <stdio.h>
 
 static bool convertable(enum TokenType type) {
 

@@ -155,6 +155,9 @@ struct Expr {
      * token */
     const char *src_start; unsigned src_len;
 
+    /* the file the expr is in */
+    const char *file_path;
+
     struct Expr *lhs, *rhs;
     unsigned lhs_lvls_of_indir, rhs_lvls_of_indir;
     enum PrimitiveType lhs_type, rhs_type;
@@ -184,8 +187,8 @@ struct Expr {
 struct Expr Expr_init(void);
 /* automatically promotes the lhs and rhs types */
 struct Expr Expr_create(unsigned line_num, unsigned column_num,
-        const char *src_start, unsigned src_len, struct Expr *lhs,
-        struct Expr *rhs, unsigned lhs_lvls_of_indir,
+        const char *src_start, unsigned src_len, const char *file_path,
+        struct Expr *lhs, struct Expr *rhs, unsigned lhs_lvls_of_indir,
         unsigned rhs_lvls_of_indir, enum PrimitiveType lhs_type, 
         enum PrimitiveType rhs_type,
         struct ExprPtrList args, u32 int_value, struct ArrayLit array_value,

@@ -5,13 +5,15 @@
 #include <string.h>
 
 struct Token Token_create(unsigned line_num, unsigned column_num,
-        const char *src_start, unsigned src_len, enum TokenType type) {
+        const char *src_start, unsigned src_len, const char *file_path,
+        enum TokenType type) {
 
     struct Token token;
     token.line_num = line_num;
     token.column_num = column_num;
     token.src_start = src_start;
     token.src_len = src_len;
+    token.file_path = file_path;
     token.type = type;
     memset(&token.value, 0, sizeof(token.value));
     return token;
@@ -19,11 +21,11 @@ struct Token Token_create(unsigned line_num, unsigned column_num,
 }
 
 struct Token Token_create_w_val(unsigned line_num, unsigned column_num,
-        const char *src_start, unsigned src_len, enum TokenType type,
-        union TokenValue value) {
+        const char *src_start, unsigned src_len, const char *file_path,
+        enum TokenType type, union TokenValue value) {
 
     struct Token token = Token_create(line_num, column_num, src_start, src_len,
-            type);
+            file_path, type);
     token.value = value;
     return token;
 

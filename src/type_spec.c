@@ -1,4 +1,6 @@
 #include "type_spec.h"
+#include "ast.h"
+#include "err_msg.h"
 #include "identifier.h"
 #include "safe_mem.h"
 #include "token.h"
@@ -66,11 +68,11 @@ u32 TypeSpec_read(const struct TokenList *token_tbl, u32 type_spec_idx,
     }
 
     if (spec_type == PrimType_INVALID) {
-        fprintf(stderr, "unknown type '%s' on line %u, column %u.\n",
+        ErrMsg_print(ErrMsg_on, error_occurred,
+                token_tbl->elems[type_spec_idx].file_path,
+                "unknown type '%s' on line %u, column %u.\n",
                 type_name, token_tbl->elems[type_spec_idx].line_num,
                 token_tbl->elems[type_spec_idx].column_num);
-        if (error_occurred)
-            *error_occurred = true;
     }
     else {
         spec_lvls_of_indir += n_asterisks;

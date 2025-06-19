@@ -1,4 +1,5 @@
 #include "lexer.h"
+#include "err_msg.h"
 #include "safe_mem.h"
 #include "token.h"
 #include <assert.h>
@@ -83,7 +84,7 @@ static enum TokenType identifier_keyword(const char *ident_start,
 }
 
 static int escape_code_to_int(char code, unsigned line_num,
-        unsigned column_num) {
+        unsigned column_num, const char *file_path) {
 
     switch (code) {
 
@@ -124,9 +125,9 @@ static int escape_code_to_int(char code, unsigned line_num,
         return '\0';
 
     default:
-        fprintf(stderr, "invalid escape sequence on line %u, column %u.\n",
+        ErrMsg_print(ErrMsg_on, &Lexer_error_occurred, file_path,
+                "invalid escape sequence on line %u, column %u.\n",
                 line_num, column_num);
-        Lexer_error_occurred = true;
         return 0;
 
     }
@@ -135,18 +136,21 @@ static int escape_code_to_int(char code, unsigned line_num,
 
 /* end_idx points to the closing single quote */
 static int read_single_quote_str(const char *src, u32 single_qt_idx,
-        u32 *end_idx, unsigned line_num, unsigned column_num) {
+        u32 *end_idx, unsigned line_num, unsigned column_num,
+        const char *file_path) {
 
     int value;
 
     assert(src[single_qt_idx] == '\'');
 
     if (src[single_qt_idx+1] == '\\') {
-        value = escape_code_to_int(src[single_qt_idx+2], line_num, column_num);
+        value = escape_code_to_int(src[single_qt_idx+2], line_num, column_num,
+                file_path);
         *end_idx = single_qt_idx+3;
     }
     else if (src[single_qt_idx+1] == '\n') {
-        fprintf(stderr, "missing terminating single quote for the one on line"
+        ErrMsg_print(ErrMsg_on, &Lexer_error_occurred, file_path,
+                "missing terminating single quote for the one on line"
                 " %u, column %u.\n", line_num, column_num);
         *end_idx = single_qt_idx;
         value = 0;
@@ -162,7 +166,8 @@ static int read_single_quote_str(const char *src, u32 single_qt_idx,
 
 /* returns the index of the closing double quote */
 static int read_string(const char *src, u32 str_start, unsigned line_num,
-        unsigned column_num, struct TokenList *token_tbl) {
+        unsigned column_num, struct TokenList *token_tbl,
+        const char *file_path) {
 
     union TokenValue value;
 
@@ -186,7 +191,7 @@ static int read_string(const char *src, u32 str_start, unsigned line_num,
 
         if (src[src_i-1] == '\\') {
             string[string_len-1] = escape_code_to_int(src[src_i], line_num,
-                    cur_column_num);
+                    cur_column_num, file_path);
             ++src_i;
         }
         else
@@ -200,10 +205,12 @@ static int read_string(const char *src, u32 str_start, unsigned line_num,
 
     value.string = string;
     TokenList_push_back(token_tbl, Token_create_w_val(line_num, column_num,
-                &src[str_start+1], src_i-str_start, TokenType_STR_LIT, value));
+                &src[str_start+1], src_i-str_start, file_path,
+                TokenType_STR_LIT, value));
 
     if (src[src_i] == '\0' || src[src_i] == '\n') {
-        fprintf(stderr, "expected a closing '\"' for the string on line %u,"
+        ErrMsg_print(ErrMsg_on, &Lexer_error_occurred, file_path,
+                "expected a closing '\"' for the string on line %u,"
                 " column %u.\n", line_num, column_num);
         Lexer_error_occurred = true;
         --src_i;
@@ -213,7 +220,7 @@ static int read_string(const char *src, u32 str_start, unsigned line_num,
 
 }
 
-struct Lexer Lexer_lex(const char *src) {
+struct Lexer Lexer_lex(const char *src, const char *file_path) {
 
     struct TokenList token_tbl = TokenList_init();
     u32 src_len = strlen(src);
@@ -251,120 +258,120 @@ struct Lexer Lexer_lex(const char *src) {
         else if (src_i+2 < src_len && src[src_i] == '.' &&
                 src[src_i+1] == '.' && src[src_i+2] == '.') {
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 2, TokenType_VARIADIC));
+                        &src[src_i], 2, file_path, TokenType_VARIADIC));
             src_i += 2;
             column_num += 2;
         }
 
         else if (src[src_i] == '|' && src[src_i+1] == '|') {
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 2, TokenType_BOOLEAN_OR));
+                        &src[src_i], 2, file_path, TokenType_BOOLEAN_OR));
             ++src_i;
             ++column_num;
         }
         else if (src[src_i] == '&' && src[src_i+1] == '&') {
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 2, TokenType_BOOLEAN_AND));
+                        &src[src_i], 2, file_path, TokenType_BOOLEAN_AND));
             ++src_i;
             ++column_num;
         }
         else if (src[src_i] == '=' && src[src_i+1] == '=') {
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 2, TokenType_EQUAL_TO));
+                        &src[src_i], 2, file_path, TokenType_EQUAL_TO));
             ++src_i;
             ++column_num;
         }
         else if (src[src_i] == '!' && src[src_i+1] == '=') {
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 2, TokenType_NOT_EQUAL_TO));
+                        &src[src_i], 2, file_path, TokenType_NOT_EQUAL_TO));
             ++src_i;
             ++column_num;
         }
         else if (src[src_i] == '<' && src[src_i+1] == '=') {
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 2, TokenType_L_THAN_OR_E));
+                        &src[src_i], 2, file_path, TokenType_L_THAN_OR_E));
             ++src_i;
             ++column_num;
         }
         else if (src[src_i] == '>' && src[src_i+1] == '=') {
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 2, TokenType_G_THAN_OR_E));
+                        &src[src_i], 2, file_path, TokenType_G_THAN_OR_E));
             ++src_i;
             ++column_num;
         }
         else if (src[src_i] == '+' && src[src_i+1] == '+') {
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 2, TokenType_PREFIX_INC));
+                        &src[src_i], 2, file_path, TokenType_PREFIX_INC));
             ++src_i;
             ++column_num;
         }
         else if (src[src_i] == '-' && src[src_i+1] == '-') {
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 2, TokenType_PREFIX_DEC));
+                        &src[src_i], 2, file_path, TokenType_PREFIX_DEC));
             ++src_i;
             ++column_num;
         }
 
         else if (src[src_i] == ';')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 1, TokenType_SEMICOLON));
+                        &src[src_i], 1, file_path, TokenType_SEMICOLON));
 
         else if (src[src_i] == '+')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 1, TokenType_PLUS));
+                        &src[src_i], 1, file_path, TokenType_PLUS));
         else if (src[src_i] == '-')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 1, TokenType_MINUS));
+                        &src[src_i], 1, file_path, TokenType_MINUS));
         else if (src[src_i] == '*')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 1, TokenType_MUL));
+                        &src[src_i], 1, file_path, TokenType_MUL));
         else if (src[src_i] == '/')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 1, TokenType_DIV));
+                        &src[src_i], 1, file_path, TokenType_DIV));
         else if (src[src_i] == '%')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 1, TokenType_MODULUS));
+                        &src[src_i], 1, file_path, TokenType_MODULUS));
         else if (src[src_i] == '=')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 1, TokenType_EQUAL));
+                        &src[src_i], 1, file_path, TokenType_EQUAL));
         else if (src[src_i] == ',')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 1, TokenType_COMMA));
+                        &src[src_i], 1, file_path, TokenType_COMMA));
         else if (src[src_i] == '[')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 1, TokenType_L_ARR_SUBSCR));
+                        &src[src_i], 1, file_path, TokenType_L_ARR_SUBSCR));
         else if (src[src_i] == '&')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 1, TokenType_BITWISE_AND));
+                        &src[src_i], 1, file_path, TokenType_BITWISE_AND));
         else if (src[src_i] == '<')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 1, TokenType_L_THAN));
+                        &src[src_i], 1, file_path, TokenType_L_THAN));
         else if (src[src_i] == '>')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 1, TokenType_G_THAN));
+                        &src[src_i], 1, file_path, TokenType_G_THAN));
 
         else if (src[src_i] == '~')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 1, TokenType_BITWISE_NOT));
+                        &src[src_i], 1, file_path, TokenType_BITWISE_NOT));
         else if (src[src_i] == '!')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 1, TokenType_BOOLEAN_NOT));
+                        &src[src_i], 1, file_path, TokenType_BOOLEAN_NOT));
 
         else if (src[src_i] == '(')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 1, TokenType_L_PAREN));
+                        &src[src_i], 1, file_path, TokenType_L_PAREN));
         else if (src[src_i] == ')')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 1, TokenType_R_PAREN));
+                        &src[src_i], 1, file_path, TokenType_R_PAREN));
         else if (src[src_i] == '{')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 1, TokenType_L_CURLY));
+                        &src[src_i], 1, file_path, TokenType_L_CURLY));
         else if (src[src_i] == '}')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 1, TokenType_R_CURLY));
+                        &src[src_i], 1, file_path, TokenType_R_CURLY));
         else if (src[src_i] == ']')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 1, TokenType_R_ARR_SUBSCR));
+                        &src[src_i], 1, file_path, TokenType_R_ARR_SUBSCR));
 
         else if (isdigit(src[src_i])) {
             /* An integer literal */
@@ -374,7 +381,7 @@ struct Lexer Lexer_lex(const char *src) {
             value.int_value = strtoul(&src[src_i], &end_ptr, 0);
             chars_moved = end_ptr-&src[src_i];
             TokenList_push_back(&token_tbl, Token_create_w_val(line_num,
-                        column_num, &src[src_i], chars_moved,
+                        column_num, &src[src_i], chars_moved, file_path,
                         TokenType_INT_LIT, value));
             src_i += chars_moved-1;
             column_num += chars_moved-1;
@@ -384,16 +391,16 @@ struct Lexer Lexer_lex(const char *src) {
             u32 end_idx;
             union TokenValue value;
             value.int_value = read_single_quote_str(src, src_i, &end_idx,
-                    line_num, column_num);
+                    line_num, column_num, file_path);
             TokenList_push_back(&token_tbl, Token_create_w_val(line_num,
-                        column_num, &src[src_i], end_idx-src_i+1,
+                        column_num, &src[src_i], end_idx-src_i+1, file_path,
                         TokenType_INT_LIT, value));
             column_num += end_idx-src_i;
             src_i = end_idx;
         }
         else if (src[src_i] == '\"') {
             u32 end_idx = read_string(src, src_i, line_num, column_num,
-                    &token_tbl);
+                    &token_tbl, file_path);
             column_num += end_idx-src_i;
             src_i = end_idx;
         }
@@ -404,12 +411,20 @@ struct Lexer Lexer_lex(const char *src) {
             enum TokenType keyword_type = identifier_keyword(&src[src_i], len);
 
             if (keyword_type != TokenType_NONE) {
-                TokenList_push_back(&token_tbl, Token_create(line_num,
-                            column_num, &src[src_i], len, keyword_type));
+                TokenList_push_back(&token_tbl,
+                        Token_create(
+                            line_num, column_num, &src[src_i], len, file_path,
+                            keyword_type
+                            )
+                        );
             }
             else {
-                TokenList_push_back(&token_tbl, Token_create(line_num,
-                            column_num, &src[src_i], len, TokenType_IDENT));
+                TokenList_push_back(&token_tbl,
+                        Token_create(
+                            line_num, column_num, &src[src_i], len, file_path,
+                            TokenType_IDENT
+                            )
+                        );
             }
             src_i += len-1;
             column_num += len-1;
@@ -417,11 +432,11 @@ struct Lexer Lexer_lex(const char *src) {
 
         else if (src[src_i] == ':')
             TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
-                        &src[src_i], 1, TokenType_DEBUG_PRINT_RAX));
+                        &src[src_i], 1, file_path, TokenType_DEBUG_PRINT_RAX));
 
         else {
-            Lexer_error_occurred = true;
-            fprintf(stderr, "unknown token '%c'. line %u, column %u.\n",
+            ErrMsg_print(ErrMsg_on, &Lexer_error_occurred, file_path,
+                    "unknown token '%c'. line %u, column %u.\n",
                     src[src_i], line_num, column_num);
         }
 

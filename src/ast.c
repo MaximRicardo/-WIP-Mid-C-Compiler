@@ -152,6 +152,7 @@ struct Expr Expr_init(void) {
     expr.column_num = 0;
     expr.src_start = NULL;
     expr.src_len = 0;
+    expr.file_path = NULL;
     expr.lhs = NULL;
     expr.rhs = NULL;
     expr.lhs_lvls_of_indir = 0;
@@ -175,8 +176,8 @@ struct Expr Expr_init(void) {
 }
 
 struct Expr Expr_create(unsigned line_num, unsigned column_num,
-        const char *src_start, unsigned src_len, struct Expr *lhs,
-        struct Expr *rhs, unsigned lhs_lvls_of_indir,
+        const char *src_start, unsigned src_len, const char *file_path,
+        struct Expr *lhs, struct Expr *rhs, unsigned lhs_lvls_of_indir,
         unsigned rhs_lvls_of_indir, enum PrimitiveType lhs_type,
         enum PrimitiveType rhs_type, struct ExprPtrList args, u32 int_value,
         struct ArrayLit array_value, i32 bp_offset, enum ExprType expr_type,
@@ -187,6 +188,7 @@ struct Expr Expr_create(unsigned line_num, unsigned column_num,
     expr.column_num = column_num;
     expr.src_start = src_start;
     expr.src_len = src_len;
+    expr.file_path = file_path;
     expr.lhs = lhs;
     expr.rhs = rhs;
     expr.lhs_lvls_of_indir = lhs_lvls_of_indir;
@@ -219,9 +221,9 @@ struct Expr Expr_create_w_tok(struct Token token, struct Expr *lhs,
         bool is_array, u32 array_len) {
 
     return Expr_create(token.line_num, token.column_num, token.src_start,
-            token.src_len, lhs, rhs, lhs_lvls_of_indir, rhs_lvls_of_indir,
-            lhs_type, rhs_type, args, int_value, array_value, bp_offset,
-            expr_type, is_array, array_len);
+            token.src_len, token.file_path, lhs, rhs, lhs_lvls_of_indir,
+            rhs_lvls_of_indir, lhs_type, rhs_type, args, int_value,
+            array_value, bp_offset, expr_type, is_array, array_len);
 
 }
 
@@ -863,6 +865,7 @@ bool VarDeclPtrList_equivalent_expr(const struct VarDeclPtrList *self,
                     Expr_type(other->elems[i], vars) ||
                     self->elems[i]->decls.elems[j].lvls_of_indir !=
                     other->elems[i]->lvls_of_indir) {
+                /* print stmts for debugging */
                 printf("left indir = %d, right indir = %d.\n",
                         self->elems[i]->decls.elems[j].lvls_of_indir,
                         other->elems[i]->lvls_of_indir);

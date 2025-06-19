@@ -3,6 +3,7 @@
 #include "ast.h"
 #include "comp_dependent/ints.h"
 #include "backend_dependent/type_sizes.h"
+#include "err_msg.h"
 #include "identifier.h"
 #include "parser.h"
 #include "prim_type.h"
@@ -143,9 +144,10 @@ static void read_r_paren(struct ExprPtrList *output_queue,
     }
 
     if (operator_stack->size == 0) {
-        fprintf(stderr, "parenthesis mismatch. line %u, column %u\n",
+        ErrMsg_print(ErrMsg_on, &SY_error_occurred,
+                r_paren_tok->file_path,
+                "parenthesis mismatch. line %u, column %u\n",
                 r_paren_tok->line_num, r_paren_tok->column_num);
-        SY_error_occurred = true;
     }
     else
         ExprPtrList_pop_back(operator_stack, Expr_recur_free_w_self);
@@ -167,11 +169,11 @@ static u32 read_func_call(const struct TokenList *token_tbl, u32 f_call_idx,
     char *name = Token_src(&token_tbl->elems[f_call_idx]);
     u32 var_idx = ParVarList_find_var(vars, name);
     if (var_idx == m_u32_max) {
-        fprintf(stderr,
+        ErrMsg_print(ErrMsg_on, &SY_error_occurred,
+                token_tbl->elems[f_call_idx].file_path,
                 "undeclared identifier '%s'. line %u, column %u\n",
                 name, token_tbl->elems[f_call_idx].line_num,
                 token_tbl->elems[f_call_idx].column_num);
-        SY_error_occurred = true;
         m_free(name);
         return skip_to_token_type_alt(f_call_idx, *token_tbl, TokenType_R_PAREN);
     }
@@ -284,12 +286,12 @@ static void read_array_initializer(const struct TokenList *token_tbl,
         SY_error_occurred |= old_error_occurred;
 
         if (!Expr_statically_evaluatable(value)) {
-            fprintf(stderr,
+            ErrMsg_print(ErrMsg_on, &SY_error_occurred,
+                    value->file_path,
                     "array initializer elements must be statically"
                     " evaluatable. line %u, column %u\n",
                     value->line_num, value->column_num
                     );
-            SY_error_occurred = true;
         }
 
         ExprPtrList_push_back(&values, value);
@@ -297,10 +299,11 @@ static void read_array_initializer(const struct TokenList *token_tbl,
     }
 
     if (value_idx >= token_tbl->size) {
-        fprintf(stderr, "missing '}' for the initializer on line %u,"
+        ErrMsg_print(ErrMsg_on, &SY_error_occurred,
+                token_tbl->elems[l_curly_idx].file_path,
+                "missing '}' for the initializer on line %u,"
                 " column %u\n", token_tbl->elems[l_curly_idx].line_num,
                 token_tbl->elems[l_curly_idx].column_num);
-        SY_error_occurred = true;
     }
 
     array_expr = safe_malloc(sizeof(*array_expr));
@@ -378,10 +381,11 @@ static void read_type_cast(const struct TokenList *token_tbl,
             typedefs, &SY_error_occurred);
 
     if (mods.is_static) {
-        fprintf(stderr, "storage specifier in type cast. line %u, column %u.",
+        ErrMsg_print(ErrMsg_on, &SY_error_occurred,
+                token_tbl->elems[type_idx].file_path,
+                "storage specifier in type cast. line %u, column %u.",
                 token_tbl->elems[type_idx].line_num,
                 token_tbl->elems[type_idx].column_num);
-        SY_error_occurred = true;
     }
 
     expr = safe_malloc(sizeof(*expr));
@@ -396,10 +400,11 @@ static void read_type_cast(const struct TokenList *token_tbl,
 
     if (*end_idx >= token_tbl->size ||
             token_tbl->elems[*end_idx].type != TokenType_R_PAREN) {
-        fprintf(stderr, "expected a ')' to finish the typecast on line %u,"
+        ErrMsg_print(ErrMsg_on, &SY_error_occurred,
+                token_tbl->elems[l_paren_idx].file_path,
+                "expected a ')' to finish the typecast on line %u,"
                 " column %u.\n", token_tbl->elems[l_paren_idx].line_num,
                 token_tbl->elems[l_paren_idx].column_num);
-        SY_error_occurred = true;
         return;
     }
 
@@ -471,12 +476,12 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
                     typedefs);
             if (i == token_tbl->size) {
                 char *func_name = Token_src(&token_tbl->elems[old_i]);
-                fprintf(stderr,
+                ErrMsg_print(ErrMsg_on, &SY_error_occurred,
+                        token_tbl->elems[old_i].file_path,
                         "missing ')' to finish the call to %s on line %u,"
                         " column %u\n", func_name,
                         token_tbl->elems[old_i].line_num,
                         token_tbl->elems[old_i].column_num);
-                SY_error_occurred = true;
                 m_free(func_name);
             }
         }
@@ -485,11 +490,11 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
             char *name = Token_src(&token_tbl->elems[i]);
             u32 var_idx = ParVarList_find_var(vars, name);
             if (var_idx == m_u32_max) {
-                fprintf(stderr,
+                ErrMsg_print(ErrMsg_on, &SY_error_occurred,
+                        token_tbl->elems[i].file_path,
                         "undeclared identifier '%s'. line %u, column %u\n",
                         name, token_tbl->elems[i].line_num,
                         token_tbl->elems[i].column_num);
-                SY_error_occurred = true;
                 m_free(name);
                 continue;
             }
@@ -520,7 +525,9 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
             ExprPtrList_push_back(&output_queue, expr);
         }
         else {
-            fprintf(stderr, "unknown token at %u,%u\n",
+            ErrMsg_print(true, &SY_error_occurred,
+                    token_tbl->elems[i].file_path,
+                    "unknown token at %u,%u\n",
                     token_tbl->elems[i].line_num,
                     token_tbl->elems[i].column_num);
             assert(false);
@@ -539,11 +546,12 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
         if (operator_stack.size > 0 && output_queue.size <
                 (ExprType_is_bin_operator(
                     ExprPtrList_back(&operator_stack)->expr_type) ? 2U : 1U)) {
-            fprintf(stderr, "missing an operand for the operator on line %u,"
+            ErrMsg_print(ErrMsg_on, &SY_error_occurred,
+                    ExprPtrList_back(&operator_stack)->file_path,
+                    "missing an operand for the operator on line %u,"
                     " column %u.\n",
                     ExprPtrList_back(&operator_stack)->line_num,
                     ExprPtrList_back(&operator_stack)->column_num);
-            SY_error_occurred = true;
             ExprPtrList_pop_back(&operator_stack, Expr_recur_free_w_self);
         }
         else
@@ -558,7 +566,8 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
         return expr;
     }
     else {
-        fprintf(stderr,
+        ErrMsg_print(ErrMsg_on, &SY_error_occurred,
+                token_tbl->elems[start_idx].file_path,
                 "missing %s in the expression starting at line %u,"
                 " column %u.\n",
                 output_queue.size == 0 ? "operands" : "operators",

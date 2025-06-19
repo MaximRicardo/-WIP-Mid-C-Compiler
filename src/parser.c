@@ -1,6 +1,7 @@
 #include "parser.h"
 #include "ast.h"
 #include "comp_dependent/ints.h"
+#include "err_msg.h"
 #include "lexer.h"
 #include "prim_type.h"
 #include "safe_mem.h"
@@ -103,11 +104,11 @@ static void check_if_missing_r_curly(const struct Lexer *lexer,
              block_end_idx+1 == lexer->token_tbl.size)) {
         if (missing_r_curly)
             *missing_r_curly = true;
-        fprintf(stderr,
+        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                lexer->token_tbl.elems[block_end_idx].file_path,
                 "missing a '}' to go with the '{' on line %u, column %u.\n",
                 lexer->token_tbl.elems[block_start_idx-1].line_num,
                 lexer->token_tbl.elems[block_start_idx-1].column_num);
-        Parser_error_occurred = true;
     }
     else if (missing_r_curly)
         *missing_r_curly = false;
@@ -122,9 +123,10 @@ static struct Expr* parse_expr(const struct Lexer *lexer, u32 start_idx,
     Parser_error_occurred |= SY_error_occurred;
 
     if (*sy_end_idx == lexer->token_tbl.size) {
-        fprintf(stderr, "missing semicolon. line %u.\n",
+        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                lexer->token_tbl.elems[start_idx].file_path,
+                "missing semicolon. line %u.\n",
                 lexer->token_tbl.elems[start_idx].line_num);
-        Parser_error_occurred = true;
     }
 
     return expr;
@@ -144,9 +146,10 @@ static struct Expr* var_decl_value(const struct Lexer *lexer, u32 ident_idx,
     }
 
     if (lexer->token_tbl.elems[equal_sign_idx].type != TokenType_EQUAL) {
-        fprintf(stderr, "missing an equals sign. line %u.\n",
+        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                lexer->token_tbl.elems[ident_idx].file_path,
+                "missing an equals sign. line %u.\n",
                 lexer->token_tbl.elems[ident_idx].line_num);
-        Parser_error_occurred = true;
         *semicolon_idx = ident_idx;
         while (lexer->token_tbl.elems[*semicolon_idx].type !=
                 TokenType_SEMICOLON)
@@ -191,21 +194,25 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
             lexer->token_tbl.elems[ident_idx].type != TokenType_IDENT) {
         enum TokenType stop_types[] =
             {TokenType_SEMICOLON, TokenType_COMMA, TokenType_R_PAREN};
-        fprintf(stderr, "unnamed variables are not supported. line %u,"
+        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                lexer->token_tbl.elems[v_decl_idx].file_path,
+                "unnamed variables are not supported. line %u,"
                 " column %u\n", lexer->token_tbl.elems[v_decl_idx].line_num,
                 lexer->token_tbl.elems[v_decl_idx].column_num);
-        Parser_error_occurred = true;
+
         *end_idx = skip_to_token_type_alt_arr(v_decl_idx, lexer->token_tbl,
                 stop_types, sizeof(stop_types)/sizeof(stop_types[0]));
         return NULL;
     }
     else if (var_type == PrimType_VOID && n_lvls_of_indir == 0) {
         char *var_name = Token_src(&lexer->token_tbl.elems[ident_idx]);
-        fprintf(stderr, "variable '%s' of type 'void' on line %u,"
+        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                lexer->token_tbl.elems[v_decl_idx].file_path,
+                "variable '%s' of type 'void' on line %u,"
                 " column %u.\n", var_name,
                 lexer->token_tbl.elems[v_decl_idx].line_num,
                 lexer->token_tbl.elems[v_decl_idx].column_num);
-        Parser_error_occurred = true;
+
         m_free(var_name);
         *end_idx = skip_to_token_type_alt(v_decl_idx, lexer->token_tbl,
                 TokenType_SEMICOLON);
@@ -224,10 +231,11 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
         ++*end_idx;
         if (len_expr && !Expr_statically_evaluatable(len_expr)) {
             char *var_name = Token_src(&lexer->token_tbl.elems[ident_idx]);
-            fprintf(stderr, "array '%s' must have a statically evaluatable"
+            ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                    lexer->token_tbl.elems[ident_idx].file_path,
+                    "array '%s' must have a statically evaluatable"
                     " length. line %u\n", var_name,
                     lexer->token_tbl.elems[ident_idx].line_num);
-            Parser_error_occurred = true;
             m_free(var_name);
             array_len = 1;
         }
@@ -246,9 +254,10 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
 
     if (is_array && array_len == 0) {
         char *var_name = Token_src(&lexer->token_tbl.elems[ident_idx]);
-        fprintf(stderr, "array '%s' cannot have a length of 0. line %u\n",
+        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                lexer->token_tbl.elems[ident_idx].file_path,
+                "array '%s' cannot have a length of 0. line %u\n",
                 var_name, lexer->token_tbl.elems[ident_idx].line_num);
-        Parser_error_occurred = true;
         m_free(var_name);
         array_len = 1;
     }
@@ -271,7 +280,9 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
     if (decl.is_array && decl.value &&
             decl.value->expr_type != ExprType_ARRAY_LIT) {
         char *var_name = Token_src(&lexer->token_tbl.elems[ident_idx]);
-        fprintf(stderr, "'%s' can only be initialized by an array initializer."
+        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                lexer->token_tbl.elems[ident_idx].file_path,
+                "'%s' can only be initialized by an array initializer."
                 " line %u, column %u\n", var_name,
                 lexer->token_tbl.elems[ident_idx].line_num,
                 lexer->token_tbl.elems[ident_idx].column_num);
@@ -289,7 +300,9 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
     }
     else if (decl.is_array && !len_defined) {
         char *var_name = Token_src(&lexer->token_tbl.elems[ident_idx]);
-        fprintf(stderr, "array '%s' hasn't been given a length. line %u,"
+        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                lexer->token_tbl.elems[ident_idx].file_path,
+                "array '%s' hasn't been given a length. line %u,"
                 " column %u.\n", var_name,
                 lexer->token_tbl.elems[ident_idx].line_num,
                 lexer->token_tbl.elems[ident_idx].column_num);
@@ -320,7 +333,9 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
         u32 prev_decl_idx = ParVarList_find_var(&vars, var_name);
         if (prev_decl_idx != m_u32_max &&
                 vars.elems[prev_decl_idx].parent == par_var_parent) {
-            fprintf(stderr, "variable '%s' redeclared on line %u.\n", var_name,
+            ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                    lexer->token_tbl.elems[v_decl_idx].file_path,
+                    "variable '%s' redeclared on line %u.\n", var_name,
                     lexer->token_tbl.elems[v_decl_idx].line_num);
             Parser_error_occurred = true;
         }
@@ -342,7 +357,9 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
             (is_func_param &&
              (lexer->token_tbl.elems[*end_idx].type == TokenType_COMMA ||
               lexer->token_tbl.elems[*end_idx].type == TokenType_R_PAREN)))) {
-        fprintf(stderr, "missing '%c'. line %u.\n",
+        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                lexer->token_tbl.elems[v_decl_idx].file_path,
+                "missing '%c'. line %u.\n",
                 is_func_param ? ')' : ';',
                 lexer->token_tbl.elems[v_decl_idx].line_num);
         Parser_error_occurred = true;
@@ -451,12 +468,12 @@ static u32 parse_func_args(const struct Lexer *lexer, u32 arg_decl_start_idx,
             enum TokenType stop_types[] =
                 {TokenType_R_PAREN, TokenType_L_CURLY};
 
-            fprintf(stderr,
+            ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                    lexer->token_tbl.elems[arg_decl_idx].file_path,
                     "missing type specifier for '%s'. line %u, column %u\n",
                     type_spec_src,
                     lexer->token_tbl.elems[arg_decl_idx].line_num,
                     lexer->token_tbl.elems[arg_decl_idx].column_num);
-            Parser_error_occurred = true;
             m_free(type_spec_src);
             arg_decl_end_idx = skip_to_token_type_alt_arr(arg_decl_idx,
                     lexer->token_tbl, stop_types,
@@ -478,10 +495,11 @@ static u32 parse_func_args(const struct Lexer *lexer, u32 arg_decl_start_idx,
         if (lexer->token_tbl.elems[arg_decl_end_idx].type != TokenType_COMMA) {
             char *var_name =
                 Token_src(&lexer->token_tbl.elems[arg_decl_idx+1]);
-            fprintf(stderr, "expected a comma after '%s' argument declaration."
+            ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                    lexer->token_tbl.elems[arg_decl_idx+1].file_path,
+                    "expected a comma after '%s' argument declaration."
                     " line %u.\n", var_name,
                     lexer->token_tbl.elems[arg_decl_idx+1].line_num);
-            Parser_error_occurred = true;
             m_free(var_name);
             m_free(type_spec_src);
 
@@ -543,11 +561,11 @@ static void parse_func_decl(const struct Lexer *lexer, struct BlockNode *block,
     }
 
     if (args_end_idx == m_u32_max) {
-        fprintf(stderr,
+        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                lexer->token_tbl.elems[f_decl_idx].file_path,
                 "expected ')' to finish the list of arguments for '%s'."
                 " line %u\n", func_name,
                 lexer->token_tbl.elems[f_decl_idx].line_num);
-        Parser_error_occurred = true;
         m_free(func_name);
         m_free(func);
         *end_idx = skip_to_token_type_alt(f_decl_idx, lexer->token_tbl,
@@ -561,14 +579,15 @@ static void parse_func_decl(const struct Lexer *lexer, struct BlockNode *block,
 
     if (prev_func_decl_var_idx != m_u32_max && !func_prototypes_match(lexer,
                 prev_func_decl_var_idx, func, f_ident_idx)) {
-        fprintf(stderr, "function '%s' declaration on line %u, column %u,"
+        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                lexer->token_tbl.elems[f_decl_idx].file_path,
+                "function '%s' declaration on line %u, column %u,"
                 " does not match previous declaration on line %u,"
                 " column %u.\n", func_name,
                 lexer->token_tbl.elems[f_decl_idx].line_num,
                 lexer->token_tbl.elems[f_decl_idx].column_num,
                 vars.elems[prev_func_decl_var_idx].line_num,
                 vars.elems[prev_func_decl_var_idx].column_num);
-        Parser_error_occurred = true;
     }
 
     if (args_end_idx+1 < lexer->token_tbl.size &&
@@ -581,12 +600,12 @@ static void parse_func_decl(const struct Lexer *lexer, struct BlockNode *block,
             vars.elems[old_vars_size-1].has_been_defined = true;
         }
         else if (vars.elems[prev_func_decl_var_idx].has_been_defined) {
-            fprintf(stderr,
+            ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                    lexer->token_tbl.elems[f_decl_idx].file_path,
                     "function '%s' has multiple definitions. first on line %u,"
                     " then later on line %u.\n",
                     func_name, vars.elems[prev_func_decl_var_idx].line_num,
                     lexer->token_tbl.elems[f_decl_idx].line_num);
-            Parser_error_occurred = false;
         }
 
         func->body = parse(lexer, func, bp, bp, args_end_idx+2, &func_end_idx,
@@ -623,9 +642,10 @@ static u32 parse_ret_stmt(const struct Lexer *lexer, struct BlockNode *block,
     u32 end_idx;
 
     if (!parent_func) {
-        fprintf(stderr, "return statement outside of a function on line %u\n",
+        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                lexer->token_tbl.elems[ret_idx].file_path,
+                "return statement outside of a function on line %u\n",
                 lexer->token_tbl.elems[ret_idx].line_num);
-        Parser_error_occurred = true;
         return skip_to_token_type_alt(ret_idx, lexer->token_tbl,
                 TokenType_SEMICOLON);
     }
@@ -641,10 +661,11 @@ static u32 parse_ret_stmt(const struct Lexer *lexer, struct BlockNode *block,
     }
     else if (parent_func->ret_type == PrimType_VOID &&
             parent_func->ret_lvls_of_indir == 0) {
-        fprintf(stderr, "cannot return a value in void function '%s'."
+        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                lexer->token_tbl.elems[ret_idx].file_path,
+                "cannot return a value in void function '%s'."
                 " line %u.\n", parent_func->name,
                 lexer->token_tbl.elems[ret_idx].line_num);
-        Parser_error_occurred = true;
         end_idx = skip_to_token_type_alt(ret_idx, lexer->token_tbl,
                 TokenType_SEMICOLON);
     }
@@ -660,7 +681,9 @@ static u32 parse_ret_stmt(const struct Lexer *lexer, struct BlockNode *block,
 
     if (parent_func->ret_lvls_of_indir >= 1 &&
             parent_func->ret_type != ret_node->type) {
-        fprintf(stderr, "'%s' return type and returned type do not match."
+        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                lexer->token_tbl.elems[ret_idx].file_path,
+                "'%s' return type and returned type do not match."
                 " line %u.\n", parent_func->name,
                 lexer->token_tbl.elems[ret_idx].line_num);
         Parser_error_occurred = true;
@@ -689,10 +712,10 @@ u32 parse_if_stmt(const struct Lexer *lexer, struct BlockNode *block,
 
     if (if_idx+1 >= lexer->token_tbl.size ||
             lexer->token_tbl.elems[if_idx+1].type != TokenType_L_PAREN) {
-        fprintf(stderr,
+        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                lexer->token_tbl.elems[if_idx].file_path,
                 "expected parentheses after the if statement on line %u\n.",
                 lexer->token_tbl.elems[if_idx].line_num);
-        Parser_error_occurred = true;
         return skip_to_token_type_alt(if_idx, lexer->token_tbl,
                 TokenType_SEMICOLON);
     }
@@ -709,11 +732,11 @@ u32 parse_if_stmt(const struct Lexer *lexer, struct BlockNode *block,
     }
 
     if (r_paren_idx >= lexer->token_tbl.size) {
-        fprintf(stderr,
+        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                lexer->token_tbl.elems[if_idx+1].file_path,
                 "expected a ')' after the condition expression on line %u,"
                 " column %u\n", lexer->token_tbl.elems[if_idx+1].line_num,
                 lexer->token_tbl.elems[if_idx+1].column_num);
-        Parser_error_occurred = true;
         IfNode_free_w_self(if_node);
         return skip_to_token_type_alt(if_idx, lexer->token_tbl,
                 TokenType_SEMICOLON);
@@ -731,10 +754,10 @@ u32 parse_if_stmt(const struct Lexer *lexer, struct BlockNode *block,
         return r_paren_idx;
     }
     else if (r_paren_idx+2 >= lexer->token_tbl.size) {
-        fprintf(stderr,
+        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                lexer->token_tbl.elems[if_idx].file_path,
                 "expected a block after the if statement on line %u.\n",
                 lexer->token_tbl.elems[if_idx].line_num);
-        Parser_error_occurred = true;
         IfNode_free_w_self(if_node);
         return skip_to_token_type_alt(if_idx, lexer->token_tbl,
                 TokenType_SEMICOLON);
@@ -804,10 +827,10 @@ u32 parse_while_stmt(const struct Lexer *lexer, struct BlockNode *block,
 
     if (while_idx+1 >= lexer->token_tbl.size ||
             lexer->token_tbl.elems[while_idx+1].type != TokenType_L_PAREN) {
-        fprintf(stderr,
+        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                lexer->token_tbl.elems[while_idx].file_path,
                 "expected parentheses after the while statement on line %u\n.",
                 lexer->token_tbl.elems[while_idx].line_num);
-        Parser_error_occurred = true;
         return skip_to_token_type_alt(while_idx, lexer->token_tbl,
                 TokenType_SEMICOLON);
     }
@@ -824,11 +847,11 @@ u32 parse_while_stmt(const struct Lexer *lexer, struct BlockNode *block,
     }
 
     if (r_paren_idx >= lexer->token_tbl.size) {
-        fprintf(stderr,
+        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                lexer->token_tbl.elems[while_idx+1].file_path,
                 "expected a ')' after the condition expression on line %u,"
                 " column %u\n", lexer->token_tbl.elems[while_idx+1].line_num,
                 lexer->token_tbl.elems[while_idx+1].column_num);
-        Parser_error_occurred = true;
         WhileNode_free_w_self(while_node);
         return skip_to_token_type_alt(while_idx, lexer->token_tbl,
                 TokenType_SEMICOLON);
@@ -844,10 +867,10 @@ u32 parse_while_stmt(const struct Lexer *lexer, struct BlockNode *block,
         return r_paren_idx+1;
     }
     else if (r_paren_idx+2 >= lexer->token_tbl.size) {
-        fprintf(stderr,
+        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                lexer->token_tbl.elems[while_idx].file_path,
                 "expected a block after the while statement on line %u.\n",
                 lexer->token_tbl.elems[while_idx].line_num);
-        Parser_error_occurred = true;
         WhileNode_free_w_self(while_node);
         return skip_to_token_type_alt(while_idx, lexer->token_tbl,
                 TokenType_SEMICOLON);
@@ -896,10 +919,10 @@ u32 parse_for_stmt(const struct Lexer *lexer, struct BlockNode *block,
 
     if (for_idx+1 >= lexer->token_tbl.size ||
             lexer->token_tbl.elems[for_idx+1].type != TokenType_L_PAREN) {
-        fprintf(stderr,
+        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                lexer->token_tbl.elems[for_idx].file_path,
                 "expected parentheses after the for statement on line %u\n.",
                 lexer->token_tbl.elems[for_idx].line_num);
-        Parser_error_occurred = true;
         return skip_to_token_type_alt(for_idx, lexer->token_tbl,
                 TokenType_SEMICOLON);
     }
@@ -913,10 +936,10 @@ u32 parse_for_stmt(const struct Lexer *lexer, struct BlockNode *block,
             &init_end_idx, &vars, bp, false, &typedefs);
     Parser_error_occurred |= SY_error_occurred;
     if (init_end_idx >= lexer->token_tbl.size) {
-        fprintf(stderr,
+        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                lexer->token_tbl.elems[for_idx].file_path,
                 "expected 3 expressions after the for keyword on line %u.\n",
                 lexer->token_tbl.elems[for_idx].line_num);
-        Parser_error_occurred = true;
         ForNode_free_w_self(for_node);
         return skip_to_token_type_alt(for_idx, lexer->token_tbl,
                 TokenType_SEMICOLON);
@@ -926,10 +949,10 @@ u32 parse_for_stmt(const struct Lexer *lexer, struct BlockNode *block,
             NULL, 0, &cond_end_idx, &vars, bp, false, &typedefs);
     Parser_error_occurred |= SY_error_occurred;
     if (cond_end_idx >= lexer->token_tbl.size) {
-        fprintf(stderr,
+        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                lexer->token_tbl.elems[for_idx].file_path,
                 "expected 3 expressions after the for keyword on line %u.\n",
                 lexer->token_tbl.elems[for_idx].line_num);
-        Parser_error_occurred = true;
         ForNode_free_w_self(for_node);
         return skip_to_token_type_alt(for_idx, lexer->token_tbl,
                 TokenType_SEMICOLON);
@@ -943,10 +966,10 @@ u32 parse_for_stmt(const struct Lexer *lexer, struct BlockNode *block,
         Parser_error_occurred |= SY_error_occurred;
     }
     if (r_paren_idx >= lexer->token_tbl.size) {
-        fprintf(stderr,
+        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                lexer->token_tbl.elems[for_idx].file_path,
                 "expected a ')' after the 3rd for statement expression on line"
                 " %u\n", lexer->token_tbl.elems[for_idx].line_num);
-        Parser_error_occurred = true;
         ForNode_free_w_self(for_node);
         return skip_to_token_type_alt(for_idx, lexer->token_tbl,
                 TokenType_SEMICOLON);
@@ -963,10 +986,10 @@ u32 parse_for_stmt(const struct Lexer *lexer, struct BlockNode *block,
         return r_paren_idx+1;
     }
     else if (r_paren_idx+2 >= lexer->token_tbl.size) {
-        fprintf(stderr,
+        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                lexer->token_tbl.elems[for_idx].file_path,
                 "expected a block after the for statement on line %u.\n",
                 lexer->token_tbl.elems[for_idx].line_num);
-        Parser_error_occurred = true;
         ForNode_free_w_self(for_node);
         return skip_to_token_type_alt(for_idx, lexer->token_tbl,
                 TokenType_SEMICOLON);
@@ -1014,9 +1037,10 @@ u32 parse_typedef(const struct Lexer *lexer, u32 typedef_idx) {
             &Parser_error_occurred); 
 
     if (lexer->token_tbl.elems[type_name_idx].type != TokenType_IDENT) {
-        fprintf(stderr, "expected an identifier at the end of the typedef on"
-                " line %u.\n", lexer->token_tbl.elems->line_num);
-        Parser_error_occurred = true;
+        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                lexer->token_tbl.elems[typedef_idx].file_path,
+                "expected an identifier at the end of the typedef on"
+                " line %u.\n", lexer->token_tbl.elems[typedef_idx].line_num);
         return skip_to_token_type_alt(typedef_idx, lexer->token_tbl,
                 TokenType_SEMICOLON);
     }
@@ -1028,11 +1052,12 @@ u32 parse_typedef(const struct Lexer *lexer, u32 typedef_idx) {
              Ident_type_lvls_of_indir(type_name, &typedefs) !=
              conv_lvls_of_indir)) {
         /* the type already exists and doesn't match the typedef */
-        fprintf(stderr, "type '%s' redefined to a different type on line %u,"
+        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                lexer->token_tbl.elems[type_name_idx].file_path,
+                "type '%s' redefined to a different type on line %u,"
                 " column %u.\n", type_name,
                 lexer->token_tbl.elems[type_name_idx].line_num,
                 lexer->token_tbl.elems[type_name_idx].column_num);
-        Parser_error_occurred = true;
         m_free(type_name);
     }
     else {
@@ -1042,9 +1067,10 @@ u32 parse_typedef(const struct Lexer *lexer, u32 typedef_idx) {
     }
 
     if (lexer->token_tbl.elems[type_name_idx+1].type != TokenType_SEMICOLON) {
-        fprintf(stderr, "missing semicolon on line %u.\n",
+        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                lexer->token_tbl.elems[type_name_idx].file_path,
+                "missing semicolon on line %u.\n",
                 lexer->token_tbl.elems[type_name_idx].line_num);
-        Parser_error_occurred = true;
     }
 
     return type_name_idx+1;
@@ -1123,10 +1149,11 @@ static struct BlockNode* parse(const struct Lexer *lexer,
                 struct VarDeclNode *var_decl = NULL;
 
                 if (!can_decl_vars) {
-                    fprintf(stderr, "mixing declarations and code is a C99"
+                    ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                            lexer->token_tbl.elems[start_idx].file_path,
+                            "mixing declarations and code is a C99"
                             " extension. line %u.\n",
                             lexer->token_tbl.elems[start_idx].line_num);
-                    Parser_error_occurred = true;
                 }
 
                 var_decl = parse_var_decl(lexer,
@@ -1145,12 +1172,12 @@ static struct BlockNode* parse(const struct Lexer *lexer,
                         start_idx, &prev_end_idx, bp);
             }
             else {
-                fprintf(stderr,
+                ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                        lexer->token_tbl.elems[ident_idx+1].file_path,
                         "invalid token '%s' after variable declaration."
                         " line %u, column %u.", token_src,
                         lexer->token_tbl.elems[ident_idx+1].line_num,
                         lexer->token_tbl.elems[ident_idx+1].column_num);
-                Parser_error_occurred = true;
             }
         }
 
@@ -1219,7 +1246,8 @@ static struct BlockNode* parse(const struct Lexer *lexer,
             lexer->token_tbl.elems[prev_end_idx].type != TokenType_R_CURLY) {
         if (missing_r_curly)
             *missing_r_curly = true;
-        fprintf(stderr,
+        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                lexer->token_tbl.elems[prev_end_idx].file_path,
                 "missing a '{' to go with the '}' on line %u, column %u\n",
                 lexer->token_tbl.elems[prev_end_idx].line_num,
                 lexer->token_tbl.elems[prev_end_idx].column_num);
