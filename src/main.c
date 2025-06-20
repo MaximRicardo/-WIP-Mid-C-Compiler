@@ -12,6 +12,7 @@
 #include "pre_to_post_fix.h"
 #include "bin_to_unary.h"
 #include "merge_strings.h"
+#include "pre_proc.h"
 
 #define m_build_bug_on(condition) \
     ((void)sizeof(char[1 - 2*!!(condition)]))
@@ -34,40 +35,46 @@ static char *read_file(char *file_path) {
 void compile(char *src, const char *src_f_path, FILE *output,
         bool *error_occurred) {
 
-    struct Lexer lexer = Lexer_lex(src, src_f_path);
-
+    struct PreProcMacroList macros;
+    struct MacroInstList macro_insts;
+    PreProc_process(src, &macros, &macro_insts, src_f_path);
     *error_occurred = false;
 
-#ifdef m_print_tokens
-    u32 i;
-    for (i = 0; i < lexer.token_tbl.size; i++) {
-        printf("tokens[%u]: line = %d, column = %d, type = %d, value = %d\n",
-                i, lexer.token_tbl.tokens[i].line_num,
-                lexer.token_tbl.tokens[i].column_num,
-                lexer.token_tbl.tokens[i].type,
-                lexer.token_tbl.tokens[i].value.int_value);
-    }
-#endif
+    if (!PreProc_error_occurred) {
+        struct Lexer lexer = Lexer_lex(src, src_f_path, &macro_insts);
 
-    MergeStrings_merge(&lexer.token_tbl);
-    BinToUnary_convert(&lexer.token_tbl);
-    PreToPostFix_convert(&lexer.token_tbl);
+        if (!Lexer_error_occurred) {
+            struct BlockNode *ast;
 
-    if (!Lexer_error_occurred) {
-        struct BlockNode *ast = Parser_parse(&lexer);
+            MergeStrings_merge(&lexer.token_tbl);
+            BinToUnary_convert(&lexer.token_tbl);
+            PreToPostFix_convert(&lexer.token_tbl);
 
-        if (!Parser_error_occurred && output) {
-            CodeGen_generate(output, ast);
+            ast = Parser_parse(&lexer);
+
+            if (!Parser_error_occurred && output) {
+                CodeGen_generate(output, ast);
+            }
+            else
+                *error_occurred = true;
+
+            BlockNode_free_w_self(ast);
         }
         else
             *error_occurred = true;
 
-        BlockNode_free_w_self(ast);
+        Lexer_free(&lexer);
     }
     else
         *error_occurred = true;
 
-    Lexer_free(&lexer);
+    while (macros.size > 0)
+        PreProcMacroList_pop_back(&macros, PreProcMacro_free);
+    PreProcMacroList_free(&macros);
+
+    while (macro_insts.size > 0)
+        MacroInstList_pop_back(&macro_insts, MacroInstance_free);
+    MacroInstList_free(&macro_insts);
 
 }
 

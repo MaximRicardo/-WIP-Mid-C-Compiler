@@ -1,4 +1,5 @@
 #include "lexer.h"
+#include "comp_dependent/ints.h"
 #include "err_msg.h"
 #include "safe_mem.h"
 #include "token.h"
@@ -220,24 +221,57 @@ static int read_string(const char *src, u32 str_start, unsigned line_num,
 
 }
 
-struct Lexer Lexer_lex(const char *src, const char *file_path) {
+/* returns m_u32_max if the instance couldn't be found */
+static u32 find_macro_instance(const struct MacroInstList *macro_insts,
+        u32 inst_start_idx) {
 
-    struct TokenList token_tbl = TokenList_init();
+    u32 i;
+
+    for (i = 0; i < macro_insts->size; i++) {
+        if (macro_insts->elems[i].start_idx == inst_start_idx)
+            return i;
+    }
+
+    return m_u32_max;
+
+}
+
+static void lex_str(const char *src, const char *file_path,
+        const struct MacroInstList *macro_insts, unsigned start_line_num,
+        unsigned start_column_num, u32 start_i, struct Lexer *lexer) {
+
+    struct TokenList *token_tbl = &lexer->token_tbl;
     u32 src_len = strlen(src);
     u32 src_i;
-    unsigned line_num=1, column_num=1;
+    unsigned line_num = start_line_num;
+    unsigned column_num = start_column_num;
 
     Lexer_error_occurred = false;
 
-    for (src_i = 0; src[src_i] != '\0'; src_i++,column_num++) {
+    for (src_i = start_i; src[src_i] != '\0'; src_i++,column_num++) {
 
-        if (isspace(src[src_i])) {
+        if (valid_ident_start_char(src[src_i]) &&
+                find_macro_instance(macro_insts, src_i) != m_u32_max) {
+
+            u32 inst_idx = find_macro_instance(macro_insts, src_i);
+            u32 ident_len = get_identifier_len(&src[src_i]);
+
+            lex_str(macro_insts->elems[inst_idx].expansion, file_path,
+                    macro_insts, line_num, column_num, 0, lexer);
+
+            column_num += ident_len-1;
+            src_i += ident_len-1;
+
+        }
+
+        else if (isspace(src[src_i])) {
             if (src[src_i] == '\n') {
                 ++line_num;
                 column_num = 0;
             }
         }
-        else if (src[src_i] == '/' && src[src_i+1] == '/') {
+        else if ((src[src_i] == '/' && src[src_i+1] == '/') ||
+                src[src_i] == '#') {
             ++line_num;
             column_num = 0;
             while (src[++src_i] != '\n');
@@ -257,120 +291,120 @@ struct Lexer Lexer_lex(const char *src, const char *file_path) {
 
         else if (src_i+2 < src_len && src[src_i] == '.' &&
                 src[src_i+1] == '.' && src[src_i+2] == '.') {
-            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 2, file_path, TokenType_VARIADIC));
             src_i += 2;
             column_num += 2;
         }
 
         else if (src[src_i] == '|' && src[src_i+1] == '|') {
-            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 2, file_path, TokenType_BOOLEAN_OR));
             ++src_i;
             ++column_num;
         }
         else if (src[src_i] == '&' && src[src_i+1] == '&') {
-            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 2, file_path, TokenType_BOOLEAN_AND));
             ++src_i;
             ++column_num;
         }
         else if (src[src_i] == '=' && src[src_i+1] == '=') {
-            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 2, file_path, TokenType_EQUAL_TO));
             ++src_i;
             ++column_num;
         }
         else if (src[src_i] == '!' && src[src_i+1] == '=') {
-            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 2, file_path, TokenType_NOT_EQUAL_TO));
             ++src_i;
             ++column_num;
         }
         else if (src[src_i] == '<' && src[src_i+1] == '=') {
-            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 2, file_path, TokenType_L_THAN_OR_E));
             ++src_i;
             ++column_num;
         }
         else if (src[src_i] == '>' && src[src_i+1] == '=') {
-            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 2, file_path, TokenType_G_THAN_OR_E));
             ++src_i;
             ++column_num;
         }
         else if (src[src_i] == '+' && src[src_i+1] == '+') {
-            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 2, file_path, TokenType_PREFIX_INC));
             ++src_i;
             ++column_num;
         }
         else if (src[src_i] == '-' && src[src_i+1] == '-') {
-            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 2, file_path, TokenType_PREFIX_DEC));
             ++src_i;
             ++column_num;
         }
 
         else if (src[src_i] == ';')
-            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, file_path, TokenType_SEMICOLON));
 
         else if (src[src_i] == '+')
-            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, file_path, TokenType_PLUS));
         else if (src[src_i] == '-')
-            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, file_path, TokenType_MINUS));
         else if (src[src_i] == '*')
-            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, file_path, TokenType_MUL));
         else if (src[src_i] == '/')
-            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, file_path, TokenType_DIV));
         else if (src[src_i] == '%')
-            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, file_path, TokenType_MODULUS));
         else if (src[src_i] == '=')
-            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, file_path, TokenType_EQUAL));
         else if (src[src_i] == ',')
-            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, file_path, TokenType_COMMA));
         else if (src[src_i] == '[')
-            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, file_path, TokenType_L_ARR_SUBSCR));
         else if (src[src_i] == '&')
-            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, file_path, TokenType_BITWISE_AND));
         else if (src[src_i] == '<')
-            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, file_path, TokenType_L_THAN));
         else if (src[src_i] == '>')
-            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, file_path, TokenType_G_THAN));
 
         else if (src[src_i] == '~')
-            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, file_path, TokenType_BITWISE_NOT));
         else if (src[src_i] == '!')
-            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, file_path, TokenType_BOOLEAN_NOT));
 
         else if (src[src_i] == '(')
-            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, file_path, TokenType_L_PAREN));
         else if (src[src_i] == ')')
-            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, file_path, TokenType_R_PAREN));
         else if (src[src_i] == '{')
-            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, file_path, TokenType_L_CURLY));
         else if (src[src_i] == '}')
-            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, file_path, TokenType_R_CURLY));
         else if (src[src_i] == ']')
-            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, file_path, TokenType_R_ARR_SUBSCR));
 
         else if (isdigit(src[src_i])) {
@@ -380,7 +414,7 @@ struct Lexer Lexer_lex(const char *src, const char *file_path) {
             union TokenValue value;
             value.int_value = strtoul(&src[src_i], &end_ptr, 0);
             chars_moved = end_ptr-&src[src_i];
-            TokenList_push_back(&token_tbl, Token_create_w_val(line_num,
+            TokenList_push_back(token_tbl, Token_create_w_val(line_num,
                         column_num, &src[src_i], chars_moved, file_path,
                         TokenType_INT_LIT, value));
             src_i += chars_moved-1;
@@ -392,7 +426,7 @@ struct Lexer Lexer_lex(const char *src, const char *file_path) {
             union TokenValue value;
             value.int_value = read_single_quote_str(src, src_i, &end_idx,
                     line_num, column_num, file_path);
-            TokenList_push_back(&token_tbl, Token_create_w_val(line_num,
+            TokenList_push_back(token_tbl, Token_create_w_val(line_num,
                         column_num, &src[src_i], end_idx-src_i+1, file_path,
                         TokenType_INT_LIT, value));
             column_num += end_idx-src_i;
@@ -400,7 +434,7 @@ struct Lexer Lexer_lex(const char *src, const char *file_path) {
         }
         else if (src[src_i] == '\"') {
             u32 end_idx = read_string(src, src_i, line_num, column_num,
-                    &token_tbl, file_path);
+                    token_tbl, file_path);
             column_num += end_idx-src_i;
             src_i = end_idx;
         }
@@ -411,7 +445,7 @@ struct Lexer Lexer_lex(const char *src, const char *file_path) {
             enum TokenType keyword_type = identifier_keyword(&src[src_i], len);
 
             if (keyword_type != TokenType_NONE) {
-                TokenList_push_back(&token_tbl,
+                TokenList_push_back(token_tbl,
                         Token_create(
                             line_num, column_num, &src[src_i], len, file_path,
                             keyword_type
@@ -419,7 +453,7 @@ struct Lexer Lexer_lex(const char *src, const char *file_path) {
                         );
             }
             else {
-                TokenList_push_back(&token_tbl,
+                TokenList_push_back(token_tbl,
                         Token_create(
                             line_num, column_num, &src[src_i], len, file_path,
                             TokenType_IDENT
@@ -431,7 +465,7 @@ struct Lexer Lexer_lex(const char *src, const char *file_path) {
         }
 
         else if (src[src_i] == ':')
-            TokenList_push_back(&token_tbl, Token_create(line_num, column_num,
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, file_path, TokenType_DEBUG_PRINT_RAX));
 
         else {
@@ -442,6 +476,15 @@ struct Lexer Lexer_lex(const char *src, const char *file_path) {
 
     }
 
-    return Lexer_create(token_tbl);
+}
+
+struct Lexer Lexer_lex(const char *src, const char *file_path,
+        const struct MacroInstList *macro_insts) {
+
+    struct Lexer lexer = Lexer_init();
+
+    lex_str(src, file_path, macro_insts, 1, 1, 0, &lexer);
+
+    return lexer;
 
 }

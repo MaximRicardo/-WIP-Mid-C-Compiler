@@ -1,3 +1,5 @@
+#define m_test_macro "this is a macro"
+
 typedef uint u32;
 
 int strtol(char *str, char **end, int base);
@@ -16,7 +18,9 @@ int main(int argc, char **argv) {
     }
 
     n = strtol(argv[1], &end_ptr, 0);
-    printf("fibonacci nr. %d is: %d\n", n, fibonacci(n));
+    printf("fibonacci nr. %d is: %u\n", n, fibonacci(n));
+
+    printf("m_test_macro = %s\n", m_test_macro);
 
 }
 
