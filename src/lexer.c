@@ -243,7 +243,8 @@ static u32 find_macro_instance(const struct MacroInstList *macro_insts,
 
 static void lex_str(const char *src, const char *file_path,
         const struct MacroInstList *macro_insts, unsigned start_line_num,
-        unsigned start_column_num, u32 start_i, struct Lexer *lexer) {
+        unsigned start_column_num, u32 start_i, struct Lexer *lexer,
+        bool inc_line_n_column_num) {
 
     struct TokenList *token_tbl = &lexer->token_tbl;
     u32 src_len = strlen(src);
@@ -253,7 +254,13 @@ static void lex_str(const char *src, const char *file_path,
 
     Lexer_error_occurred = false;
 
-    for (src_i = start_i; src[src_i] != '\0'; src_i++,column_num++) {
+    for (src_i = start_i; src[src_i] != '\0';
+            src_i++,column_num++) {
+
+        if (!inc_line_n_column_num) {
+            line_num = start_line_num;
+            column_num = start_column_num;
+        }
 
         if (valid_ident_start_char(src[src_i]) &&
                 find_macro_instance(macro_insts, src_i) != m_u32_max) {
@@ -262,7 +269,7 @@ static void lex_str(const char *src, const char *file_path,
             u32 ident_len = get_identifier_len(&src[src_i]);
 
             lex_str(macro_insts->elems[inst_idx].expansion, file_path,
-                    macro_insts, line_num, column_num, 0, lexer);
+                    macro_insts, line_num, column_num, 0, lexer, false);
 
             column_num += ident_len-1;
             src_i += ident_len-1;
@@ -488,7 +495,7 @@ struct Lexer Lexer_lex(const char *src, const char *file_path,
 
     struct Lexer lexer = Lexer_init();
 
-    lex_str(src, file_path, macro_insts, 1, 1, 0, &lexer);
+    lex_str(src, file_path, macro_insts, 1, 1, 0, &lexer, true);
 
     return lexer;
 

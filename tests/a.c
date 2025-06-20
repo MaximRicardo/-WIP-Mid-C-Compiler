@@ -1,4 +1,6 @@
-#define m_test_macro "this is a macro"
+#define m_huh " and another"
+#define m_big_chungus " concatenated with another" m_huh
+#define m_test_macro "this is a macro" m_big_chungus m_huh
 
 typedef unsigned u32;
 

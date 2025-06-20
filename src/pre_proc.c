@@ -129,6 +129,90 @@ static u32 find_macro(const struct PreProcMacroList *macros,
 
 }
 
+/* returns the resulting string. src is the string to insert */
+static void insert_string(char **str, char *src, u32 idx) {
+
+    char *result = safe_malloc((strlen(*str)+strlen(src)+1)*sizeof(*result));
+
+    strncpy(result, *str, idx);
+    result[idx] = '\0';
+    strcat(result, src);
+    strcat(result, &(*str)[idx]);
+
+    m_free(*str);
+    *str = result;
+
+}
+
+/* returns the number of erased characters. start and end are inclusive */
+static u32 erase_from_str(char *str, u32 start, u32 end) {
+
+    u32 i;
+    u32 n_erased = end-start+1;
+    u32 str_len = strlen(str);
+
+    for (i = end+1; i < str_len; i++) {
+        str[i-n_erased] = str[i];
+    }
+
+    for (i = str_len-n_erased; i <= str_len; i++)
+        str[i] = '\0';
+    str_len -= n_erased;
+
+    return str_len;
+
+}
+
+/* returns the result of strlen(*str) after expanding the macros */
+static u32 expand_macros_in_str(char **str_ptr,
+        const struct PreProcMacroList *macros) {
+
+    char *str = *str_ptr;
+    u32 str_i;
+
+    for (str_i = 0; str[str_i] != '\0'; str_i++) {
+
+        u32 ident_len;
+        char *ident = NULL;
+        u32 macro_idx;
+        char *macro_expansion = NULL;
+        u32 macro_expansion_len;
+
+        if (!valid_ident_start_char(str[str_i]))
+            continue;
+
+        ident_len = get_identifier_len(&str[str_i]);
+        ident = sub_str(str, str_i, ident_len);
+
+        macro_idx = find_macro(macros, ident);
+
+        if (macro_idx == m_u32_max || !macros->elems[macro_idx].expansion) {
+            str_i += ident_len-1;
+            m_free(ident);
+            continue;
+        }
+
+        macro_expansion = make_str_copy(macros->elems[macro_idx].expansion);
+        macro_expansion_len = expand_macros_in_str(&macro_expansion, macros);
+
+        /* erase the macro name from the string */
+        erase_from_str(str, str_i, str_i+ident_len-1);
+
+        /* replace the name with the expansion */
+        insert_string(&str, macro_expansion, str_i);
+
+        str_i += macro_expansion_len-1;
+
+        m_free(macro_expansion);
+        m_free(ident);
+
+    }
+
+    *str_ptr = str;
+    return strlen(str);
+
+}
+
 /* dir_end points to the first character after the define keyword */
 static void read_define_directive(const char *src, u32 dir_end,
         unsigned line_num, u32 *end_idx, u32 *n_lines, const char *file_path,
@@ -214,8 +298,8 @@ static void read_preproc_directive(const char *src, u32 hashtag_idx,
 
 }
 
-static void expand_macro(const struct PreProcMacroList *macros, u32 macro_idx,
-        struct MacroInstList *macro_insts, u32 macro_start_idx,
+static void create_macro_inst(const struct PreProcMacroList *macros,
+        u32 macro_idx, struct MacroInstList *macro_insts, u32 macro_start_idx,
         const char *file_path) {
 
     char *expansion = NULL;
@@ -223,6 +307,7 @@ static void expand_macro(const struct PreProcMacroList *macros, u32 macro_idx,
     assert(macro_idx != m_u32_max);
 
     expansion = make_str_copy(macros->elems[macro_idx].expansion);
+    expand_macros_in_str(&expansion, macros);
 
     MacroInstList_push_back(macro_insts,
             MacroInstance_create(
@@ -278,13 +363,27 @@ static void process(const char *src, struct PreProcMacroList *macros,
                 break;
         }
 
+        else if (src[src_i] == '\"') {
+            ++src_i;
+            while (src_i <= end_idx && src[src_i] != '\"') {
+                ++column_num;
+                ++src_i;
+            }
+        }
+        else if (src[src_i] == '\'') {
+            ++src_i;
+            while (src_i <= end_idx && src[src_i] != '\'') {
+                ++column_num;
+                ++src_i;
+            }
+        }
+
         else if (only_whitespace && src[src_i] == '#') {
             unsigned n_lines;
             read_preproc_directive(src, src_i, line_num, macros, &src_i,
                     &n_lines, file_path);
             line_num += n_lines;
             column_num = 0;
-            ++src_i;
         }
 
         else if (valid_ident_start_char(src[src_i])) {
@@ -292,8 +391,13 @@ static void process(const char *src, struct PreProcMacroList *macros,
             char *ident = sub_str(src, src_i, ident_len);
             u32 macro_idx = find_macro(macros, ident);
 
-            if (macro_idx != m_u32_max)
-                expand_macro(macros, macro_idx, macro_insts, src_i, file_path);
+            if (macro_idx != m_u32_max) {
+                create_macro_inst(macros, macro_idx, macro_insts, src_i,
+                        file_path);
+            }
+
+            column_num += ident_len-1;
+            src_i += ident_len-1;
 
             m_free(ident);
             only_whitespace = false;
