@@ -119,8 +119,7 @@ static struct Expr* parse_expr(const struct Lexer *lexer, u32 start_idx,
         u32 *sy_end_idx, u32 bp) {
 
     struct Expr *expr = SY_shunting_yard(&lexer->token_tbl, start_idx, NULL, 0,
-            sy_end_idx, &vars, bp, false, &typedefs);
-    Parser_error_occurred |= SY_error_occurred;
+            sy_end_idx, &vars, bp, false, &typedefs, true);
 
     if (*sy_end_idx == lexer->token_tbl.size) {
         ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
@@ -158,8 +157,7 @@ static struct Expr* var_decl_value(const struct Lexer *lexer, u32 ident_idx,
     }
 
     expr = SY_shunting_yard(&lexer->token_tbl, equal_sign_idx+1, NULL, 0,
-            semicolon_idx, &vars, bp, true, &typedefs);
-    Parser_error_occurred |= SY_error_occurred;
+            semicolon_idx, &vars, bp, true, &typedefs, true);
 
     return expr;
 
@@ -226,9 +224,9 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
         struct Expr *len_expr = SY_shunting_yard(&lexer->token_tbl,
                 ident_idx+2, stop_types,
                 sizeof(stop_types)/sizeof(stop_types[0]), end_idx, &vars, bp,
-                false, &typedefs);
-        Parser_error_occurred |= SY_error_occurred;
+                false, &typedefs, true);
         ++*end_idx;
+
         if (len_expr && !Expr_statically_evaluatable(len_expr)) {
             char *var_name = Token_src(&lexer->token_tbl.elems[ident_idx]);
             ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
@@ -673,8 +671,7 @@ static u32 parse_ret_stmt(const struct Lexer *lexer, struct BlockNode *block,
         enum TokenType stop_types[] = {TokenType_SEMICOLON};
         ret_node->value = SY_shunting_yard(&lexer->token_tbl, ret_idx+1,
                 stop_types, sizeof(stop_types)/sizeof(stop_types[0]), &end_idx,
-                &vars, bp, false, &typedefs);
-        Parser_error_occurred |= SY_error_occurred;
+                &vars, bp, false, &typedefs, true);
         ret_node->lvls_of_indir = ret_node->value->lvls_of_indir;
         ret_node->type = Expr_type(ret_node->value, &vars);
     }
@@ -727,8 +724,7 @@ u32 parse_if_stmt(const struct Lexer *lexer, struct BlockNode *block,
         enum TokenType sy_stop_types[] = {TokenType_R_PAREN};
         if_node->expr = SY_shunting_yard(&lexer->token_tbl, if_idx+2,
                 sy_stop_types, sizeof(sy_stop_types)/sizeof(sy_stop_types[0]),
-                &r_paren_idx, &vars, bp, false, &typedefs);
-        Parser_error_occurred |= SY_error_occurred;
+                &r_paren_idx, &vars, bp, false, &typedefs, true);
     }
 
     if (r_paren_idx >= lexer->token_tbl.size) {
@@ -842,8 +838,7 @@ u32 parse_while_stmt(const struct Lexer *lexer, struct BlockNode *block,
         enum TokenType sy_stop_types[] = {TokenType_R_PAREN};
         while_node->expr = SY_shunting_yard(&lexer->token_tbl, while_idx+2,
                 sy_stop_types, sizeof(sy_stop_types)/sizeof(sy_stop_types[0]),
-                &r_paren_idx, &vars, bp, false, &typedefs);
-        Parser_error_occurred |= SY_error_occurred;
+                &r_paren_idx, &vars, bp, false, &typedefs, true);
     }
 
     if (r_paren_idx >= lexer->token_tbl.size) {
@@ -933,8 +928,7 @@ u32 parse_for_stmt(const struct Lexer *lexer, struct BlockNode *block,
     /* get the for loop expressions */
 
     for_node->init = SY_shunting_yard(&lexer->token_tbl, for_idx+2, NULL, 0,
-            &init_end_idx, &vars, bp, false, &typedefs);
-    Parser_error_occurred |= SY_error_occurred;
+            &init_end_idx, &vars, bp, false, &typedefs, true);
     if (init_end_idx >= lexer->token_tbl.size) {
         ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
                 lexer->token_tbl.elems[for_idx].file_path,
@@ -946,8 +940,7 @@ u32 parse_for_stmt(const struct Lexer *lexer, struct BlockNode *block,
     }
 
     for_node->condition = SY_shunting_yard(&lexer->token_tbl, init_end_idx+1,
-            NULL, 0, &cond_end_idx, &vars, bp, false, &typedefs);
-    Parser_error_occurred |= SY_error_occurred;
+            NULL, 0, &cond_end_idx, &vars, bp, false, &typedefs, true);
     if (cond_end_idx >= lexer->token_tbl.size) {
         ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
                 lexer->token_tbl.elems[for_idx].file_path,
@@ -962,8 +955,7 @@ u32 parse_for_stmt(const struct Lexer *lexer, struct BlockNode *block,
         enum TokenType stop_types[] = {TokenType_R_PAREN};
         for_node->inc = SY_shunting_yard(&lexer->token_tbl, cond_end_idx+1,
                 stop_types, sizeof(stop_types)/sizeof(stop_types[0]),
-                &r_paren_idx, &vars, bp, false, &typedefs);
-        Parser_error_occurred |= SY_error_occurred;
+                &r_paren_idx, &vars, bp, false, &typedefs, true);
     }
     if (r_paren_idx >= lexer->token_tbl.size) {
         ErrMsg_print(ErrMsg_on, &Parser_error_occurred,

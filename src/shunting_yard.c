@@ -196,7 +196,7 @@ static u32 read_func_call(const struct TokenList *token_tbl, u32 f_call_idx,
         struct Expr *arg = SY_shunting_yard(token_tbl,
                 arg_start_idx+on_a_comma, stop_types,
                 sizeof(stop_types)/sizeof(stop_types[0]), &arg_start_idx, vars,
-                bp, false, typedefs);
+                bp, false, typedefs, false);
         SY_error_occurred |= old_error_occurred;
 
         if (!arg)
@@ -237,14 +237,14 @@ static void push_array_subscr_to_stack(const struct TokenList *token_tbl,
     struct Expr *expr = NULL;
     struct Expr *value = NULL;
     enum TokenType stop_types[] = {TokenType_R_ARR_SUBSCR};
-    bool old_error_occurred = Parser_error_occurred;
+    bool old_error_occurred = SY_error_occurred;
 
     assert(token_tbl->elems[l_arr_subscr].type == TokenType_L_ARR_SUBSCR);
 
     value = SY_shunting_yard(token_tbl, l_arr_subscr+1, stop_types,
             sizeof(stop_types)/sizeof(stop_types[0]), end_idx, vars, bp, false,
-            typedefs);
-    Parser_error_occurred |= old_error_occurred;
+            typedefs, false);
+    SY_error_occurred |= old_error_occurred;
 
     expr = safe_malloc(sizeof(*expr));
     *expr = Expr_create_w_tok(token_tbl->elems[l_arr_subscr], NULL, NULL,
@@ -282,10 +282,9 @@ static void read_array_initializer(const struct TokenList *token_tbl,
 
         value = SY_shunting_yard(token_tbl, value_idx, stop_types,
                 sizeof(stop_types)/sizeof(stop_types[0]), &value_idx, vars,
-                bp, false, typedefs);
-        SY_error_occurred |= old_error_occurred;
+                bp, false, typedefs, false);
 
-        if (!Expr_statically_evaluatable(value)) {
+        if (!SY_error_occurred && !Expr_statically_evaluatable(value)) {
             ErrMsg_print(ErrMsg_on, &SY_error_occurred,
                     value->file_path,
                     "array initializer elements must be statically"
@@ -293,6 +292,8 @@ static void read_array_initializer(const struct TokenList *token_tbl,
                     value->line_num, value->column_num
                     );
         }
+
+        SY_error_occurred |= old_error_occurred;
 
         ExprPtrList_push_back(&values, value);
 
@@ -413,7 +414,7 @@ static void read_type_cast(const struct TokenList *token_tbl,
 struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
         enum TokenType *stop_types, u32 n_stop_types, u32 *end_idx,
         const struct ParVarList *vars, u32 bp, bool is_initializer,
-        const struct TypedefList *typedefs) {
+        const struct TypedefList *typedefs, bool set_parser_err_occurred) {
 
     struct ExprPtrList output_queue = ExprPtrList_init();
     struct ExprPtrList operator_stack = ExprPtrList_init();
@@ -539,6 +540,7 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
         *end_idx = i;
 
     if (i == start_idx) {
+        assert(output_queue.size == 0);
         return NULL;
     }
 
@@ -563,6 +565,9 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
         struct Expr *expr = output_queue.elems[0];
         ExprPtrList_free(&output_queue);
         SY_error_occurred |= Expr_verify(expr, vars, is_initializer);
+        if (set_parser_err_occurred)
+            Parser_error_occurred |= SY_error_occurred;
+
         return expr;
     }
     else {
@@ -573,7 +578,9 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
                 output_queue.size == 0 ? "operands" : "operators",
                 token_tbl->elems[start_idx].line_num,
                 token_tbl->elems[start_idx].column_num);
-        SY_error_occurred = true;
+        if (set_parser_err_occurred)
+            Parser_error_occurred |= SY_error_occurred;
+
         while (output_queue.size > 0)
             ExprPtrList_pop_back(&output_queue, Expr_recur_free_w_self);
         ExprPtrList_free(&output_queue);
