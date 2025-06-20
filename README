@@ -14,6 +14,7 @@ Thus far the compiler has:
     function definitions
     function calls
     function prototyping
+    static functions
     return statements
     function argument error checking
     if/else statements
@@ -24,10 +25,9 @@ Thus far the compiler has:
     typedefs
     type casts
 
-Next thing I'ma implement:
-    const keyword
-    static functions
+Next thing I'ma implement (maybe):
     global variables
+    static variables
 
     Also, the compiler has a custom debugging keyword ':', which prints the
 value currently stored in EAX.
