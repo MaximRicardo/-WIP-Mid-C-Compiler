@@ -1,5 +1,6 @@
 #include "parser.h"
 #include "ast.h"
+#include "comp_args.h"
 #include "comp_dependent/ints.h"
 #include "err_msg.h"
 #include "lexer.h"
@@ -1247,6 +1248,7 @@ static u32 parse_struct_decl(const struct Lexer *lexer, u32 decl_idx) {
     u32 name_idx = decl_idx+1;
     u32 l_curly_idx = name_idx+1;
     u32 r_curly_idx;
+    u32 prev_decl_struct_idx;
 
     if (name_idx >= lexer->token_tbl.size ||
             lexer->token_tbl.elems[name_idx].type != TokenType_IDENT) {
@@ -1263,8 +1265,12 @@ static u32 parse_struct_decl(const struct Lexer *lexer, u32 decl_idx) {
 
     new_struct.name = Token_src(&lexer->token_tbl.elems[name_idx]);
 
+    prev_decl_struct_idx = StructList_find_struct(&structs, new_struct.name);
+
     if (l_curly_idx >= lexer->token_tbl.size ||
-            lexer->token_tbl.elems[l_curly_idx].type != TokenType_L_CURLY) {
+            (lexer->token_tbl.elems[l_curly_idx].type != TokenType_L_CURLY &&
+             lexer->token_tbl.elems[l_curly_idx].type !=
+                TokenType_SEMICOLON)) {
         ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
                 lexer->token_tbl.elems[decl_idx].file_path,
                 "expected curly brackets encasing '%s's fields on line %u,"
@@ -1276,12 +1282,55 @@ static u32 parse_struct_decl(const struct Lexer *lexer, u32 decl_idx) {
         return skip_to_token_type_alt(decl_idx, lexer->token_tbl,
                 TokenType_SEMICOLON);
     }
+    else if (lexer->token_tbl.elems[l_curly_idx].type == TokenType_SEMICOLON) {
+        new_struct.defined = false;
 
-    r_curly_idx = get_struct_fields(lexer, l_curly_idx, &new_struct);
+        if (prev_decl_struct_idx == m_u32_max)
+            StructList_push_back(&structs, new_struct);
+        else {
+            /* if this is just a redeclaration of a struct, nothing needs to
+             * get updated cuz the redeclaration doesn't give any new
+             * information about the struct */
+            Struct_free(new_struct);
+        }
 
-    StructList_push_back(&structs, new_struct);
+        return l_curly_idx;
+    }
+    else {
+        new_struct.defined = true;
+        new_struct.def_line_num = lexer->token_tbl.elems[decl_idx].line_num;
+        new_struct.def_file_path = lexer->token_tbl.elems[decl_idx].file_path;
+        r_curly_idx = get_struct_fields(lexer, l_curly_idx, &new_struct);
 
-    return r_curly_idx;
+        if (new_struct.members.size == 0) {
+            WarnMsg_print(WarnMsg_on && CompArgs_args.pedantic,
+                    &Parser_error_occurred,
+                    new_struct.def_file_path,
+                    "empty structs are a non-standard compiler extension."
+                    " line %u.\n", new_struct.def_line_num);
+        }
+
+        if (prev_decl_struct_idx == m_u32_max)
+            StructList_push_back(&structs, new_struct);
+        else {
+            if (structs.elems[prev_decl_struct_idx].defined) {
+                ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                        new_struct.def_file_path,
+                        "struct '%s' redefined on line %u. first defined on"
+                        " line %u.\n", new_struct.name,
+                        new_struct.def_line_num,
+                        structs.elems[prev_decl_struct_idx].def_line_num
+                        );
+                Struct_free(new_struct);
+            }
+            else {
+                Struct_free(structs.elems[prev_decl_struct_idx]);
+                structs.elems[prev_decl_struct_idx] = new_struct;
+            }
+        }
+
+        return r_curly_idx;
+    }
 
 }
 
@@ -1413,7 +1462,10 @@ static struct BlockNode* parse(const struct Lexer *lexer,
 
         else if (lexer->token_tbl.elems[start_idx].type == TokenType_STRUCT) {
             prev_end_idx = parse_struct_decl(lexer, start_idx);
-            ++prev_end_idx;
+            if (lexer->token_tbl.elems[prev_end_idx].type !=
+                    TokenType_SEMICOLON)
+                ++prev_end_idx;
+
             if (lexer->token_tbl.elems[prev_end_idx].type !=
                     TokenType_SEMICOLON) {
                 ErrMsg_print(ErrMsg_on, &Parser_error_occurred,

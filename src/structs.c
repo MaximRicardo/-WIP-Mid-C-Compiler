@@ -45,18 +45,23 @@ struct Struct Struct_init(void) {
     x.name = NULL;
     x.members = StructFieldList_init();
     x.defined = false;
+    x.def_line_num = 0;
+    x.def_file_path = NULL;
     x.alignment = 0;
     return x;
 
 }
 
 struct Struct Struct_create(char *name, struct StructFieldList members,
-        bool defined, u32 alignment) {
+        bool defined, unsigned def_line_num, const char *def_file_path,
+        u32 alignment) {
 
     struct Struct x;
     x.name = name;
     x.members = members;
     x.defined = defined;
+    x.def_line_num = def_line_num;
+    x.def_file_path = def_file_path;
     x.alignment = alignment;
     return x;
 
@@ -78,6 +83,19 @@ u32 Struct_field_idx(struct Struct *x, const char *name) {
 
     for (i = 0; i < x->members.size; i++) {
         if (strcmp(name, x->members.elems[i].name) == 0)
+            return i;
+    }
+
+    return m_u32_max;
+
+}
+
+u32 StructList_find_struct(const struct StructList *self, const char *name) {
+
+    u32 i;
+
+    for (i = 0; i < self->size; i++) {
+        if (strcmp(self->elems[i].name, name) == 0)
             return i;
     }
 

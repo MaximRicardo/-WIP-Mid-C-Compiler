@@ -7,12 +7,18 @@ int printf(char *str, ...);
 
 static u32 fibonacci(u32 n);
 
+struct TestStruct;
+
 struct TestStruct {
     int x[4];
     int y;
     int *z;
     char a;
     int b;
+};
+
+struct TestStruct {
+
 };
 
 int main(int argc, char **argv) {
