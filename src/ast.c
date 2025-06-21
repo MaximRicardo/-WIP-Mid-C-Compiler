@@ -882,17 +882,19 @@ struct VarDeclNode VarDeclNode_init(void) {
     struct VarDeclNode node;
     node.decls = DeclList_init();
     node.type = PrimType_INVALID;
+    node.type_idx = 0;
     node.mods = TypeModifiers_init();
     return node;
 
 }
 
 struct VarDeclNode VarDeclNode_create(struct DeclList decls,
-        enum PrimitiveType type, struct TypeModifiers mods) {
+        enum PrimitiveType type, u32 type_idx, struct TypeModifiers mods) {
 
     struct VarDeclNode node;
     node.decls = decls;
     node.type = type;
+    node.type_idx = type_idx;
     node.mods = mods;
     return node;
 

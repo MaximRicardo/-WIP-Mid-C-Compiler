@@ -18,7 +18,9 @@ enum PrimitiveType {
     PrimType_LONG,
     PrimType_ULONG,
 
-    PrimType_VOID
+    PrimType_VOID,
+
+    PrimType_STRUCT
 
 };
 

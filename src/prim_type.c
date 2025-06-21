@@ -34,8 +34,7 @@ unsigned PrimitiveType_size(enum PrimitiveType type, unsigned lvls_of_indir) {
     case PrimType_ULONG:
         return m_TypeSize_long;
 
-    case PrimType_VOID:
-    case PrimType_INVALID:
+    default:
         assert(false);
 
     }
@@ -76,8 +75,7 @@ enum PrimitiveType PrimitiveType_promote(enum PrimitiveType type,
     case PrimType_ULONG:
         return PrimType_ULONG;
 
-    case PrimType_VOID:
-    case PrimType_INVALID:
+    default:
         assert(false);
 
     }

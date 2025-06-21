@@ -17,14 +17,19 @@ struct TestStruct {
     int b;
 };
 
-struct TestStruct {
-
+struct Struct2ElectricBoogaloo {
+    char *string;
 };
+
+void func(void) {
+    struct TestStruct var;
+}
 
 int main(int argc, char **argv) {
 
     char *end_ptr;
     u32 n;
+    struct TestStruct x;
 
     if (argc < 2) {
         printf("give an argument containing which fibonacci number to get.\n");

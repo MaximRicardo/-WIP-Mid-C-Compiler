@@ -43,6 +43,7 @@ struct Struct {
     unsigned def_line_num;
     const char *def_file_path;
 
+    u32 size;
     u32 alignment;
 
 };
@@ -50,7 +51,7 @@ struct Struct {
 struct Struct Struct_init(void);
 struct Struct Struct_create(char *name, struct StructFieldList members,
         bool defined, unsigned def_line_num, const char *def_file_path,
-        u32 alignment);
+        u32 size, u32 alignment);
 void Struct_free(struct Struct x);
 /* returns m_u32_max if a member with the given name couldn't be found */
 u32 Struct_field_idx(struct Struct *x, const char *name);

@@ -11,6 +11,7 @@ struct ParserVar ParserVar_init(void) {
     var.lvls_of_indir = 0;
     var.mods = TypeModifiers_init();
     var.type = PrimType_INVALID;
+    var.type_idx = 0;
     var.is_array = false;
     var.array_len = 0;
     var.stack_pos = 0;
@@ -26,7 +27,7 @@ struct ParserVar ParserVar_init(void) {
 
 struct ParserVar ParserVar_create(unsigned line_num, unsigned column_num,
         char *name, unsigned lvls_of_indir, struct TypeModifiers mods,
-        enum PrimitiveType type,
+        enum PrimitiveType type, u32 type_idx,
         bool is_array, u32 array_len, u32 stack_pos,
         struct VarDeclPtrList *args, bool variadic_args, bool void_args,
         bool has_been_defined,
@@ -39,6 +40,7 @@ struct ParserVar ParserVar_create(unsigned line_num, unsigned column_num,
     var.lvls_of_indir = lvls_of_indir;
     var.mods = mods;
     var.type = type;
+    var.type_idx = type_idx;
     var.is_array = is_array;
     var.array_len = array_len;
     var.stack_pos = stack_pos;

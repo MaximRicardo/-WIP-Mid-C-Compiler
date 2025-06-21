@@ -47,6 +47,7 @@ struct Struct Struct_init(void) {
     x.defined = false;
     x.def_line_num = 0;
     x.def_file_path = NULL;
+    x.size = 0;
     x.alignment = 0;
     return x;
 
@@ -54,7 +55,7 @@ struct Struct Struct_init(void) {
 
 struct Struct Struct_create(char *name, struct StructFieldList members,
         bool defined, unsigned def_line_num, const char *def_file_path,
-        u32 alignment) {
+        u32 size, u32 alignment) {
 
     struct Struct x;
     x.name = name;
@@ -62,6 +63,7 @@ struct Struct Struct_create(char *name, struct StructFieldList members,
     x.defined = defined;
     x.def_line_num = def_line_num;
     x.def_file_path = def_file_path;
+    x.size = size;
     x.alignment = alignment;
     return x;
 

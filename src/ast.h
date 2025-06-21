@@ -265,13 +265,16 @@ struct VarDeclNode {
 
     struct DeclList decls;
     enum PrimitiveType type;
+    /* used as a struct idx for structs, and union idx for unions, etc.
+     * should be kept at 0 for primitive types */
+    u32 type_idx;
     struct TypeModifiers mods;
 
 };
 
 struct VarDeclNode VarDeclNode_init(void);
 struct VarDeclNode VarDeclNode_create(struct DeclList decls,
-        enum PrimitiveType type, struct TypeModifiers mods);
+        enum PrimitiveType type, u32 type_idx, struct TypeModifiers mods);
 void VarDeclNode_free_w_self(struct VarDeclNode *self);
 void VarDeclNode_get_array_lits(const struct VarDeclNode *self,
         struct ArrayLitList *list);

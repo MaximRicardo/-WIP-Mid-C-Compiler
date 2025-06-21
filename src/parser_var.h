@@ -13,6 +13,9 @@ struct ParserVar {
     unsigned lvls_of_indir;
     struct TypeModifiers mods;
     enum PrimitiveType type;
+    /* used as a struct idx for structs, and union idx for unions, etc.
+     * should be kept at 0 for primitive types */
+    u32 type_idx;
     bool is_array;
     u32 array_len;
     u32 stack_pos;
@@ -33,7 +36,7 @@ struct ParserVar {
 struct ParserVar ParserVar_init(void);
 struct ParserVar ParserVar_create(unsigned line_num, unsigned column_num,
         char *name, unsigned lvls_of_indir, struct TypeModifiers mods,
-        enum PrimitiveType type,
+        enum PrimitiveType type, u32 type_idx,
         bool is_array, u32 array_len, u32 stack_pos,
         struct VarDeclPtrList *args, bool variadic_args, bool void_args,
         bool has_been_defined, bool is_func_arg, void *parent);
