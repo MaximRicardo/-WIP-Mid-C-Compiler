@@ -14,11 +14,12 @@
 #include "merge_strings.h"
 #include "pre_proc.h"
 #include "const_fold.h"
+#include "comp_args.h"
 
 #define m_build_bug_on(condition) \
     ((void)sizeof(char[1 - 2*!!(condition)]))
 
-static char *read_file(char *file_path) {
+static char *read_file(const char *file_path) {
 
     char *contents = NULL;
     FILE *file = fopen(file_path, "r");
@@ -33,16 +34,16 @@ static char *read_file(char *file_path) {
 
 }
 
-void compile(char *src, const char *src_f_path, FILE *output,
+void compile(char *src, const struct CompArgs *comp_args, FILE *output,
         bool *error_occurred) {
 
     struct PreProcMacroList macros;
     struct MacroInstList macro_insts;
-    PreProc_process(src, &macros, &macro_insts, src_f_path);
+    PreProc_process(src, &macros, &macro_insts, comp_args->src_path);
     *error_occurred = false;
 
     if (!PreProc_error_occurred) {
-        struct Lexer lexer = Lexer_lex(src, src_f_path, &macro_insts);
+        struct Lexer lexer = Lexer_lex(src, comp_args->src_path, &macro_insts);
 
         if (!Lexer_error_occurred) {
             struct BlockNode *ast;
@@ -54,7 +55,9 @@ void compile(char *src, const char *src_f_path, FILE *output,
             ast = Parser_parse(&lexer);
 
             if (!Parser_error_occurred && output) {
-                BlockNode_const_fold(ast);
+                if (comp_args->optimize) {
+                    BlockNode_const_fold(ast);
+                }
                 CodeGen_generate(output, ast);
             }
             else
@@ -82,6 +85,7 @@ void compile(char *src, const char *src_f_path, FILE *output,
 
 int main(int argc, char *argv[]) {
 
+    struct CompArgs comp_args;
     char *src = NULL;
     FILE *output = NULL;
     bool error_occurred = false;
@@ -93,28 +97,21 @@ int main(int argc, char *argv[]) {
     m_build_bug_on(sizeof(i8) != 1);
     m_build_bug_on(sizeof(u8) != 1);
 
-    if (argc < 2) {
-        fprintf(stderr, "ERROR: No input files.\n");
-        return 1;
-    }
+    comp_args = CompArgs_get_args(argc, argv);
 
-    src = read_file(argv[1]);
-    if (!src) {
-        return 1;
-    }
-
+    src = read_file(comp_args.src_path);
     puts(src);
 
-    if (argc >= 3) {
-        output = fopen(argv[2], "w");
+    if (comp_args.asm_out_path) {
+        output = fopen(comp_args.asm_out_path, "w");
         if (!output) {
-            fprintf(stderr, "can't open file '%s': %s\n", argv[2],
-                    strerror(errno));
+            fprintf(stderr, "can't open file '%s': %s\n",
+                    comp_args.asm_out_path, strerror(errno));
             return 1;
         }
     }
 
-    compile(src, argv[1], output, &error_occurred);
+    compile(src, &comp_args, output, &error_occurred);
 
     m_free(src);
     if (output)
