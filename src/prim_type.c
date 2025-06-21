@@ -83,3 +83,30 @@ enum PrimitiveType PrimitiveType_promote(enum PrimitiveType type,
     }
 
 }
+
+enum PrimitiveType PrimitiveType_make_unsigned(enum PrimitiveType type) {
+
+    switch (type) {
+
+    case PrimType_CHAR:
+    case PrimType_UCHAR:
+        return PrimType_UCHAR;
+
+    case PrimType_SHORT:
+    case PrimType_USHORT:
+        return PrimType_USHORT;
+
+    case PrimType_INT:
+    case PrimType_UINT:
+        return PrimType_UINT;
+
+    case PrimType_LONG:
+    case PrimType_ULONG:
+        return PrimType_ULONG;
+
+    default:
+        assert(false);
+
+    }
+
+}

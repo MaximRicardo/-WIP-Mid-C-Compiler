@@ -11,23 +11,15 @@ enum PrimitiveType Ident_type_spec(const char *ident,
 
     if (strcmp(ident, "char") == 0)
         return PrimType_CHAR;
-    if (strcmp(ident, "uchar") == 0)
-        return PrimType_UCHAR;
 
     if (strcmp(ident, "short") == 0)
         return PrimType_SHORT;
-    if (strcmp(ident, "ushort") == 0)
-        return PrimType_USHORT;
 
     else if (strcmp(ident, "int") == 0)
         return PrimType_INT;
-    else if (strcmp(ident, "uint") == 0)
-        return PrimType_UINT;
 
     else if (strcmp(ident, "long") == 0)
         return PrimType_LONG;
-    else if (strcmp(ident, "ulong") == 0)
-        return PrimType_ULONG;
 
     else if (strcmp(ident, "void") == 0)
         return PrimType_VOID;
@@ -72,7 +64,11 @@ struct TypeModifiers Ident_type_modifiers(const char *ident,
 
 enum TokenType Ident_modifier_str_to_tok(const char *ident) {
 
-    if (strcmp(ident, "static") == 0)
+    if (strcmp(ident, "unsigned") == 0)
+        return TokenType_UNSIGNED;
+    else if (strcmp(ident, "signed") == 0)
+        return TokenType_SIGNED;
+    else if (strcmp(ident, "static") == 0)
         return TokenType_STATIC;
     else
         return TokenType_NONE;

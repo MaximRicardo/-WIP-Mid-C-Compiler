@@ -15,7 +15,8 @@ FEATURES:
 
 Thus far the compiler has:
     variables
-    multiple types (char, uchar, short, ushort, int, uint, long, ulong, void)
+    multiple types
+        (char, short, int, long, all of their unsigned equivalents, and void)
     function definitions
     function calls
     function prototyping
@@ -47,7 +48,7 @@ HOW TO USE:
 
         mcc --help
 
-to get a menu showing all the available command line arguments.
+    to get a menu showing all the available command line arguments.
 
 
 STANDARD COMPLIANCE:

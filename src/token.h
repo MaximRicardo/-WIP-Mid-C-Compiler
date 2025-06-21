@@ -74,6 +74,8 @@ enum TokenType {
     TokenType_FOR_STMT,
     TokenType_TYPEDEF,
     TokenType_STATIC,
+    TokenType_SIGNED,
+    TokenType_UNSIGNED,
 
     TokenType_VARIADIC,
 

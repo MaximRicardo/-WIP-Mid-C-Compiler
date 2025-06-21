@@ -79,6 +79,11 @@ static enum TokenType identifier_keyword(const char *ident_start,
         return TokenType_TYPEDEF;
     else if (strncmp(ident_start, "static", ident_len) == 0 && ident_len == 6)
         return TokenType_STATIC;
+    else if (strncmp(ident_start, "signed", ident_len) == 0 && ident_len == 6)
+        return TokenType_SIGNED;
+    else if (strncmp(ident_start, "unsigned", ident_len) == 0 &&
+            ident_len == 8)
+        return TokenType_UNSIGNED;
     else
         return TokenType_NONE;
 

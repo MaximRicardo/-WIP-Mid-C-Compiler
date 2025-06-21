@@ -1,6 +1,6 @@
 #define m_test_macro "this is a macro"
 
-typedef uint u32;
+typedef unsigned u32;
 
 int strtol(char *str, char **end, int base);
 int printf(char *str, ...);
@@ -11,6 +11,8 @@ int main(int argc, char **argv) {
 
     char *end_ptr;
     u32 n;
+
+    n*5;
 
     if (argc < 2) {
         printf("give an argument containing which fibonacci number to get.\n");
