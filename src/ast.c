@@ -390,6 +390,9 @@ u32 Expr_evaluate(const struct Expr *self) {
         !self->rhs ? self->int_value : 0;
     u32 rhs_val = self->rhs ? Expr_evaluate(self->rhs) : 0;
 
+    bool is_signed =
+        PrimitiveType_signed(self->prim_type, self->lvls_of_indir);
+
     assert(!(!self->lhs && self->rhs));
 
     switch (self->expr_type) {
@@ -401,13 +404,22 @@ u32 Expr_evaluate(const struct Expr *self) {
         return lhs_val - rhs_val;
 
     case ExprType_MUL:
-        return lhs_val * rhs_val;
+        if (is_signed)
+            return (i32)lhs_val * (i32)rhs_val;
+        else
+            return lhs_val * rhs_val;
 
     case ExprType_DIV:
-        return lhs_val / rhs_val;
+        if (is_signed)
+            return (i32)lhs_val / (i32)rhs_val;
+        else
+            return lhs_val / rhs_val;
 
     case ExprType_MODULUS:
-        return lhs_val % rhs_val;
+        if (is_signed)
+            return (i32)lhs_val % (i32)rhs_val;
+        else
+            return lhs_val % rhs_val;
 
     case ExprType_COMMA:
         return 0;
@@ -428,16 +440,28 @@ u32 Expr_evaluate(const struct Expr *self) {
         return lhs_val != rhs_val;
 
     case ExprType_L_THAN:
-        return lhs_val < rhs_val;
+        if (is_signed)
+            return (i32)lhs_val < (i32)rhs_val;
+        else
+            return lhs_val < rhs_val;
 
     case ExprType_L_THAN_OR_E:
-        return lhs_val <= rhs_val;
+        if (is_signed)
+            return (i32)lhs_val <= (i32)rhs_val;
+        else
+            return lhs_val <= rhs_val;
 
     case ExprType_G_THAN:
-        return lhs_val > rhs_val;
+        if (is_signed)
+            return (i32)lhs_val > (i32)rhs_val;
+        else
+            return lhs_val > rhs_val;
 
     case ExprType_G_THAN_OR_E:
-        return lhs_val >= rhs_val;
+        if (is_signed)
+            return (i32)lhs_val >= (i32)rhs_val;
+        else
+            return lhs_val >= rhs_val;
 
     case ExprType_BITWISE_NOT:
         return ~lhs_val;
@@ -458,6 +482,8 @@ u32 Expr_evaluate(const struct Expr *self) {
         return lhs_val;
 
     default:
+        fprintf(stderr, "%s, %u,%u\n", self->file_path, self->line_num,
+                self->column_num);
         assert(false);
 
     }
@@ -500,7 +526,8 @@ bool Expr_statically_evaluatable(const struct Expr *self) {
             self->expr_type == ExprType_REFERENCE ||
             self->expr_type == ExprType_DEREFERENCE ||
             self->expr_type == ExprType_L_ARR_SUBSCR ||
-            ExprType_is_inc_or_dec_operator(self->expr_type))
+            ExprType_is_inc_or_dec_operator(self->expr_type) ||
+            self->expr_type == ExprType_FUNC_CALL)
         return false;
 
     if (self->lhs && !Expr_statically_evaluatable(self->lhs))

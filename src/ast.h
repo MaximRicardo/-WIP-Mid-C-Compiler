@@ -9,7 +9,7 @@
 #include "array_lit.h"
 
 /* make sure to update:
- *    ASTNode_free, ASTNode_get_array_lits */
+ *    ASTNode_free, ASTNode_get_array_lits, ASTNode_const_fold */
 enum ASTNodeType {
 
     ASTType_INVALID,

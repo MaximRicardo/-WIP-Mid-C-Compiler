@@ -13,6 +13,7 @@
 #include "bin_to_unary.h"
 #include "merge_strings.h"
 #include "pre_proc.h"
+#include "const_fold.h"
 
 #define m_build_bug_on(condition) \
     ((void)sizeof(char[1 - 2*!!(condition)]))
@@ -53,6 +54,7 @@ void compile(char *src, const char *src_f_path, FILE *output,
             ast = Parser_parse(&lexer);
 
             if (!Parser_error_occurred && output) {
+                BlockNode_const_fold(ast);
                 CodeGen_generate(output, ast);
             }
             else
