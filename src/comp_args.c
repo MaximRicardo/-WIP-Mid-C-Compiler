@@ -1,6 +1,6 @@
 #include "comp_args.h"
 #include "bool.h"
-#include "err_msg.h"
+#include "comp_args_help.h"
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
@@ -20,7 +20,7 @@ bool err_if_missing_operand(const char *arg, int operand_idx, int argc) {
     if (operand_idx < argc)
         return false;
 
-    fprintf(stderr, "'%s' is missing an operand.\n", arg);
+    fprintf(stderr, "error: '%s' is missing an operand.\n", arg);
     return true;
 
 }
@@ -43,6 +43,17 @@ struct CompArgs CompArgs_get_args(int argc, char **argv) {
         else if (strcmp(argv[i], "-O") == 0 ||
                 strcmp(argv[i], "--optimize") == 0) {
             args.optimize = true;
+        }
+
+        else if (strcmp(argv[i], "-h") == 0 ||
+                strcmp(argv[i], "--help") == 0) {
+            printf("%s", CompArgs_help_str);
+        }
+
+        else if (argv[i][0] == '-') {
+            fprintf(stderr,
+                    "error: command line argument '%s' doesn't exist.\n",
+                    argv[i]);
         }
 
         else {

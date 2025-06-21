@@ -98,8 +98,12 @@ int main(int argc, char *argv[]) {
     m_build_bug_on(sizeof(u8) != 1);
 
     comp_args = CompArgs_get_args(argc, argv);
+    if (!comp_args.src_path)
+        return 0;
 
     src = read_file(comp_args.src_path);
+    if (!src)
+        return 1;
     puts(src);
 
     if (comp_args.asm_out_path) {
