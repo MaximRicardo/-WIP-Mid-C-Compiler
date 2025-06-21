@@ -84,6 +84,8 @@ static enum TokenType identifier_keyword(const char *ident_start,
     else if (strncmp(ident_start, "unsigned", ident_len) == 0 &&
             ident_len == 8)
         return TokenType_UNSIGNED;
+    else if (strncmp(ident_start, "struct", ident_len) == 0 && ident_len == 6)
+        return TokenType_STRUCT;
     else
         return TokenType_NONE;
 

@@ -527,7 +527,8 @@ bool Expr_statically_evaluatable(const struct Expr *self) {
             self->expr_type == ExprType_DEREFERENCE ||
             self->expr_type == ExprType_L_ARR_SUBSCR ||
             ExprType_is_inc_or_dec_operator(self->expr_type) ||
-            self->expr_type == ExprType_FUNC_CALL)
+            self->expr_type == ExprType_FUNC_CALL ||
+            self->expr_type == ExprType_ARRAY_LIT)
         return false;
 
     if (self->lhs && !Expr_statically_evaluatable(self->lhs))

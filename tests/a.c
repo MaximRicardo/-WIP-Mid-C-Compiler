@@ -7,12 +7,18 @@ int printf(char *str, ...);
 
 static u32 fibonacci(u32 n);
 
+struct TestStruct {
+    int x[4];
+    int y;
+    int *z;
+    char a;
+    int b;
+};
+
 int main(int argc, char **argv) {
 
     char *end_ptr;
     u32 n;
-
-    n*5;
 
     if (argc < 2) {
         printf("give an argument containing which fibonacci number to get.\n");

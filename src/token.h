@@ -76,6 +76,7 @@ enum TokenType {
     TokenType_STATIC,
     TokenType_SIGNED,
     TokenType_UNSIGNED,
+    TokenType_STRUCT,
 
     TokenType_VARIADIC,
 
