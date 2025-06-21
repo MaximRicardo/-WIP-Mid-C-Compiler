@@ -5,12 +5,12 @@
 #include <stdio.h>
 #include <string.h>
 
+struct CompArgs CompArgs_args;
+
 struct CompArgs CompArgs_init(void) {
 
     struct CompArgs args;
-    args.src_path = NULL;
-    args.asm_out_path = NULL;
-    args.optimize = false;
+    memset(&args, 0, sizeof(args));
     return args;
 
 }
@@ -48,6 +48,13 @@ struct CompArgs CompArgs_get_args(int argc, char **argv) {
         else if (strcmp(argv[i], "-h") == 0 ||
                 strcmp(argv[i], "--help") == 0) {
             printf("%s", CompArgs_help_str);
+        }
+
+        else if (strcmp(argv[i], "-Werror") == 0) {
+            args.w_error = true;
+        }
+        else if (strcmp(argv[i], "--pedantic") == 0) {
+            args.pedantic = true;
         }
 
         else if (argv[i][0] == '-') {

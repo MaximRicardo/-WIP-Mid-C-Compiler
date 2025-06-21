@@ -10,8 +10,12 @@ struct CompArgs {
     const char *asm_out_path;
 
     bool optimize;
+    bool w_error;
+    bool pedantic;
 
 };
+
+extern struct CompArgs CompArgs_args;
 
 struct CompArgs CompArgs_init(void);
 struct CompArgs CompArgs_get_args(int argc, char **argv);

@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include "ast.h"
 #include "code_gen.h"
+#include "comp_args.h"
 #include "file_io.h"
 #include "comp_dependent/ints.h"
 #include "safe_mem.h"
@@ -14,7 +15,6 @@
 #include "merge_strings.h"
 #include "pre_proc.h"
 #include "const_fold.h"
-#include "comp_args.h"
 
 #define m_build_bug_on(condition) \
     ((void)sizeof(char[1 - 2*!!(condition)]))
@@ -34,16 +34,16 @@ static char *read_file(const char *file_path) {
 
 }
 
-void compile(char *src, const struct CompArgs *comp_args, FILE *output,
+void compile(char *src, FILE *output,
         bool *error_occurred) {
 
     struct PreProcMacroList macros;
     struct MacroInstList macro_insts;
-    PreProc_process(src, &macros, &macro_insts, comp_args->src_path);
+    PreProc_process(src, &macros, &macro_insts, CompArgs_args.src_path);
     *error_occurred = false;
 
     if (!PreProc_error_occurred) {
-        struct Lexer lexer = Lexer_lex(src, comp_args->src_path, &macro_insts);
+        struct Lexer lexer = Lexer_lex(src, CompArgs_args.src_path, &macro_insts);
 
         if (!Lexer_error_occurred) {
             struct BlockNode *ast;
@@ -55,7 +55,7 @@ void compile(char *src, const struct CompArgs *comp_args, FILE *output,
             ast = Parser_parse(&lexer);
 
             if (!Parser_error_occurred && output) {
-                if (comp_args->optimize) {
+                if (CompArgs_args.optimize) {
                     BlockNode_const_fold(ast);
                 }
                 CodeGen_generate(output, ast);
@@ -85,7 +85,6 @@ void compile(char *src, const struct CompArgs *comp_args, FILE *output,
 
 int main(int argc, char *argv[]) {
 
-    struct CompArgs comp_args;
     char *src = NULL;
     FILE *output = NULL;
     bool error_occurred = false;
@@ -97,25 +96,25 @@ int main(int argc, char *argv[]) {
     m_build_bug_on(sizeof(i8) != 1);
     m_build_bug_on(sizeof(u8) != 1);
 
-    comp_args = CompArgs_get_args(argc, argv);
-    if (!comp_args.src_path)
+    CompArgs_args = CompArgs_get_args(argc, argv);
+    if (!CompArgs_args.src_path)
         return 0;
 
-    src = read_file(comp_args.src_path);
+    src = read_file(CompArgs_args.src_path);
     if (!src)
         return 1;
     puts(src);
 
-    if (comp_args.asm_out_path) {
-        output = fopen(comp_args.asm_out_path, "w");
+    if (CompArgs_args.asm_out_path) {
+        output = fopen(CompArgs_args.asm_out_path, "w");
         if (!output) {
             fprintf(stderr, "can't open file '%s': %s\n",
-                    comp_args.asm_out_path, strerror(errno));
+                    CompArgs_args.asm_out_path, strerror(errno));
             return 1;
         }
     }
 
-    compile(src, &comp_args, output, &error_occurred);
+    compile(src, output, &error_occurred);
 
     m_free(src);
     if (output)
