@@ -24,6 +24,7 @@ Thus far the compiler has:
     for loops
     typedefs
     type casts
+    constant-folding
 
 Next thing I'ma implement (maybe):
     global variables
