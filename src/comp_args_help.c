@@ -2,6 +2,7 @@
 
 char *CompArgs_help_str =
     "--help/-h                Show this menu.\n"
-    "-o                       Select the output file path.\n"
+    "<file>                   Select the C source file path.\n"
+    "-o <file>                Select the output file path.\n"
     "-O/--optimize            Applies compiler optimizations.\n"
 ;
