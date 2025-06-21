@@ -15,5 +15,5 @@ void ErrMsg_print(bool print_err, bool *err_occurred, const char *file_path,
         const char *fmt, ...) ATTRIBUTE((format (printf, 4, 5)));
 
 /* args do the same as with ErrMsg_print */
-void WarnMsg_print(bool print_warn, bool *warn_occurred, const char *file_path,
+void WarnMsg_print(bool print_warn, bool *err_occurred, const char *file_path,
         const char *fmt, ...) ATTRIBUTE((format (printf, 4, 5)));
