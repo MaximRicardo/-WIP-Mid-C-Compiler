@@ -223,7 +223,8 @@ struct Expr Expr_create_w_tok(struct Token token, struct Expr *lhs,
     return Expr_create(token.line_num, token.column_num, token.src_start,
             token.src_len, token.file_path, lhs, rhs, lhs_lvls_of_indir,
             rhs_lvls_of_indir, lhs_type, rhs_type, args, int_value,
-            array_value, bp_offset, expr_type, is_array, array_len);
+            array_value, bp_offset,
+            expr_type, is_array, array_len);
 
 }
 
@@ -394,16 +395,64 @@ u32 Expr_evaluate(const struct Expr *self) {
     switch (self->expr_type) {
 
     case ExprType_PLUS:
-        return lhs_val+rhs_val;
+        return lhs_val + rhs_val;
 
     case ExprType_MINUS:
-        return lhs_val-rhs_val;
+        return lhs_val - rhs_val;
 
     case ExprType_MUL:
-        return lhs_val*rhs_val;
+        return lhs_val * rhs_val;
 
     case ExprType_DIV:
-        return lhs_val/rhs_val;
+        return lhs_val / rhs_val;
+
+    case ExprType_MODULUS:
+        return lhs_val % rhs_val;
+
+    case ExprType_COMMA:
+        return 0;
+
+    case ExprType_BITWISE_AND:
+        return lhs_val & rhs_val;
+
+    case ExprType_BOOLEAN_OR:
+        return lhs_val || rhs_val;
+
+    case ExprType_BOOLEAN_AND:
+        return lhs_val && rhs_val;
+
+    case ExprType_EQUAL_TO:
+        return lhs_val == rhs_val;
+
+    case ExprType_NOT_EQUAL_TO:
+        return lhs_val != rhs_val;
+
+    case ExprType_L_THAN:
+        return lhs_val < rhs_val;
+
+    case ExprType_L_THAN_OR_E:
+        return lhs_val <= rhs_val;
+
+    case ExprType_G_THAN:
+        return lhs_val > rhs_val;
+
+    case ExprType_G_THAN_OR_E:
+        return lhs_val >= rhs_val;
+
+    case ExprType_BITWISE_NOT:
+        return ~lhs_val;
+
+    case ExprType_BOOLEAN_NOT:
+        return !lhs_val;
+
+    case ExprType_POSITIVE:
+        return lhs_val;
+
+    case ExprType_NEGATIVE:
+        return -lhs_val;
+
+    case ExprType_TYPECAST:
+        return lhs_val;
 
     case ExprType_INT_LIT:
         return lhs_val;
@@ -449,7 +498,9 @@ bool Expr_statically_evaluatable(const struct Expr *self) {
 
     if (self->expr_type == ExprType_IDENT ||
             self->expr_type == ExprType_REFERENCE ||
-            self->expr_type == ExprType_DEREFERENCE)
+            self->expr_type == ExprType_DEREFERENCE ||
+            self->expr_type == ExprType_L_ARR_SUBSCR ||
+            ExprType_is_inc_or_dec_operator(self->expr_type))
         return false;
 
     if (self->lhs && !Expr_statically_evaluatable(self->lhs))
