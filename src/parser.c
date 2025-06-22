@@ -1298,6 +1298,20 @@ static void create_struct_var(const struct Lexer *lexer,
         return;
     }
 
+    else if (!structs.elems[type_struct_idx].defined && lvls_of_indir == 0) {
+        char *var_name = Token_src(&lexer->token_tbl.elems[var_name_idx]);
+
+        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
+                lexer->token_tbl.elems[var_name_idx].file_path,
+                "variable '%s' has incomplete type 'struct %s'. line %u,"
+                " column %u.\n", var_name, struct_name,
+                lexer->token_tbl.elems[var_name_idx].line_num,
+                lexer->token_tbl.elems[var_name_idx].column_num);
+
+        m_free(var_name);
+        return;
+    }
+
     init_value = var_decl_value(lexer, var_name_idx, equal_sign_idx, NULL, bp);
 
     node = safe_malloc(sizeof(*node));
@@ -1307,7 +1321,8 @@ static void create_struct_var(const struct Lexer *lexer,
     node->mods = TypeModifiers_init();
     node->decls = DeclList_init();
 
-    *sp = round_down(*sp, structs.elems[type_struct_idx].alignment);
+    if (structs.elems[type_struct_idx].alignment != 0)
+        *sp = round_down(*sp, structs.elems[type_struct_idx].alignment);
     *sp -= structs.elems[type_struct_idx].size;
     ParVarList_push_back(&vars, ParserVar_create(
                 lexer->token_tbl.elems[var_name_idx].line_num,

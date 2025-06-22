@@ -17,13 +17,11 @@ struct TestStruct {
     int b;
 };
 
-struct Struct2ElectricBoogaloo {
-    char *string;
-};
+struct Struct2ElectricBoogaloo;
 
 void func(void) {
-    struct TestStruct var;
-    struct TestStruct *var_ptr = &var;
+    struct Struct2ElectricBoogaloo var;
+    struct Struct2ElectricBoogaloo *var_ptr = &var;
     var_ptr->x[2] = 5;
 }
 
