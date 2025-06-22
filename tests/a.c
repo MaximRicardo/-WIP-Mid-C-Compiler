@@ -10,8 +10,6 @@ int main(int argc, char **argv) {
     char *end_ptr;
     u32 n;
 
-    n*5;
-
     printf("MCC version %u.%u\n", __MID_CC__, __MID_CC_MINOR__);
     printf("this is being printed from '%s'.\n", __FILE__);
 
