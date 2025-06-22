@@ -23,6 +23,7 @@ struct Struct2ElectricBoogaloo {
 
 void func(void) {
     struct TestStruct var;
+    &var;
 }
 
 int main(int argc, char **argv) {

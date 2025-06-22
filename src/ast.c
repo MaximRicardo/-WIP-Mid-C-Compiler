@@ -285,7 +285,10 @@ unsigned Expr_lvls_of_indir(struct Expr *self, const struct ParVarList *vars) {
 }
 
 enum PrimitiveType Expr_type(struct Expr *self,
-        const struct ParVarList *vars) {
+        const struct ParVarList *vars, const struct StructList *structs) {
+
+    if (self->lhs)
+        self->type_idx = self->lhs->type_idx;
 
     if (self->expr_type == ExprType_TYPECAST) {
     }
@@ -295,6 +298,11 @@ enum PrimitiveType Expr_type(struct Expr *self,
         enum PrimitiveType rhs_prom = PrimitiveType_promote(self->rhs_type,
                 self->rhs_lvls_of_indir);
 
+        u32 lhs_prom_size = PrimitiveType_size(lhs_prom,
+                self->lhs_lvls_of_indir, self->lhs->type_idx, structs);
+        u32 rhs_prom_size = PrimitiveType_size(rhs_prom,
+                self->rhs_lvls_of_indir, self->rhs->type_idx, structs);
+
         if (self->rhs_lvls_of_indir > self->lhs_lvls_of_indir)
             self->prim_type = rhs_prom;
         else if (self->lhs_lvls_of_indir > self->rhs_lvls_of_indir)
@@ -302,11 +310,9 @@ enum PrimitiveType Expr_type(struct Expr *self,
         else {
             if (lhs_prom == rhs_prom)
                 self->prim_type = lhs_prom;
-            else if (PrimitiveType_size(lhs_prom, self->lhs_lvls_of_indir) >
-                    PrimitiveType_size(rhs_prom, self->rhs_lvls_of_indir))
+            else if (lhs_prom_size > rhs_prom_size)
                 self->prim_type = lhs_prom;
-            else if (PrimitiveType_size(lhs_prom, self->lhs_lvls_of_indir) <
-                    PrimitiveType_size(rhs_prom, self->rhs_lvls_of_indir))
+            else if (lhs_prom_size < rhs_prom_size)
                 self->prim_type = rhs_prom;
             else if (PrimitiveType_signed(lhs_prom, self->lhs_lvls_of_indir))
                 self->prim_type = rhs_prom;
@@ -357,6 +363,9 @@ enum PrimitiveType Expr_type(struct Expr *self,
 
 enum PrimitiveType Expr_type_no_prom(struct Expr *self,
         const struct ParVarList *vars) {
+
+    if (self->lhs)
+        self->type_idx = self->lhs->type_idx;
 
     if (self->expr_type == ExprType_TYPECAST) {
     }
@@ -922,7 +931,7 @@ void VarDeclNode_get_array_lits(const struct VarDeclNode *self,
 
 bool VarDeclPtrList_equivalent_expr(const struct VarDeclPtrList *self,
         const struct ExprPtrList *other, const struct ParVarList *vars,
-        bool self_is_variadic) {
+        const struct StructList *structs, bool self_is_variadic) {
 
     u32 i;
 
@@ -943,7 +952,7 @@ bool VarDeclPtrList_equivalent_expr(const struct VarDeclPtrList *self,
 
             if (PrimitiveType_promote(self->elems[i]->type,
                         self->elems[i]->decls.elems[j].lvls_of_indir) !=
-                    Expr_type(other->elems[i], vars) ||
+                    Expr_type(other->elems[i], vars, structs) ||
                     self->elems[i]->decls.elems[j].lvls_of_indir !=
                     other->elems[i]->lvls_of_indir) {
                 /* print stmts for debugging */
@@ -951,7 +960,7 @@ bool VarDeclPtrList_equivalent_expr(const struct VarDeclPtrList *self,
                         self->elems[i]->decls.elems[j].lvls_of_indir,
                         other->elems[i]->lvls_of_indir);
                 printf("other type = %d\n",
-                        Expr_type(other->elems[i], vars));
+                        Expr_type(other->elems[i], vars, structs));
                 return false;
             }
         }
@@ -971,6 +980,7 @@ struct FuncDeclNode FuncDeclNode_init(void) {
     func_decl.ret_lvls_of_indir = 0;
     func_decl.ret_type_mods = TypeModifiers_init();
     func_decl.ret_type = PrimType_INVALID;
+    func_decl.ret_type_idx = 0;
     func_decl.body = NULL;
     func_decl.name = NULL;
     return func_decl;
@@ -980,7 +990,8 @@ struct FuncDeclNode FuncDeclNode_init(void) {
 struct FuncDeclNode FuncDeclNode_create(struct VarDeclPtrList args,
         bool variadic_args, bool void_args, unsigned ret_lvls_of_indir,
         struct TypeModifiers ret_type_mods,
-        enum PrimitiveType ret_type, struct BlockNode *body, char *name) {
+        enum PrimitiveType ret_type, u32 ret_type_idx, struct BlockNode *body,
+        char *name) {
 
     struct FuncDeclNode func_decl;
     func_decl.args = args;
@@ -989,6 +1000,7 @@ struct FuncDeclNode FuncDeclNode_create(struct VarDeclPtrList args,
     func_decl.ret_lvls_of_indir = ret_lvls_of_indir;
     func_decl.ret_type_mods = ret_type_mods;
     func_decl.ret_type = ret_type;
+    func_decl.ret_type_idx = ret_type_idx;
     func_decl.body = body;
     func_decl.name = name;
     return func_decl;
@@ -1052,18 +1064,20 @@ struct RetNode RetNode_init(void) {
     ret_node.value = NULL;
     ret_node.lvls_of_indir = 0;
     ret_node.type = PrimType_INVALID;
+    ret_node.type_idx = 0;
     ret_node.n_stack_frames_deep = 0;
     return ret_node;
 
 }
 
 struct RetNode RetNode_create(struct Expr *value, unsigned lvls_of_indir,
-        enum PrimitiveType type, u32 n_stack_frames_deep) {
+        enum PrimitiveType type, u32 type_idx, u32 n_stack_frames_deep) {
 
     struct RetNode ret_node;
     ret_node.value = value;
     ret_node.lvls_of_indir = lvls_of_indir;
     ret_node.type = type;
+    ret_node.type_idx = type_idx;
     ret_node.n_stack_frames_deep = n_stack_frames_deep;
     return ret_node;
 

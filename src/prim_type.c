@@ -1,5 +1,6 @@
 #include "prim_type.h"
 #include "backend_dependent/type_sizes.h"
+#include "structs.h"
 #include <assert.h>
 
 bool PrimitiveType_signed(enum PrimitiveType type, unsigned lvls_of_indir) {
@@ -11,7 +12,8 @@ bool PrimitiveType_signed(enum PrimitiveType type, unsigned lvls_of_indir) {
 
 }
 
-unsigned PrimitiveType_size(enum PrimitiveType type, unsigned lvls_of_indir) {
+unsigned PrimitiveType_size(enum PrimitiveType type, unsigned lvls_of_indir,
+        u32 type_idx, const struct StructList *structs) {
 
     if (lvls_of_indir > 0)
         return m_TypeSize_ptr;
@@ -33,6 +35,9 @@ unsigned PrimitiveType_size(enum PrimitiveType type, unsigned lvls_of_indir) {
     case PrimType_LONG:
     case PrimType_ULONG:
         return m_TypeSize_long;
+
+    case PrimType_STRUCT:
+        return structs->elems[type_idx].size;
 
     default:
         assert(false);
@@ -74,6 +79,9 @@ enum PrimitiveType PrimitiveType_promote(enum PrimitiveType type,
 
     case PrimType_ULONG:
         return PrimType_ULONG;
+
+    case PrimType_STRUCT:
+        return PrimType_STRUCT;
 
     default:
         assert(false);

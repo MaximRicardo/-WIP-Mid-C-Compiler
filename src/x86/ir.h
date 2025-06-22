@@ -151,4 +151,5 @@ struct InstrList {
 
 m_declare_VectorImpl_funcs(InstrList, struct Instruction)
 
-struct InstrList IR_get_instructions(const struct BlockNode *ast);
+struct InstrList IR_get_instructions(const struct BlockNode *ast,
+        const struct StructList *structs);

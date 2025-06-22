@@ -10,6 +10,8 @@ struct StructField {
     u32 offset;
 
     enum PrimitiveType type;
+    /* used by structs and unions and such */
+    u32 type_idx;
     unsigned lvls_of_indir;
     bool is_array;
     u32 array_len;
@@ -18,8 +20,8 @@ struct StructField {
 
 struct StructField StructField_init(void);
 struct StructField StructField_create(char *name, u32 offset,
-        enum PrimitiveType type, unsigned lvls_of_indir, bool is_array,
-        u32 array_len);
+        enum PrimitiveType type, u32 type_idx, unsigned lvls_of_indir,
+        bool is_array, u32 array_len);
 void StructField_free(struct StructField field);
 
 struct StructFieldList {

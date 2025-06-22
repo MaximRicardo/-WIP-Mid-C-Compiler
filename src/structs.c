@@ -11,6 +11,7 @@ struct StructField StructField_init(void) {
     field.name = NULL;
     field.offset = 0;
     field.type = PrimType_INVALID;
+    field.type_idx = 0;
     field.lvls_of_indir = 0;
     field.is_array = false;
     field.array_len = 0;
@@ -19,13 +20,14 @@ struct StructField StructField_init(void) {
 }
 
 struct StructField StructField_create(char *name, u32 offset,
-        enum PrimitiveType type, unsigned lvls_of_indir, bool is_array,
-        u32 array_len) {
+        enum PrimitiveType type, u32 type_idx, unsigned lvls_of_indir,
+        bool is_array, u32 array_len) {
 
     struct StructField field;
     field.name = name;
     field.offset = offset;
     field.type = type;
+    field.type_idx = type_idx;
     field.lvls_of_indir = lvls_of_indir;
     field.is_array = is_array;
     field.array_len = array_len;

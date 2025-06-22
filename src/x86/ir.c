@@ -73,7 +73,7 @@ static u32 round_up(u32 num, u32 multiple) {
 }
 
 static void get_block_instructions(struct InstrList *instrs,
-        const struct BlockNode *block);
+        const struct BlockNode *block, const struct StructList *structs);
 
 static void leak_reg_to_stack(struct InstrList *instrs, unsigned reg_idx) {
 
@@ -451,10 +451,11 @@ static unsigned bytes_log2(unsigned bytes) {
 }
 
 static struct GPReg get_expr_instructions(struct InstrList *instrs,
-        const struct Expr *expr, bool load_reference);
+        const struct Expr *expr, bool load_reference,
+        const struct StructList *structs);
 
 static struct GPReg get_func_call_expr_instructions(struct InstrList *instrs,
-        const struct Expr *expr) {
+        const struct Expr *expr, const struct StructList *structs) {
 
     u32 i;
     u32 args_stack_space = 0;
@@ -479,7 +480,8 @@ static struct GPReg get_func_call_expr_instructions(struct InstrList *instrs,
         for (i = 0; i < expr->args.size; i++) {
             unsigned arg_size = PrimitiveType_size(
                     expr->args.elems[i]->prim_type,
-                    expr->args.elems[i]->lvls_of_indir);
+                    expr->args.elems[i]->lvls_of_indir,
+                    expr->args.elems[i]->type_idx, structs);
             /* alignment */
             args_stack_space = round_up(args_stack_space, arg_size);
             args_stack_space += arg_size;
@@ -492,7 +494,7 @@ static struct GPReg get_func_call_expr_instructions(struct InstrList *instrs,
     /* every argument gets loaded into the stack from bottom to top */
     for (i = 0; i < expr->args.size; i++) {
         struct GPReg arg_reg = get_expr_instructions(instrs,
-                expr->args.elems[i], false);
+                expr->args.elems[i], false, structs);
         unsigned reg_size_bytes = InstrSize_to_bytes(arg_reg.reg_size);
 
         next_arg_offset = round_up(next_arg_offset, reg_size_bytes);
@@ -607,7 +609,8 @@ static void get_boolean_or_instructions(struct InstrList *instrs,
 /* load_reference is only used on identifier nodes and dereference nodes, else
  * it's ignored */
 static struct GPReg get_expr_instructions(struct InstrList *instrs,
-        const struct Expr *expr, bool load_reference) {
+        const struct Expr *expr, bool load_reference,
+        const struct StructList *structs) {
 
     struct GPReg lhs_reg = GPReg_init(), rhs_reg = GPReg_init();
     enum InstrSize instr_size = InstrSize_32;
@@ -619,7 +622,7 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
         ++label_counter;
 
     if (expr->expr_type == ExprType_FUNC_CALL) {
-        return get_func_call_expr_instructions(instrs, expr);
+        return get_func_call_expr_instructions(instrs, expr, structs);
     }
 
     if (expr->lhs)
@@ -627,7 +630,8 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
                 expr->expr_type == ExprType_EQUAL ||
                 expr->expr_type == ExprType_REFERENCE ||
                 ExprType_is_inc_or_dec_operator(expr->expr_type) ||
-                expr->lhs->is_array);
+                expr->lhs->is_array,
+                structs);
     else
         lhs_reg = alloc_reg(instrs);
 
@@ -644,7 +648,7 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
     }
 
     if (expr->rhs && expr->rhs->expr_type != ExprType_INT_LIT)
-        rhs_reg = get_expr_instructions(instrs, expr->rhs, false);
+        rhs_reg = get_expr_instructions(instrs, expr->rhs, false, structs);
 
     if (expr->expr_type == ExprType_INT_LIT) {
         instr_reg_and_imm32(instrs, InstrType_MOV, instr_size,
@@ -654,7 +658,7 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
         enum InstrType type = load_reference || expr->is_array ?
             InstrType_LEA : InstrType_MOV_F_LOC;
         unsigned var_size = PrimitiveType_size(expr->non_prom_prim_type,
-                expr->lvls_of_indir+load_reference);
+                expr->lvls_of_indir+load_reference, expr->type_idx, structs);
         instr_reg_and_reg(instrs, type, InstrSize_bytes_to(var_size),
                 reg_idx_to_operand_t(lhs_reg.reg_idx), InstrOperandType_REG_BP,
                 expr->bp_offset);
@@ -667,7 +671,7 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
     else if (expr->expr_type == ExprType_EQUAL) {
         enum InstrSize assignment_size = InstrSize_bytes_to(
                 PrimitiveType_size(expr->lhs->non_prom_prim_type,
-                    expr->lhs_lvls_of_indir));
+                    expr->lhs_lvls_of_indir, expr->type_idx, structs));
 
         if (expr->rhs->expr_type != ExprType_INT_LIT)
             instr_reg_and_reg(instrs, InstrType_MOV_T_LOC, assignment_size,
@@ -686,7 +690,7 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
     }
     else if (expr->expr_type == ExprType_DEREFERENCE && !load_reference) {
         unsigned deref_ptr_size = PrimitiveType_size(expr->lhs_og_type,
-                        expr->lhs_lvls_of_indir-1);
+                        expr->lhs_lvls_of_indir-1, expr->type_idx, structs);
 
         instr_reg_and_reg(instrs, InstrType_MOV_F_LOC,
                 InstrSize_bytes_to(deref_ptr_size),
@@ -704,7 +708,7 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
     }
     else if (expr->expr_type == ExprType_L_ARR_SUBSCR) {
         unsigned deref_ptr_size = PrimitiveType_size(expr->lhs_og_type,
-                        expr->lhs_lvls_of_indir-1);
+                        expr->lhs_lvls_of_indir-1, expr->type_idx, structs);
 
         if (expr->rhs->expr_type != ExprType_INT_LIT) {
             instr_reg_and_imm32(instrs, InstrType_SHL, InstrSize_32,
@@ -763,12 +767,13 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
             expr->expr_type == ExprType_POSTFIX_INC ?
             InstrType_INC_LOC : InstrType_DEC_LOC;
         enum InstrSize size = InstrSize_bytes_to(
-                PrimitiveType_size(expr->lhs_og_type, expr->lhs_lvls_of_indir)
+                PrimitiveType_size(expr->lhs_og_type, expr->lhs_lvls_of_indir,
+                    expr->type_idx, structs)
                 );
 
         unsigned n_times_to_inc = expr->lhs_lvls_of_indir == 0 ? 1 :
                     PrimitiveType_size(expr->lhs_og_type,
-                        expr->lhs_lvls_of_indir-1);
+                        expr->lhs_lvls_of_indir-1, expr->type_idx, structs);
 
         bool is_postfix = expr->expr_type == ExprType_POSTFIX_INC ||
                 expr->expr_type == ExprType_POSTFIX_DEC;
@@ -826,13 +831,17 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
         if (is_ptr_int_operation && operand_t_is_reg(instr.rhs.type)) {
             instr_reg_and_imm32(instrs, InstrType_SHL, instr.instr_size,
                     instr.rhs.type,
-                    bytes_log2(PrimitiveType_size(expr->lhs_og_type,
-                            expr->lhs_lvls_of_indir-1)), 0);
+                    bytes_log2(
+                        PrimitiveType_size(expr->lhs_og_type,
+                            expr->lhs_lvls_of_indir-1, expr->type_idx, structs)
+                        ), 0);
         }
         else if (is_ptr_int_operation) {
             instr.rhs.value.imm <<=
-                bytes_log2(PrimitiveType_size(expr->lhs_og_type,
-                            expr->lhs_lvls_of_indir-1));
+                bytes_log2(
+                        PrimitiveType_size(expr->lhs_og_type,
+                            expr->lhs_lvls_of_indir-1, expr->type_idx, structs)
+                        );
         }
 
         InstrList_push_back(instrs, instr);
@@ -840,8 +849,10 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
         if (is_ptr_ptr_operation) {
             instr_reg_and_imm32(instrs, InstrType_SHR, instr.instr_size,
                     instr.lhs.type,
-                    bytes_log2(PrimitiveType_size(expr->lhs_og_type,
-                            expr->lhs_lvls_of_indir-1)), 0);
+                    bytes_log2(PrimitiveType_size(
+                            expr->lhs_og_type, expr->lhs_lvls_of_indir-1,
+                            expr->type_idx, structs)
+                        ), 0);
         }
     }
 
@@ -857,7 +868,7 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
 }
 
 static void get_var_decl_instructions(struct InstrList *instrs,
-    const struct VarDeclNode *var_decl) {
+    const struct VarDeclNode *var_decl, const struct StructList *structs) {
 
     unsigned i;
     for (i = 0; i < var_decl->decls.size; i++) {
@@ -896,12 +907,13 @@ static void get_var_decl_instructions(struct InstrList *instrs,
         }
         else if (var_decl->decls.elems[i].value) {
             enum InstrSize instr_size = InstrSize_bytes_to(PrimitiveType_size(
-                        var_decl->type, var_decl->decls.elems[i].lvls_of_indir
+                        var_decl->type, var_decl->decls.elems[i].lvls_of_indir,
+                        var_decl->type_idx, structs
                         ));
 
             struct GPReg reg =
                 get_expr_instructions(instrs, var_decl->decls.elems[i].value,
-                        false);
+                        false, structs);
             instr_reg_and_reg(instrs, InstrType_MOV_T_LOC, instr_size,
                     InstrOperandType_REG_BP, reg_idx_to_operand_t(reg.reg_idx),
                     var_decl->decls.elems[i].bp_offset);
@@ -989,7 +1001,8 @@ static void destroy_stack_frame(struct InstrList *instrs) {
 }
 
 static void get_func_decl_instructions(struct InstrList *instrs,
-        const struct FuncDeclNode *func, const struct BlockNode *transl_unit) {
+        const struct FuncDeclNode *func, const struct BlockNode *transl_unit,
+        const struct StructList *structs) {
 
     char *label = NULL;
 
@@ -1019,7 +1032,7 @@ static void get_func_decl_instructions(struct InstrList *instrs,
     push_callee_saved_regs(instrs);
     create_stack_frame(instrs, func->body->var_bytes);
 
-    get_block_instructions(instrs, func->body);
+    get_block_instructions(instrs, func->body, structs);
 
     destroy_stack_frame(instrs);
     pop_callee_saved_regs(instrs);
@@ -1028,22 +1041,25 @@ static void get_func_decl_instructions(struct InstrList *instrs,
 }
 
 static void get_ret_stmt_instructions(struct InstrList *instrs,
-        const struct RetNode *ret_node) {
+        const struct RetNode *ret_node, const struct StructList *structs) {
 
     u32 i;
 
     if (ret_node->value) {
         struct GPReg reg =
-            get_expr_instructions(instrs, ret_node->value, false);
+            get_expr_instructions(instrs, ret_node->value, false, structs);
         assert(reg.reg_idx == 0);
         free_reg(instrs, reg);
 
-        if (PrimitiveType_size(ret_node->type, ret_node->lvls_of_indir) < 4) {
+        if (PrimitiveType_size(ret_node->type, ret_node->lvls_of_indir,
+                    ret_node->type_idx, structs) < 4) {
+
             unsigned type_size = PrimitiveType_size(ret_node->type,
-                    ret_node->lvls_of_indir);
+                    ret_node->lvls_of_indir, ret_node->type_idx, structs);
             instr_reg_and_imm32(instrs, InstrType_AND, InstrSize_32,
                     InstrOperandType_REG_AX,
                     (1<<type_size*8)-1, 0);
+
         }
     }
 
@@ -1064,7 +1080,7 @@ static void get_ret_stmt_instructions(struct InstrList *instrs,
 }
 
 static void get_if_stmt_instructions(struct InstrList *instrs,
-        struct IfNode *if_node) {
+        struct IfNode *if_node, const struct StructList *structs) {
 
     struct GPReg expr_reg = GPReg_init();
     /* each instruction assumes it can free it's associated string, meaning
@@ -1088,7 +1104,7 @@ static void get_if_stmt_instructions(struct InstrList *instrs,
     }
     label_counter += 1+(if_node->else_body!=NULL);
 
-    expr_reg = get_expr_instructions(instrs, if_node->expr, false);
+    expr_reg = get_expr_instructions(instrs, if_node->expr, false, structs);
 
     instr_reg_and_imm32(instrs, InstrType_CMP, expr_reg.reg_size,
             reg_idx_to_operand_t(expr_reg.reg_idx), 0, 0);
@@ -1098,7 +1114,7 @@ static void get_if_stmt_instructions(struct InstrList *instrs,
 
     if (if_node->body_in_block)
         create_stack_frame(instrs, if_node->body->var_bytes);
-    get_block_instructions(instrs, if_node->body);
+    get_block_instructions(instrs, if_node->body, structs);
     if (if_node->body_in_block)
         destroy_stack_frame(instrs);
 
@@ -1110,7 +1126,7 @@ static void get_if_stmt_instructions(struct InstrList *instrs,
     if (if_node->else_body) {
         if (if_node->else_body_in_block)
             create_stack_frame(instrs, if_node->else_body->var_bytes);
-        get_block_instructions(instrs, if_node->else_body);
+        get_block_instructions(instrs, if_node->else_body, structs);
         if (if_node->else_body_in_block)
             destroy_stack_frame(instrs);
 
@@ -1120,7 +1136,7 @@ static void get_if_stmt_instructions(struct InstrList *instrs,
 }
 
 static void get_while_stmt_instructions(struct InstrList *instrs,
-        struct WhileNode *while_node) {
+        struct WhileNode *while_node, const struct StructList *structs) {
 
     struct GPReg expr_reg = GPReg_init();
     /* each instruction assumes it can free it's associated string, meaning
@@ -1141,7 +1157,7 @@ static void get_while_stmt_instructions(struct InstrList *instrs,
 
     instr_string(instrs, InstrType_LABEL, while_start_label[0]);
 
-    expr_reg = get_expr_instructions(instrs, while_node->expr, false);
+    expr_reg = get_expr_instructions(instrs, while_node->expr, false, structs);
 
     instr_reg_and_imm32(instrs, InstrType_CMP, expr_reg.reg_size,
             reg_idx_to_operand_t(expr_reg.reg_idx), 0, 0);
@@ -1151,7 +1167,7 @@ static void get_while_stmt_instructions(struct InstrList *instrs,
 
     if (while_node->body_in_block)
         create_stack_frame(instrs, while_node->body->var_bytes);
-    get_block_instructions(instrs, while_node->body);
+    get_block_instructions(instrs, while_node->body, structs);
     if (while_node->body_in_block)
         destroy_stack_frame(instrs);
 
@@ -1162,7 +1178,7 @@ static void get_while_stmt_instructions(struct InstrList *instrs,
 }
 
 static void get_for_stmt_instructions(struct InstrList *instrs,
-        struct ForNode *for_node) {
+        struct ForNode *for_node, const struct StructList *structs) {
 
     struct GPReg cond_reg = GPReg_init();
     /* each instruction assumes it can free it's associated string, meaning
@@ -1185,12 +1201,14 @@ static void get_for_stmt_instructions(struct InstrList *instrs,
     /* the init expr goes before the label cuz it's technically done outside of
      * the loop */
     if (for_node->init)
-        free_reg(instrs, get_expr_instructions(instrs, for_node->init, false));
+        free_reg(instrs, get_expr_instructions(instrs, for_node->init, false,
+                    structs));
 
     instr_string(instrs, InstrType_LABEL, for_start_label[0]);
 
     if (for_node->condition)
-        cond_reg = get_expr_instructions(instrs, for_node->condition, false);
+        cond_reg = get_expr_instructions(instrs, for_node->condition, false,
+                structs);
 
     instr_reg_and_imm32(instrs, InstrType_CMP, cond_reg.reg_size,
         reg_idx_to_operand_t(cond_reg.reg_idx), 0, 0);
@@ -1200,12 +1218,13 @@ static void get_for_stmt_instructions(struct InstrList *instrs,
 
     if (for_node->body_in_block)
         create_stack_frame(instrs, for_node->body->var_bytes);
-    get_block_instructions(instrs, for_node->body);
+    get_block_instructions(instrs, for_node->body, structs);
     if (for_node->body_in_block)
         destroy_stack_frame(instrs);
 
     if (for_node->inc)
-        free_reg(instrs, get_expr_instructions(instrs, for_node->inc, false));
+        free_reg(instrs, get_expr_instructions(instrs, for_node->inc, false,
+                    structs));
     instr_string(instrs, InstrType_JMP, for_start_label[1]);
 
     instr_string(instrs, InstrType_LABEL, for_end_label[1]);
@@ -1213,7 +1232,7 @@ static void get_for_stmt_instructions(struct InstrList *instrs,
 }
 
 static void get_block_instructions(struct InstrList *instrs,
-        const struct BlockNode *block) {
+        const struct BlockNode *block, const struct StructList *structs) {
 
     unsigned i;
 
@@ -1223,28 +1242,29 @@ static void get_block_instructions(struct InstrList *instrs,
 
         if (block->nodes.elems[i].type == ASTType_EXPR)
             free_reg(instrs, get_expr_instructions(instrs,
-                        ((const struct ExprNode*)node_struct)->expr, false));
+                        ((const struct ExprNode*)node_struct)->expr, false,
+                        structs));
         else if (block->nodes.elems[i].type == ASTType_VAR_DECL)
-            get_var_decl_instructions(instrs, node_struct);
+            get_var_decl_instructions(instrs, node_struct, structs);
         else if (block->nodes.elems[i].type == ASTType_FUNC)
-            get_func_decl_instructions(instrs, node_struct, block);
+            get_func_decl_instructions(instrs, node_struct, block, structs);
         else if (block->nodes.elems[i].type == ASTType_BLOCK) {
             create_stack_frame(instrs,
                     ((const struct BlockNode*)node_struct)->var_bytes);
-            get_block_instructions(instrs, node_struct);
+            get_block_instructions(instrs, node_struct, structs);
             destroy_stack_frame(instrs);
         }
         else if (block->nodes.elems[i].type == ASTType_RETURN) {
-            get_ret_stmt_instructions(instrs, node_struct);
+            get_ret_stmt_instructions(instrs, node_struct, structs);
         }
         else if (block->nodes.elems[i].type == ASTType_IF_STMT) {
-            get_if_stmt_instructions(instrs, node_struct);
+            get_if_stmt_instructions(instrs, node_struct, structs);
         }
         else if (block->nodes.elems[i].type == ASTType_WHILE_STMT) {
-            get_while_stmt_instructions(instrs, node_struct);
+            get_while_stmt_instructions(instrs, node_struct, structs);
         }
         else if (block->nodes.elems[i].type == ASTType_FOR_STMT) {
-            get_for_stmt_instructions(instrs, node_struct);
+            get_for_stmt_instructions(instrs, node_struct, structs);
         }
 
         else if (block->nodes.elems[i].type == ASTType_DEBUG_RAX) {
@@ -1260,11 +1280,12 @@ static void get_block_instructions(struct InstrList *instrs,
 
 }
 
-struct InstrList IR_get_instructions(const struct BlockNode *ast) {
+struct InstrList IR_get_instructions(const struct BlockNode *ast,
+        const struct StructList *structs) {
 
     struct InstrList instrs = InstrList_init();
 
-    get_block_instructions(&instrs, ast);
+    get_block_instructions(&instrs, ast, structs);
 
     return instrs;
 

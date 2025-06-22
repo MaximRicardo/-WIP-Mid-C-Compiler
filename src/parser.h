@@ -1,8 +1,8 @@
 #pragma once
 
-#include "ast.h"
 #include "lexer.h"
+#include "transl_unit.h"
 
 extern bool Parser_error_occurred;
 
-struct BlockNode* Parser_parse(const struct Lexer *lexer);
+struct TranslUnit Parser_parse(const struct Lexer *lexer);
