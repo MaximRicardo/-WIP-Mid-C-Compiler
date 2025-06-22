@@ -108,9 +108,14 @@ static char *sub_str(const char *str, u32 start, u32 len) {
 
 static char* make_str_copy(const char *str) {
 
-    char *new_str = safe_malloc((strlen(str)+1)*sizeof(*new_str));
-    strcpy(new_str, str);
-    return new_str;
+    if (!str) {
+        return NULL;
+    }
+    else {
+        char *new_str = safe_malloc((strlen(str)+1)*sizeof(*new_str));
+        strcpy(new_str, str);
+        return new_str;
+    }
 
 }
 
@@ -169,6 +174,9 @@ static u32 expand_macros_in_str(char **str_ptr,
 
     char *str = *str_ptr;
     u32 str_i;
+
+    if (!str)
+        return 0;
 
     for (str_i = 0; str[str_i] != '\0'; str_i++) {
 
@@ -411,6 +419,27 @@ static void process(const char *src, struct PreProcMacroList *macros,
 
 }
 
+static void add_builtin_macros(struct PreProcMacroList *macros,
+        const char *file_path) {
+    char *file_macro_expansion =
+        safe_malloc((strlen(file_path)+3)*sizeof(*file_macro_expansion));
+    sprintf(file_macro_expansion, "\"%s\"", file_path);
+
+    /* set to the current major version of the compiler */
+    PreProcMacroList_push_back(macros, PreProcMacro_create(
+                make_str_copy("__MID_CC__"), make_str_copy("1")
+                ));
+    /* set to the current minor version of the compiler */
+    PreProcMacroList_push_back(macros, PreProcMacro_create(
+                make_str_copy("__MID_CC_MINOR__"), make_str_copy("0")
+                ));
+    /* set to the path to the current file */
+    PreProcMacroList_push_back(macros, PreProcMacro_create(
+                make_str_copy("__FILE__"), file_macro_expansion
+                ));
+
+}
+
 void PreProc_process(const char *src, struct PreProcMacroList *macros,
         struct MacroInstList *macro_insts, const char *file_path) {
 
@@ -418,6 +447,8 @@ void PreProc_process(const char *src, struct PreProcMacroList *macros,
 
     *macros = PreProcMacroList_init();
     *macro_insts = MacroInstList_init();
+
+    add_builtin_macros(macros, file_path);
 
     process(src, macros, macro_insts, 0, strlen(src), file_path);
 

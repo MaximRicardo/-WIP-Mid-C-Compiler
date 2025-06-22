@@ -1,7 +1,3 @@
-#define m_huh " and another"
-#define m_big_chungus " concatenated with another" m_huh
-#define m_test_macro "this is a macro" m_big_chungus m_huh
-
 typedef unsigned u32;
 
 int strtol(char *str, char **end, int base);
@@ -16,6 +12,9 @@ int main(int argc, char **argv) {
 
     n*5;
 
+    printf("MCC version %u.%u\n", __MID_CC__, __MID_CC_MINOR__);
+    printf("this is being printed from '%s'.\n", __FILE__);
+
     if (argc < 2) {
         printf("give an argument containing which fibonacci number to get.\n");
         return 1;
@@ -24,7 +23,6 @@ int main(int argc, char **argv) {
     n = strtol(argv[1], &end_ptr, 0);
     printf("fibonacci nr. %d is: %u\n", n, fibonacci(n));
 
-    printf("m_test_macro = %s\n", m_test_macro);
 
 }
 

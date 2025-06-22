@@ -247,10 +247,15 @@ static void lex_str(const char *src, const char *file_path,
         bool inc_line_n_column_num) {
 
     struct TokenList *token_tbl = &lexer->token_tbl;
-    u32 src_len = strlen(src);
+    u32 src_len;
     u32 src_i;
     unsigned line_num = start_line_num;
     unsigned column_num = start_column_num;
+
+    if (!src)
+        return;
+
+    src_len = strlen(src);
 
     Lexer_error_occurred = false;
 

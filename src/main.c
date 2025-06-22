@@ -73,13 +73,13 @@ void compile(char *src, FILE *output,
     else
         *error_occurred = true;
 
-    while (macros.size > 0)
-        PreProcMacroList_pop_back(&macros, PreProcMacro_free);
-    PreProcMacroList_free(&macros);
-
     while (macro_insts.size > 0)
         MacroInstList_pop_back(&macro_insts, MacroInstance_free);
     MacroInstList_free(&macro_insts);
+
+    while (macros.size > 0)
+        PreProcMacroList_pop_back(&macros, PreProcMacro_free);
+    PreProcMacroList_free(&macros);
 
 }
 
