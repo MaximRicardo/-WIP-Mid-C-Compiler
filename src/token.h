@@ -134,6 +134,8 @@ bool Token_is_literal(enum TokenType type);
  * TokenType_MINUS->TokenType_NEGATIVE */
 bool Token_convert_to_unary(enum TokenType type);
 bool Token_has_unary_version(enum TokenType type);
+/* struct, union, and enum */
+bool Token_data_type_namespace(enum TokenType type);
 
 unsigned Token_precedence(enum TokenType type);
 /* Does the token have left to right associativity? */

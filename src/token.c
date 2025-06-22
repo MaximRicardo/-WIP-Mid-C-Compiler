@@ -103,6 +103,12 @@ bool Token_has_unary_version(enum TokenType type) {
 
 }
 
+bool Token_data_type_namespace(enum TokenType type) {
+
+    return type == TokenType_STRUCT;
+
+}
+
 unsigned Token_precedence(enum TokenType type) {
 
     switch (type) {

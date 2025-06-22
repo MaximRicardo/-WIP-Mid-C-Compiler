@@ -19,10 +19,8 @@ struct TestStruct {
 
 struct Struct2ElectricBoogaloo;
 
-void func(void) {
-    struct Struct2ElectricBoogaloo var;
-    struct Struct2ElectricBoogaloo *var_ptr = &var;
-    var_ptr->x[2] = 5;
+void func(struct TestStruct *var) {
+    var->x[2] = 123;
 }
 
 int main(int argc, char **argv) {
@@ -30,7 +28,7 @@ int main(int argc, char **argv) {
     char *end_ptr;
     u32 n;
     struct TestStruct x;
-    x.x[2] = 5;
+    func(&x);
 
     if (argc < 2) {
         printf("give an argument containing which fibonacci number to get.\n");
