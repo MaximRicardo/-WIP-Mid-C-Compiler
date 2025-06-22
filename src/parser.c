@@ -191,8 +191,11 @@ static struct Expr* var_decl_value(const struct Lexer *lexer, u32 ident_idx,
     if (equal_sign_idx+1 >= lexer->token_tbl.size ||
             lexer->token_tbl.elems[equal_sign_idx].type ==
             TokenType_SEMICOLON) {
-        *semicolon_idx = equal_sign_idx;
+
+        if (semicolon_idx)
+            *semicolon_idx = equal_sign_idx;
         return NULL;
+
     }
 
     if (lexer->token_tbl.elems[equal_sign_idx].type != TokenType_EQUAL) {
@@ -200,10 +203,14 @@ static struct Expr* var_decl_value(const struct Lexer *lexer, u32 ident_idx,
                 lexer->token_tbl.elems[ident_idx].file_path,
                 "missing an equals sign. line %u.\n",
                 lexer->token_tbl.elems[ident_idx].line_num);
-        *semicolon_idx = ident_idx;
-        while (lexer->token_tbl.elems[*semicolon_idx].type !=
-                TokenType_SEMICOLON)
-            ++*semicolon_idx;
+
+        if (semicolon_idx) {
+            *semicolon_idx = ident_idx;
+            while (lexer->token_tbl.elems[*semicolon_idx].type !=
+                    TokenType_SEMICOLON)
+                ++*semicolon_idx;
+        }
+
         return NULL;
     }
 
@@ -1236,6 +1243,7 @@ static void create_struct_var(const struct Lexer *lexer,
         u32 struct_keyword_idx, struct BlockNode *block, u32 bp, u32 *sp) {
 
     struct VarDeclNode *node = NULL;
+    struct Expr *init_value = NULL;
 
     u32 struct_name_idx = struct_keyword_idx+1;
     char *struct_name = NULL;
@@ -1244,6 +1252,8 @@ static void create_struct_var(const struct Lexer *lexer,
     unsigned lvls_of_indir = 0;
     u32 var_name_idx = struct_name_idx+1;
 
+    u32 equal_sign_idx;
+
     while (var_name_idx < lexer->token_tbl.size &&
             (lexer->token_tbl.elems[var_name_idx].type ==
                 TokenType_DEREFERENCE ||
@@ -1251,6 +1261,8 @@ static void create_struct_var(const struct Lexer *lexer,
         ++lvls_of_indir;
         ++var_name_idx;
     }
+
+    equal_sign_idx = var_name_idx+1;
 
     if (struct_name_idx >= lexer->token_tbl.size ||
             lexer->token_tbl.elems[struct_name_idx].type != TokenType_IDENT) {
@@ -1286,6 +1298,8 @@ static void create_struct_var(const struct Lexer *lexer,
         return;
     }
 
+    init_value = var_decl_value(lexer, var_name_idx, equal_sign_idx, NULL, bp);
+
     node = safe_malloc(sizeof(*node));
 
     node->type = PrimType_STRUCT;
@@ -1303,7 +1317,7 @@ static void create_struct_var(const struct Lexer *lexer,
                 false, 0, *sp, NULL, false, false, false, false, block
                 ));
 
-    DeclList_push_back(&node->decls, Declarator_create(NULL,
+    DeclList_push_back(&node->decls, Declarator_create(init_value,
                 Token_src(&lexer->token_tbl.elems[var_name_idx]),
                 lvls_of_indir, false, 0, *sp-bp));
 

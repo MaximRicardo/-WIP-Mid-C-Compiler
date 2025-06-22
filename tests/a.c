@@ -23,8 +23,7 @@ struct Struct2ElectricBoogaloo {
 
 void func(void) {
     struct TestStruct var;
-    struct TestStruct *var_ptr;
-    var_ptr = &var;
+    struct TestStruct *var_ptr = &var;
     var_ptr->x[2] = 5;
 }
 
