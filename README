@@ -32,9 +32,10 @@ Thus far the compiler has:
     type casts
     constant-folding
     #define macros
+    signed/unsigned keywords
 
 Next thing I'ma implement (maybe):
-    signed/unsigned keywords
+    structs
     global variables
     static variables
 
