@@ -127,14 +127,16 @@ bool ExprType_is_valid_ptr_operation(enum ExprType type) {
     return type == ExprType_EQUAL || type == ExprType_MINUS ||
         type == ExprType_EQUAL_TO || type == ExprType_NOT_EQUAL_TO ||
         type == ExprType_L_THAN || type == ExprType_L_THAN_OR_E ||
-        type == ExprType_G_THAN || type == ExprType_G_THAN_OR_E;
+        type == ExprType_G_THAN || type == ExprType_G_THAN_OR_E ||
+        type == ExprType_MEMBER_ACCESS_PTR;
 
 }
 
 bool ExprType_is_valid_single_ptr_operation(enum ExprType type) {
 
     return type == ExprType_PLUS || type == ExprType_MINUS ||
-        type == ExprType_L_ARR_SUBSCR;
+        type == ExprType_L_ARR_SUBSCR || type == ExprType_MEMBER_ACCESS ||
+        type == ExprType_MEMBER_ACCESS_PTR;
 
 }
 
@@ -250,6 +252,10 @@ unsigned Expr_lvls_of_indir(struct Expr *self, const struct ParVarList *vars) {
 
     if (self->expr_type == ExprType_TYPECAST) {
     }
+    else if (self->expr_type == ExprType_MEMBER_ACCESS ||
+            self->expr_type == ExprType_MEMBER_ACCESS_PTR) {
+        self->lvls_of_indir = self->rhs->lvls_of_indir;
+    }
     else if (self->expr_type == ExprType_FUNC_CALL) {
         char *expr_src = Expr_src(self);
 
@@ -291,6 +297,12 @@ enum PrimitiveType Expr_type(struct Expr *self,
         self->type_idx = self->lhs->type_idx;
 
     if (self->expr_type == ExprType_TYPECAST) {
+    }
+    else if (self->expr_type == ExprType_MEMBER_ACCESS ||
+            self->expr_type == ExprType_MEMBER_ACCESS_PTR) {
+        self->type_idx = self->rhs->type_idx;
+        self->prim_type = PrimitiveType_promote(self->rhs->prim_type,
+                self->rhs->lvls_of_indir);
     }
     else if (self->rhs) {
         enum PrimitiveType lhs_prom = PrimitiveType_promote(self->lhs_type,
@@ -368,6 +380,11 @@ enum PrimitiveType Expr_type_no_prom(struct Expr *self,
         self->type_idx = self->lhs->type_idx;
 
     if (self->expr_type == ExprType_TYPECAST) {
+    }
+    else if (self->expr_type == ExprType_MEMBER_ACCESS ||
+            self->expr_type == ExprType_MEMBER_ACCESS_PTR) {
+        self->type_idx = self->rhs->type_idx;
+        self->non_prom_prim_type = self->rhs->non_prom_prim_type;
     }
     else if (self->expr_type == ExprType_FUNC_CALL) {
         char *expr_src = Expr_src(self);
@@ -537,7 +554,9 @@ bool Expr_statically_evaluatable(const struct Expr *self) {
             self->expr_type == ExprType_L_ARR_SUBSCR ||
             ExprType_is_inc_or_dec_operator(self->expr_type) ||
             self->expr_type == ExprType_FUNC_CALL ||
-            self->expr_type == ExprType_ARRAY_LIT)
+            self->expr_type == ExprType_ARRAY_LIT ||
+            self->expr_type == ExprType_MEMBER_ACCESS ||
+            self->expr_type == ExprType_MEMBER_ACCESS_PTR)
         return false;
 
     if (self->lhs && !Expr_statically_evaluatable(self->lhs))
@@ -677,6 +696,12 @@ enum ExprType tok_t_to_expr_t(enum TokenType type) {
     case TokenType_G_THAN_OR_E:
         return ExprType_G_THAN_OR_E;
 
+    case TokenType_MEMBER_ACCESS:
+        return ExprType_MEMBER_ACCESS;
+
+    case TokenType_MEMBER_ACCESS_PTR:
+        return ExprType_MEMBER_ACCESS_PTR;
+
     case TokenType_BITWISE_NOT:
         return ExprType_BITWISE_NOT;
 
@@ -786,6 +811,12 @@ enum TokenType expr_t_to_tok_t(enum ExprType type) {
 
     case ExprType_G_THAN_OR_E:
         return TokenType_G_THAN_OR_E;
+
+    case ExprType_MEMBER_ACCESS:
+        return TokenType_MEMBER_ACCESS;
+
+    case ExprType_MEMBER_ACCESS_PTR:
+        return TokenType_MEMBER_ACCESS_PTR;
 
     case ExprType_BITWISE_NOT:
         return TokenType_BITWISE_NOT;

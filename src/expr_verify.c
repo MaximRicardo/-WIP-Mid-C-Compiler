@@ -125,6 +125,8 @@ static bool verify_expr(const struct Expr *expr, const struct ParVarList *vars,
     }
     else if (expr->expr_type == ExprType_REFERENCE) {
         if (expr->lhs->expr_type != ExprType_IDENT &&
+                expr->lhs->expr_type != ExprType_MEMBER_ACCESS &&
+                expr->lhs->expr_type != ExprType_MEMBER_ACCESS_PTR &&
                 /* makes sure it's not a func call */
                 expr->lhs->args.size == 0 &&
                 expr->lhs->expr_type != ExprType_DEREFERENCE) {
@@ -143,6 +145,18 @@ static bool verify_expr(const struct Expr *expr, const struct ParVarList *vars,
                 "can not dereference a non-pointer. line %u,"
                 " column %u.\n", expr->line_num, expr->column_num);
         error = true;
+    }
+    else if (expr->expr_type == ExprType_MEMBER_ACCESS &&
+            expr->lhs->lvls_of_indir != 0) {
+        ErrMsg_print(ErrMsg_on, &error, expr->file_path,
+                "can not access members of a pointer. line %u, column %u.\n",
+                expr->line_num, expr->column_num);
+    }
+    else if (expr->expr_type == ExprType_MEMBER_ACCESS_PTR &&
+            expr->lhs->lvls_of_indir != 1) {
+        ErrMsg_print(ErrMsg_on, &error, expr->file_path,
+                "can not use operator '->' on line %u, column %u.\n",
+                expr->line_num, expr->column_num);
     }
     else if (expr->lhs_lvls_of_indir > 0 && expr->rhs_lvls_of_indir > 0 &&
             ExprType_is_bin_operator(expr->expr_type)) {

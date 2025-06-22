@@ -153,6 +153,8 @@ unsigned Token_precedence(enum TokenType type) {
         return 2;
 
     case TokenType_L_ARR_SUBSCR:
+    case TokenType_MEMBER_ACCESS:
+    case TokenType_MEMBER_ACCESS_PTR:
     case TokenType_POSTFIX_INC:
     case TokenType_POSTFIX_DEC:
         return 1;

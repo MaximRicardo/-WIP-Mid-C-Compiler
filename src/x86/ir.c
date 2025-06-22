@@ -1,5 +1,5 @@
 #include "ir.h"
-
+#include "../structs.h"
 #include <assert.h>
 #include <limits.h>
 #include <stdio.h>
@@ -630,7 +630,8 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
                 expr->expr_type == ExprType_EQUAL ||
                 expr->expr_type == ExprType_REFERENCE ||
                 ExprType_is_inc_or_dec_operator(expr->expr_type) ||
-                expr->lhs->is_array,
+                expr->lhs->is_array ||
+                expr->expr_type == ExprType_MEMBER_ACCESS,
                 structs);
     else
         lhs_reg = alloc_reg(instrs);
@@ -647,7 +648,9 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
         instr_string(instrs, jmp_instr, end_label);
     }
 
-    if (expr->rhs && expr->rhs->expr_type != ExprType_INT_LIT)
+    if (expr->rhs && expr->rhs->expr_type != ExprType_INT_LIT &&
+            expr->expr_type != ExprType_MEMBER_ACCESS &&
+            expr->expr_type != ExprType_MEMBER_ACCESS_PTR)
         rhs_reg = get_expr_instructions(instrs, expr->rhs, false, structs);
 
     if (expr->expr_type == ExprType_INT_LIT) {
@@ -657,8 +660,9 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
     else if (expr->expr_type == ExprType_IDENT) {
         enum InstrType type = load_reference || expr->is_array ?
             InstrType_LEA : InstrType_MOV_F_LOC;
-        unsigned var_size = PrimitiveType_size(expr->non_prom_prim_type,
-                expr->lvls_of_indir+load_reference, expr->type_idx, structs);
+        unsigned var_size = load_reference ? 4 :
+            PrimitiveType_size(expr->non_prom_prim_type,
+                expr->lvls_of_indir, expr->type_idx, structs);
         instr_reg_and_reg(instrs, type, InstrSize_bytes_to(var_size),
                 reg_idx_to_operand_t(lhs_reg.reg_idx), InstrOperandType_REG_BP,
                 expr->bp_offset);
@@ -807,6 +811,25 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
     else if (expr->expr_type == ExprType_TYPECAST) {
         /* doesn't actually do anything from the machine's perspective.
          * unless i ever add floats */
+    }
+    else if (expr->expr_type == ExprType_MEMBER_ACCESS ||
+            expr->expr_type == ExprType_MEMBER_ACCESS_PTR) {
+        char *member_name = Expr_src(expr->rhs);
+        u32 struct_idx = expr->lhs->type_idx;
+        u32 field_idx =
+            Struct_field_idx(&structs->elems[struct_idx], member_name);
+
+        enum InstrType instr = load_reference ||
+            structs->elems[struct_idx].members.elems[field_idx].is_array ?
+            InstrType_LEA : InstrType_MOV_F_LOC;
+
+        instr_reg_and_reg(instrs, instr, InstrSize_32,
+                reg_idx_to_operand_t(lhs_reg.reg_idx),
+                reg_idx_to_operand_t(lhs_reg.reg_idx),
+                structs->elems[struct_idx].members.elems[field_idx].offset
+                );
+
+        m_free(member_name);
     }
     else {
         struct Instruction instr = Instruction_init();

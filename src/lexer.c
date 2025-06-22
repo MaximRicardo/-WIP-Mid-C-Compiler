@@ -352,6 +352,13 @@ static void lex_str(const char *src, const char *file_path,
             ++src_i;
             ++column_num;
         }
+        else if (src[src_i] == '-' && src[src_i+1] == '>') {
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
+                        &src[src_i], 2, file_path,
+                        TokenType_MEMBER_ACCESS_PTR));
+            ++src_i;
+            ++column_num;
+        }
 
         else if (src[src_i] == ';')
             TokenList_push_back(token_tbl, Token_create(line_num, column_num,
@@ -390,6 +397,9 @@ static void lex_str(const char *src, const char *file_path,
         else if (src[src_i] == '>')
             TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, file_path, TokenType_G_THAN));
+        else if (src[src_i] == '.')
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
+                        &src[src_i], 1, file_path, TokenType_MEMBER_ACCESS));
 
         else if (src[src_i] == '~')
             TokenList_push_back(token_tbl, Token_create(line_num, column_num,

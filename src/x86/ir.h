@@ -2,6 +2,7 @@
 
 #include "../vector_impl.h"
 #include "../ast.h"
+#include "../structs.h"
 
 /* when changing make sure to update:
  *  expr_to_instr_t() in ir.c, instr_type_to_asm

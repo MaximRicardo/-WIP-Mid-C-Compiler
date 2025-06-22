@@ -8,6 +8,7 @@
 #include "parser.h"
 #include "prim_type.h"
 #include "safe_mem.h"
+#include "structs.h"
 #include "token.h"
 #include "macros.h"
 #include "type_mods.h"
@@ -417,6 +418,54 @@ static void read_type_cast(const struct TokenList *token_tbl,
 
 }
 
+void read_struct_field(const struct TokenList *token_tbl,
+        struct ExprPtrList *output_queue, struct ExprPtrList *operator_stack,
+        u32 ident_idx, const struct ParVarList *vars,
+        const struct StructList *structs) {
+
+    char *name = Token_src(&token_tbl->elems[ident_idx]);
+
+    /* the lhs of the member access should be at the back of the
+     * output queue */
+    struct Expr *lhs = ExprPtrList_back(output_queue);
+    u32 field_idx =
+        Struct_field_idx(&structs->elems[lhs->type_idx], name);
+    if (field_idx == m_u32_max) {
+        ErrMsg_print(ErrMsg_on, &SY_error_occurred,
+                token_tbl->elems[ident_idx].file_path,
+                "accessing unknown field '%s' in struct '%s' on"
+                " line %u, column %u.\n", name,
+                structs->elems[lhs->type_idx].name,
+                token_tbl->elems[ident_idx].line_num,
+                token_tbl->elems[ident_idx].column_num);
+    }
+    else {
+        const struct StructField *field =
+           &structs->elems[lhs->type_idx].members.elems[field_idx];
+
+        struct Expr *expr = safe_malloc(sizeof(*expr));
+        *expr = Expr_create_w_tok(token_tbl->elems[ident_idx], NULL, NULL,
+                field->lvls_of_indir, 0,
+                field->type, PrimType_INVALID,
+                ExprPtrList_init(), 0, ArrayLit_init(),
+                0, ExprType_IDENT, field->is_array,
+                field->array_len);
+        Expr_lvls_of_indir(expr, vars);
+        Expr_type_no_prom(expr, vars);
+        Expr_type(expr, vars, structs);
+        expr->type_idx = 0;
+        ExprPtrList_push_back(output_queue, expr);
+
+        /* the rhs of the member access operation is always the
+         * identifier immediately following it */
+        move_operator_to_out_queue(output_queue, operator_stack, vars,
+                structs);
+    }
+
+    m_free(name);
+
+}
+
 struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
         enum TokenType *stop_types, u32 n_stop_types, u32 *end_idx,
         const struct ParVarList *vars, const struct StructList *structs,
@@ -497,30 +546,37 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
             struct Expr *expr = NULL;
             char *name = Token_src(&token_tbl->elems[i]);
             u32 var_idx = ParVarList_find_var(vars, name);
-            if (var_idx == m_u32_max) {
+
+            if (i > 0 &&
+                    (token_tbl->elems[i-1].type == TokenType_MEMBER_ACCESS_PTR
+                        ||
+                     token_tbl->elems[i-1].type == TokenType_MEMBER_ACCESS)) {
+                read_struct_field(token_tbl, &output_queue, &operator_stack,
+                        i, vars, structs);
+            }
+            else if (var_idx == m_u32_max) {
                 ErrMsg_print(ErrMsg_on, &SY_error_occurred,
                         token_tbl->elems[i].file_path,
                         "undeclared identifier '%s'. line %u, column %u\n",
                         name, token_tbl->elems[i].line_num,
                         token_tbl->elems[i].column_num);
-                m_free(name);
-                continue;
+            }
+            else {
+                expr = safe_malloc(sizeof(*expr));
+                *expr = Expr_create_w_tok(token_tbl->elems[i], NULL, NULL,
+                        vars->elems[var_idx].lvls_of_indir, 0,
+                        vars->elems[var_idx].type, PrimType_INVALID,
+                        ExprPtrList_init(), 0, ArrayLit_init(),
+                        vars->elems[var_idx].stack_pos-bp,
+                        ExprType_IDENT, vars->elems[var_idx].is_array,
+                        vars->elems[var_idx].array_len);
+                Expr_lvls_of_indir(expr, vars);
+                Expr_type_no_prom(expr, vars);
+                Expr_type(expr, vars, structs);
+                expr->type_idx = vars->elems[var_idx].type_idx;
+                ExprPtrList_push_back(&output_queue, expr);
             }
             m_free(name);
-
-            expr = safe_malloc(sizeof(*expr));
-            *expr = Expr_create_w_tok(token_tbl->elems[i], NULL, NULL,
-                    vars->elems[var_idx].lvls_of_indir, 0,
-                    vars->elems[var_idx].type, PrimType_INVALID,
-                    ExprPtrList_init(), 0, ArrayLit_init(),
-                    vars->elems[var_idx].stack_pos-bp,
-                    ExprType_IDENT, vars->elems[var_idx].is_array,
-                    vars->elems[var_idx].array_len);
-            Expr_lvls_of_indir(expr, vars);
-            Expr_type_no_prom(expr, vars);
-            Expr_type(expr, vars, structs);
-            expr->type_idx = vars->elems[var_idx].type_idx;
-            ExprPtrList_push_back(&output_queue, expr);
         }
         else if (token_tbl->elems[i].type == TokenType_INT_LIT) {
             struct Expr *expr = safe_malloc(sizeof(*expr));

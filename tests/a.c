@@ -23,7 +23,9 @@ struct Struct2ElectricBoogaloo {
 
 void func(void) {
     struct TestStruct var;
-    &var;
+    struct TestStruct *var_ptr;
+    var_ptr = &var;
+    var_ptr->x[2] = 5;
 }
 
 int main(int argc, char **argv) {
@@ -31,6 +33,7 @@ int main(int argc, char **argv) {
     char *end_ptr;
     u32 n;
     struct TestStruct x;
+    x.x[2] = 5;
 
     if (argc < 2) {
         printf("give an argument containing which fibonacci number to get.\n");
@@ -41,6 +44,7 @@ int main(int argc, char **argv) {
     printf("fibonacci nr. %d is: %u\n", n, fibonacci(n));
 
     printf("m_test_macro = %s\n", m_test_macro);
+    printf("x.x[2] = %d\n", x.x[2]);
 
 }
 

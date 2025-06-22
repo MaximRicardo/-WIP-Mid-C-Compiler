@@ -33,6 +33,8 @@ enum TokenType {
     TokenType_L_THAN_OR_E,
     TokenType_G_THAN,
     TokenType_G_THAN_OR_E,
+    TokenType_MEMBER_ACCESS,
+    TokenType_MEMBER_ACCESS_PTR,
     TokenType_BINARY_OPS_END,
 
     /* unary operators */
