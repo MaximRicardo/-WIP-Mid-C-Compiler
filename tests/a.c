@@ -22,11 +22,9 @@ unsigned long strtoul(char *str, char **endptr, int base);
 static void my_memcpy(void *dest, void *src, unsigned long n) {
 
     u32 i;
-    u8 *dest_u8 = dest;
-    u8 *src_u8 = src;
 
     for (i = 0; i < n; i++) {
-        dest_u8[i] = src_u8[i];
+        ((char*)dest)[i] = ((char*)src)[i];
     }
 
 }

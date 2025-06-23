@@ -53,7 +53,8 @@ static bool verify_unary_ptr_operation(const struct Expr *expr) {
 
         return true;
     }
-    else if (expr->lhs_lvls_of_indir == 1 && expr->lhs_type == PrimType_VOID) {
+    else if (expr->expr_type == ExprType_DEREFERENCE &&
+            expr->lhs_lvls_of_indir == 1 && expr->lhs_type == PrimType_VOID) {
         char *expr_src = Expr_src(expr);
 
         ErrMsg_print(ErrMsg_on, NULL, expr->file_path,
