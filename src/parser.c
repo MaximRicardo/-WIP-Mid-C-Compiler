@@ -511,9 +511,10 @@ static u32 parse_func_args(const struct Lexer *lexer, u32 arg_decl_start_idx,
         type_spec_src = Token_src(&lexer->token_tbl.elems[arg_decl_idx]);
 
         if (!Token_data_type_namespace(
-                    lexer->token_tbl.elems[arg_decl_idx].type
-                    ) &&
-                Ident_type_spec(type_spec_src, &typedefs) == PrimType_INVALID) {
+                    lexer->token_tbl.elems[arg_decl_idx].type) &&
+                Ident_type_spec(type_spec_src, &typedefs) ==
+                    PrimType_INVALID &&
+                Ident_modifier_str_to_tok(type_spec_src) == TokenType_NONE) {
 
             enum TokenType stop_types[] =
                 {TokenType_R_PAREN, TokenType_L_CURLY};
