@@ -11,8 +11,7 @@ typedef int bool;
 
 int printf(char *str, ...);
 int fprintf(void *file, char *str, ...);
-void* calloc(unsigned long n_elems, unsigned long elem_size);
-void* realloc(void *ptr, unsigned long size);
+void* malloc(unsigned long size);
 void free(void *pt);
 void exit(int code);
 unsigned long strtoul(char *str, char **endptr, int base);
@@ -21,11 +20,52 @@ unsigned long strtoul(char *str, char **endptr, int base);
  * i haven't implemented 16 byte alignment, i need to use my own version. */
 static void my_memcpy(void *dest, void *src, unsigned long n) {
 
-    u32 i;
+    unsigned long i;
 
-    for (i = 0; i < n; i++) {
-        ((char*)dest)[i] = ((char*)src)[i];
-    }
+    for (i = 0; i < n; ++i)
+        ((u8*)dest)[i] = ((u8*)src)[i];
+
+}
+
+/* uses SSE, so i have to roll my own instead. */
+static void my_memset(void *s, int c, unsigned long n) {
+
+    unsigned long i;
+
+    for (i = 0; i < n; ++i)
+        ((u8*)s)[i] = c;
+
+}
+
+/* calloc uses memset, which uses SSE, which requires 16 byte alignment. */
+static void* my_calloc(unsigned long n_elems, unsigned long elem_size) {
+
+    unsigned long n = n_elems*elem_size;
+    void *ptr = malloc(n);
+
+    my_memset(ptr, 0, n);
+
+    return ptr;
+
+}
+
+static void* my_realloc(void *ptr, unsigned long new_size,
+        unsigned long old_size) {
+
+    void *new_ptr = malloc(new_size);
+    unsigned long size;
+
+    if (new_ptr == NULL)
+        return NULL;
+
+    if (new_size <= old_size)
+        size = new_size;
+    else
+        size = old_size;
+
+    my_memcpy(new_ptr, ptr, size);
+
+    return new_ptr;
 
 }
 
@@ -41,7 +81,7 @@ static void BigNum_init(struct BigNum *num) {
 
     num->capacity = m_big_num_start_capacity;
     num->n_digits = 0;
-    num->digits = calloc(num->capacity, sizeof(*num->digits));
+    num->digits = my_calloc(num->capacity, sizeof(*num->digits));
 
 }
 
@@ -55,8 +95,10 @@ static bool BigNum_append_digit(struct BigNum *num, int digit) {
     }
 
     while (num->n_digits+1 >= num->capacity) {
-        num->capacity = num->capacity*num->capacity;
-        num->digits = realloc(num->digits, num->capacity*sizeof(*num->digits));
+        u32 new_capacity = num->capacity*num->capacity;
+        num->digits = my_realloc(num->digits, new_capacity,
+                num->capacity*sizeof(*num->digits));
+        num->capacity = new_capacity;
     }
 
     num->digits[num->n_digits] = '0'+digit;
@@ -128,9 +170,10 @@ static void BigNum_add(struct BigNum *result, struct BigNum *x,
 static void BigNum_copy(struct BigNum *dest, struct BigNum *src) {
 
     if (src->n_digits >= dest->capacity) {
-        dest->capacity = src->capacity;
         dest->digits =
-            realloc(dest->digits, dest->capacity*sizeof(*dest->digits));
+            my_realloc(dest->digits, src->capacity*sizeof(*src->digits),
+                    dest->capacity*sizeof(*dest->digits));
+        dest->capacity = src->capacity;
     }
     dest->n_digits = src->n_digits;
     my_memcpy(dest->digits, src->digits, dest->n_digits*sizeof(*dest->digits));
