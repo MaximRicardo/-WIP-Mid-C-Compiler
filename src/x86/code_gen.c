@@ -283,7 +283,7 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
     else if (instr->type == InstrType_MUL || instr->type == InstrType_IMUL) {
         /* why x86? just why? */
         if (instr->lhs.type != InstrOperandType_REG_AX)
-            fprintf(output, "xchg rax, %s\n",
+            fprintf(output, "xchg eax, %s\n",
                     reg_names[type_to_reg(instr->lhs.type)][InstrSize_32]);
 
         if (type_is_reg(instr->rhs.type))
@@ -298,18 +298,18 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
         }
 
         if (instr->lhs.type != InstrOperandType_REG_AX)
-            fprintf(output, "xchg rax, %s\n",
+            fprintf(output, "xchg eax, %s\n",
                     reg_names[type_to_reg(instr->lhs.type)][InstrSize_32]);
     }
 
     else if (instr->type == InstrType_DIV || instr->type == InstrType_IDIV) {
         /* day 7045205478 of questioning why div and mul always use AX */
         if (instr->lhs.type != InstrOperandType_REG_AX)
-            fprintf(output, "xchg rax, %s\n",
+            fprintf(output, "xchg eax, %s\n",
                     reg_names[type_to_reg(instr->lhs.type)][InstrSize_32]);
 
         if (instr->type == InstrType_DIV)
-            fprintf(output, "xor rdx, rdx\n");
+            fprintf(output, "xor edx, rdx\n");
         else {
             if (instr->instr_size == InstrSize_32)
                 fprintf(output, "cdq\n");
@@ -332,7 +332,7 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
         }
 
         if (instr->lhs.type != InstrOperandType_REG_AX)
-            fprintf(output, "xchg rax, %s\n",
+            fprintf(output, "xchg eax, %s\n",
                     reg_names[type_to_reg(instr->lhs.type)][InstrSize_32]);
     }
 
@@ -340,11 +340,11 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
             instr->type == InstrType_IMODULO) {
         /* day 7045205478 of questioning why div and mul always use AX */
         if (instr->lhs.type != InstrOperandType_REG_AX)
-            fprintf(output, "xchg rax, %s\n",
+            fprintf(output, "xchg eax, %s\n",
                     reg_names[type_to_reg(instr->lhs.type)][InstrSize_32]);
 
         if (instr->type == InstrType_DIV)
-            fprintf(output, "xor rdx, rdx\n");
+            fprintf(output, "xor edx, rdx\n");
         else {
             if (instr->instr_size == InstrSize_32)
                 fprintf(output, "cdq\n");
@@ -367,7 +367,7 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
         }
 
         if (instr->lhs.type != InstrOperandType_REG_AX)
-            fprintf(output, "xchg rax, %s\n",
+            fprintf(output, "xchg eax, %s\n",
                     reg_names[type_to_reg(instr->lhs.type)][InstrSize_32]);
 
         /* the remainder is in DX */

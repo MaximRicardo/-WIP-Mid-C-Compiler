@@ -92,9 +92,9 @@ static void BigNum_add(struct BigNum *result, struct BigNum *x,
         int sum;
 
         if (i < x->n_digits)
-            x_digit = x->digits[i]-'0';
+            x_digit = (x->digits[i])-'0';
         if (i < y->n_digits)
-            y_digit = y->digits[i]-'0';
+            y_digit = (y->digits[i])-'0';
 
         sum = x_digit + y_digit + carry;
         carry = 0;
