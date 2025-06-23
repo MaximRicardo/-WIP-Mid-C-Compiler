@@ -128,6 +128,7 @@ static bool verify_expr(const struct Expr *expr, const struct ParVarList *vars,
         if (expr->lhs->expr_type != ExprType_IDENT &&
                 expr->lhs->expr_type != ExprType_MEMBER_ACCESS &&
                 expr->lhs->expr_type != ExprType_MEMBER_ACCESS_PTR &&
+                expr->lhs->expr_type != ExprType_L_ARR_SUBSCR &&
                 /* makes sure it's not a func call */
                 expr->lhs->args.size == 0 &&
                 expr->lhs->expr_type != ExprType_DEREFERENCE) {
