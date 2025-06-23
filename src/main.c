@@ -14,7 +14,6 @@
 #include "bin_to_unary.h"
 #include "merge_strings.h"
 #include "pre_proc.h"
-#include "const_fold.h"
 #include "structs.h"
 
 #define m_build_bug_on(condition) \
