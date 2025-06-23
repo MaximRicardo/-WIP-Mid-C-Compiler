@@ -1,4 +1,4 @@
-#define m_big_num_start_capacity 128
+#define m_big_num_start_capacity 1024
 
 #define true 1
 #define false 0
@@ -9,6 +9,7 @@
 #define m_sizeof_char 1
 
 typedef unsigned u32;
+typedef unsigned char u8;
 typedef int bool;
 
 int printf(char *str, ...);
@@ -17,8 +18,21 @@ void* calloc(unsigned long n_elems, unsigned long elem_size);
 void* realloc(void *ptr, unsigned long size);
 void free(void *pt);
 void exit(int code);
-void memcpy(void *dest, void *src, unsigned long n);
 unsigned long strtoul(char *str, char **endptr, int base);
+
+/* memcpy seems to break if you don't align the stack to 16 bytes, and since
+ * i haven't implemented 16 byte alignment, i need to use my own version. */
+static void my_memcpy(void *dest, void *src, unsigned long n) {
+
+    u32 i;
+    u8 *dest_u8 = dest;
+    u8 *src_u8 = src;
+
+    for (i = 0; i < n; i++) {
+        dest_u8[i] = src_u8[i];
+    }
+
+}
 
 struct BigNum {
 
@@ -93,14 +107,10 @@ static void BigNum_add(struct BigNum *result, struct BigNum *x,
         int y_digit = 0;
         int sum;
 
-        printf("i = %u.\n", i);
-
         if (i < x->n_digits)
             x_digit = x->digits[i]-'0';
         if (i < y->n_digits)
             y_digit = y->digits[i]-'0';
-
-        printf("x = %d, y = %d.\n", x_digit, y_digit);
 
         sum = x_digit + y_digit + carry;
         carry = 0;
@@ -108,8 +118,6 @@ static void BigNum_add(struct BigNum *result, struct BigNum *x,
             carry = 1;
             sum = sum - 10;
         }
-
-        printf("sum = %d, carry = %d.\n", sum, carry);
 
         if (i < result->n_digits)
             result->digits[i] = '0'+sum;
@@ -129,7 +137,7 @@ static void BigNum_copy(struct BigNum *dest, struct BigNum *src) {
         dest->digits = realloc(dest->digits, dest->capacity*m_sizeof_char);
     }
     dest->n_digits = src->n_digits;
-    memcpy(dest->digits, src->digits, dest->n_digits*m_sizeof_char);
+    my_memcpy(dest->digits, src->digits, dest->n_digits*m_sizeof_char);
 
 }
 
@@ -143,7 +151,9 @@ static void BigNum_free(struct BigNum *self) {
 }
 
 /* assumes result, a and b have only been initialized with no characters
- * inserted. */
+ * inserted. currently breaks if you go over the 2480th fibonacci nr. i
+ * suspect this is cuz realloc depends on 16 byte stack alignment, which my
+ * compiler doesn't necessarily follow, causing weird bugs. */
 static void big_num_fibonacci(struct BigNum *result, struct BigNum *a,
         struct BigNum *b, u32 n);
 
@@ -182,27 +192,6 @@ int main(int argc, char **argv) {
 
 }
 
-static u32 fibonacci(u32 n) {
-
-    u32 a = 0;
-    u32 b = 1;
-    u32 c;
-
-    u32 i = 0;
-
-    if (n < 2)
-        return n;
-
-    for (i = 0; i < n-1; i++) {
-        c = a+b;
-        a=b;
-        b=c;
-    }
-
-    return c;
-
-}
-
 static void big_num_fibonacci(struct BigNum *result, struct BigNum *a,
         struct BigNum *b, u32 n) {
 
@@ -218,7 +207,6 @@ static void big_num_fibonacci(struct BigNum *result, struct BigNum *a,
 
     for (i = 0; i < n-1; i++) {
 
-        printf("\n\n\nnew loop\n\n\n\n");
         BigNum_add(result, a, b);
         BigNum_copy(a, b);
         BigNum_copy(b, result);
