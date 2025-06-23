@@ -698,7 +698,7 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
     else if (expr->expr_type == ExprType_EQUAL) {
         enum InstrSize assignment_size = InstrSize_bytes_to(
                 PrimitiveType_size(expr->lhs->non_prom_prim_type,
-                    expr->lhs_lvls_of_indir, expr->type_idx, structs));
+                    expr->lhs->lvls_of_indir, expr->type_idx, structs));
 
         if (expr->rhs->expr_type != ExprType_INT_LIT)
             instr_reg_and_reg(instrs, InstrType_MOV_T_LOC, assignment_size,
@@ -716,8 +716,10 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
 
     }
     else if (expr->expr_type == ExprType_DEREFERENCE && !load_reference) {
-        unsigned deref_ptr_size = PrimitiveType_size(expr->lhs_og_type,
-                        expr->lhs_lvls_of_indir-1, expr->type_idx, structs);
+        unsigned deref_ptr_size =
+            PrimitiveType_size(expr->lhs->non_prom_prim_type,
+                        expr->lhs->lvls_of_indir-1, expr->lhs->type_idx,
+                        structs);
 
         instr_reg_and_reg(instrs, InstrType_MOV_F_LOC,
                 InstrSize_bytes_to(deref_ptr_size),
@@ -796,13 +798,14 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
             expr->expr_type == ExprType_POSTFIX_INC ?
             InstrType_INC_LOC : InstrType_DEC_LOC;
         enum InstrSize size = InstrSize_bytes_to(
-                PrimitiveType_size(expr->lhs_og_type, expr->lhs_lvls_of_indir,
-                    expr->type_idx, structs)
+                PrimitiveType_size(expr->lhs->non_prom_prim_type,
+                    expr->lhs->lvls_of_indir,
+                    expr->lhs->type_idx, structs)
                 );
 
-        unsigned n_times_to_inc = expr->lhs_lvls_of_indir == 0 ? 1 :
-                    PrimitiveType_size(expr->lhs_og_type,
-                        expr->lhs_lvls_of_indir-1, expr->type_idx, structs);
+        unsigned n_times_to_inc = expr->lhs->lvls_of_indir == 0 ? 1 :
+                    PrimitiveType_size(expr->lhs->non_prom_prim_type,
+                        expr->lhs->lvls_of_indir-1, expr->type_idx, structs);
 
         bool is_postfix = expr->expr_type == ExprType_POSTFIX_INC ||
                 expr->expr_type == ExprType_POSTFIX_DEC;
@@ -863,11 +866,11 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
     else {
         struct Instruction instr = Instruction_init();
         bool is_ptr_int_operation =
-            expr->rhs && expr->lhs_lvls_of_indir > 0 &&
-                expr->rhs_lvls_of_indir == 0;
+            expr->rhs && expr->lhs->lvls_of_indir > 0 &&
+                expr->rhs->lvls_of_indir == 0;
         bool is_ptr_ptr_operation =
-            expr->rhs && expr->lhs_lvls_of_indir > 0 &&
-                expr->rhs_lvls_of_indir > 0;
+            expr->rhs && expr->lhs->lvls_of_indir > 0 &&
+                expr->rhs->lvls_of_indir > 0;
 
         instr.type = expr_to_instr_t(expr);
         instr.instr_size = instr_size;
@@ -884,15 +887,17 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
             instr_reg_and_imm32(instrs, InstrType_SHL, instr.instr_size,
                     instr.rhs.type,
                     bytes_log2(
-                        PrimitiveType_size(expr->lhs_og_type,
-                            expr->lhs_lvls_of_indir-1, expr->type_idx, structs)
+                        PrimitiveType_size(expr->lhs->non_prom_prim_type,
+                            expr->lhs->lvls_of_indir-1, expr->type_idx,
+                            structs)
                         ), 0);
         }
         else if (is_ptr_int_operation) {
             instr.rhs.value.imm <<=
                 bytes_log2(
-                        PrimitiveType_size(expr->lhs_og_type,
-                            expr->lhs_lvls_of_indir-1, expr->type_idx, structs)
+                        PrimitiveType_size(expr->lhs->non_prom_prim_type,
+                            expr->lhs->lvls_of_indir-1, expr->type_idx,
+                            structs)
                         );
         }
 
@@ -902,7 +907,8 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
             instr_reg_and_imm32(instrs, InstrType_SHR, instr.instr_size,
                     instr.lhs.type,
                     bytes_log2(PrimitiveType_size(
-                            expr->lhs_og_type, expr->lhs_lvls_of_indir-1,
+                            expr->lhs->non_prom_prim_type,
+                            expr->lhs->lvls_of_indir-1,
                             expr->type_idx, structs)
                         ), 0);
         }

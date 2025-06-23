@@ -21,12 +21,9 @@ void Expr_const_fold(struct Expr **expr, const struct StructList *structs) {
         *expr = safe_malloc(sizeof(**expr));
         **expr = Expr_create(old_expr.line_num, old_expr.column_num,
                 old_expr.src_start, old_expr.src_len, old_expr.file_path,
-                NULL, NULL, 0, 0, PrimType_INVALID, PrimType_INVALID,
+                NULL, NULL, old_type, old_type, 0, 0,
                 ExprPtrList_init(), value, ArrayLit_init(), 0,
                 ExprType_INT_LIT, false, 0);
-        (*expr)->lvls_of_indir = 0;
-        (*expr)->prim_type = old_type;
-        (*expr)->non_prom_prim_type = old_type;
     }
     else {
         if ((*expr)->lhs)

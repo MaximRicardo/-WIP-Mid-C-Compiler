@@ -54,7 +54,8 @@ static bool verify_unary_ptr_operation(const struct Expr *expr) {
         return true;
     }
     else if (expr->expr_type == ExprType_DEREFERENCE &&
-            expr->lhs_lvls_of_indir == 1 && expr->lhs_type == PrimType_VOID) {
+            expr->lhs->lvls_of_indir == 1 &&
+            expr->lhs->prim_type == PrimType_VOID) {
         char *expr_src = Expr_src(expr);
 
         ErrMsg_print(ErrMsg_on, NULL, expr->file_path,
@@ -116,6 +117,9 @@ static bool verify_expr(const struct Expr *expr, const struct ParVarList *vars,
     bool error = false;
     u32 i;
 
+    if (!expr->lhs && !expr->rhs)
+        return false;
+
     if (expr->lhs)
         error |= verify_expr(expr->lhs, vars, structs, false, is_initializer);
     if (expr->rhs)
@@ -138,7 +142,7 @@ static bool verify_expr(const struct Expr *expr, const struct ParVarList *vars,
             error = true;
         }
     }
-    else if (expr->lhs_lvls_of_indir > 0 &&
+    else if (expr->lhs->lvls_of_indir > 0 &&
             ExprType_is_unary_operator(expr->expr_type)) {
         error |= verify_unary_ptr_operation(expr);
     }
@@ -160,11 +164,11 @@ static bool verify_expr(const struct Expr *expr, const struct ParVarList *vars,
                 "can not use operator '->' on line %u, column %u.\n",
                 expr->line_num, expr->column_num);
     }
-    else if (expr->lhs_lvls_of_indir > 0 && expr->rhs_lvls_of_indir > 0 &&
+    else if (expr->lhs->lvls_of_indir > 0 && expr->rhs->lvls_of_indir > 0 &&
             ExprType_is_bin_operator(expr->expr_type)) {
         error |= verify_ptr_operation(expr);
     }
-    else if (expr->lhs_lvls_of_indir > 0 &&
+    else if (expr->lhs->lvls_of_indir > 0 &&
             ExprType_is_bin_operator(expr->expr_type)) {
         error |= verify_single_ptr_operation(expr);
     }

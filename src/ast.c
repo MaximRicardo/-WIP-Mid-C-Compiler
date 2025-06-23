@@ -158,12 +158,6 @@ struct Expr Expr_init(void) {
     expr.file_path = NULL;
     expr.lhs = NULL;
     expr.rhs = NULL;
-    expr.lhs_lvls_of_indir = 0;
-    expr.rhs_lvls_of_indir = 0;
-    expr.lhs_og_type = PrimType_INVALID;
-    expr.rhs_og_type = PrimType_INVALID;
-    expr.lhs_type = expr.lhs_og_type;
-    expr.rhs_type = expr.rhs_og_type;
     expr.args = ExprPtrList_init();
     expr.expr_type = ExprType_INVALID;
     expr.int_value = 0;
@@ -180,11 +174,11 @@ struct Expr Expr_init(void) {
 
 struct Expr Expr_create(unsigned line_num, unsigned column_num,
         const char *src_start, unsigned src_len, const char *file_path,
-        struct Expr *lhs, struct Expr *rhs, unsigned lhs_lvls_of_indir,
-        unsigned rhs_lvls_of_indir, enum PrimitiveType lhs_type,
-        enum PrimitiveType rhs_type, struct ExprPtrList args, u32 int_value,
-        struct ArrayLit array_value, i32 bp_offset, enum ExprType expr_type,
-        bool is_array, u32 array_len) {
+        struct Expr *lhs, struct Expr *rhs, enum PrimitiveType prim_type,
+        enum PrimitiveType non_prom_prim_type, u32 type_idx,
+        unsigned lvls_of_indir,
+        struct ExprPtrList args, u32 int_value, struct ArrayLit array_value,
+        i32 bp_offset, enum ExprType expr_type, bool is_array, u32 array_len) {
 
     struct Expr expr;
     expr.line_num = line_num;
@@ -194,14 +188,6 @@ struct Expr Expr_create(unsigned line_num, unsigned column_num,
     expr.file_path = file_path;
     expr.lhs = lhs;
     expr.rhs = rhs;
-    expr.lhs_lvls_of_indir = lhs_lvls_of_indir;
-    expr.rhs_lvls_of_indir = rhs_lvls_of_indir;
-    expr.lhs_og_type = lhs_type;
-    expr.rhs_og_type = rhs_type;
-    expr.lhs_type = lhs_type == PrimType_INVALID ? PrimType_INVALID :
-        PrimitiveType_promote(lhs_type, expr.lhs_lvls_of_indir);
-    expr.rhs_type = rhs_type == PrimType_INVALID ? PrimType_INVALID :
-        PrimitiveType_promote(rhs_type, expr.rhs_lvls_of_indir);
     expr.args = args;
     expr.int_value = int_value;
     expr.array_value = array_value;
@@ -209,23 +195,24 @@ struct Expr Expr_create(unsigned line_num, unsigned column_num,
     expr.expr_type = expr_type;
     expr.is_array = is_array;
     expr.array_len = array_len;
-    expr.lvls_of_indir = 0;
-    expr.prim_type = PrimType_INVALID;
-    expr.non_prom_prim_type = PrimType_INVALID;
+    expr.lvls_of_indir = lvls_of_indir;
+    expr.prim_type = prim_type;
+    expr.non_prom_prim_type = non_prom_prim_type;
+    expr.type_idx = type_idx;
     return expr;
 
 }
 
 struct Expr Expr_create_w_tok(struct Token token, struct Expr *lhs,
-        struct Expr *rhs, unsigned lhs_lvls_of_indir,
-        unsigned rhs_lvls_of_indir, enum PrimitiveType lhs_type,
-        enum PrimitiveType rhs_type, struct ExprPtrList args, u32 int_value,
-        struct ArrayLit array_value, i32 bp_offset, enum ExprType expr_type,
-        bool is_array, u32 array_len) {
+        struct Expr *rhs, enum PrimitiveType prim_type,
+        enum PrimitiveType non_prom_prim_type, u32 type_idx,
+        unsigned lvls_of_indir,
+        struct ExprPtrList args, u32 int_value, struct ArrayLit array_value,
+        i32 bp_offset, enum ExprType expr_type, bool is_array, u32 array_len) {
 
     return Expr_create(token.line_num, token.column_num, token.src_start,
-            token.src_len, token.file_path, lhs, rhs, lhs_lvls_of_indir,
-            rhs_lvls_of_indir, lhs_type, rhs_type, args, int_value,
+            token.src_len, token.file_path, lhs, rhs, prim_type,
+            non_prom_prim_type, type_idx, lvls_of_indir, args, int_value,
             array_value, bp_offset,
             expr_type, is_array, array_len);
 
@@ -276,8 +263,8 @@ unsigned Expr_lvls_of_indir(struct Expr *self, const struct ParVarList *vars) {
         self->lvls_of_indir = 1;
     }
     else {
-        unsigned lvls_of_indir = self->rhs == NULL ? self->lhs_lvls_of_indir :
-            m_max(self->lhs_lvls_of_indir, self->rhs_lvls_of_indir);
+        unsigned lvls_of_indir = self->rhs == NULL ? self->lhs->lvls_of_indir :
+            m_max(self->lhs->lvls_of_indir, self->rhs->lvls_of_indir);
 
         if (self->expr_type == ExprType_DEREFERENCE ||
                 self->expr_type == ExprType_L_ARR_SUBSCR) {
@@ -297,6 +284,13 @@ unsigned Expr_lvls_of_indir(struct Expr *self, const struct ParVarList *vars) {
 enum PrimitiveType Expr_type(struct Expr *self,
         const struct ParVarList *vars, const struct StructList *structs) {
 
+    if (!self->lhs && !self->rhs) {
+        if (self->non_prom_prim_type == PrimType_INVALID)
+            Expr_type_no_prom(self, vars);
+        return PrimitiveType_promote(self->non_prom_prim_type,
+                self->lvls_of_indir);
+    }
+
     if (self->lhs)
         self->type_idx = self->lhs->type_idx;
 
@@ -312,19 +306,21 @@ enum PrimitiveType Expr_type(struct Expr *self,
                 self->rhs->lvls_of_indir);
     }
     else if (self->rhs) {
-        enum PrimitiveType lhs_prom = PrimitiveType_promote(self->lhs_type,
-                self->lhs_lvls_of_indir);
-        enum PrimitiveType rhs_prom = PrimitiveType_promote(self->rhs_type,
-                self->rhs_lvls_of_indir);
+        enum PrimitiveType lhs_prom =
+            PrimitiveType_promote(self->lhs->prim_type,
+                self->lhs->lvls_of_indir);
+        enum PrimitiveType rhs_prom =
+            PrimitiveType_promote(self->rhs->prim_type,
+                self->rhs->lvls_of_indir);
 
         u32 lhs_prom_size = PrimitiveType_size(lhs_prom,
-                self->lhs_lvls_of_indir, self->lhs->type_idx, structs);
+                self->lhs->lvls_of_indir, self->lhs->type_idx, structs);
         u32 rhs_prom_size = PrimitiveType_size(rhs_prom,
-                self->rhs_lvls_of_indir, self->rhs->type_idx, structs);
+                self->rhs->lvls_of_indir, self->rhs->type_idx, structs);
 
-        if (self->rhs_lvls_of_indir > self->lhs_lvls_of_indir)
+        if (self->rhs->lvls_of_indir > self->lhs->lvls_of_indir)
             self->prim_type = rhs_prom;
-        else if (self->lhs_lvls_of_indir > self->rhs_lvls_of_indir)
+        else if (self->lhs->lvls_of_indir > self->rhs->lvls_of_indir)
             self->prim_type = lhs_prom;
         else {
             if (lhs_prom == rhs_prom)
@@ -333,7 +329,7 @@ enum PrimitiveType Expr_type(struct Expr *self,
                 self->prim_type = lhs_prom;
             else if (lhs_prom_size < rhs_prom_size)
                 self->prim_type = rhs_prom;
-            else if (PrimitiveType_signed(lhs_prom, self->lhs_lvls_of_indir))
+            else if (PrimitiveType_signed(lhs_prom, self->lhs->lvls_of_indir))
                 self->prim_type = rhs_prom;
             else
                 self->prim_type = lhs_prom;
@@ -372,7 +368,7 @@ enum PrimitiveType Expr_type(struct Expr *self,
         self->prim_type = PrimType_CHAR;
     }
     else {
-        self->prim_type = PrimitiveType_promote(self->lhs_type,
+        self->prim_type = PrimitiveType_promote(self->lhs->prim_type,
                     Expr_lvls_of_indir(self, vars));
     }
 
@@ -413,10 +409,10 @@ enum PrimitiveType Expr_type_no_prom(struct Expr *self,
         /* assume the array is a string */
         self->non_prom_prim_type = PrimType_CHAR;
     }
-    else if (self->rhs && self->rhs_lvls_of_indir > self->lhs_lvls_of_indir)
-        self->non_prom_prim_type = self->rhs_og_type;
+    else if (self->rhs && self->rhs->lvls_of_indir > self->lhs->lvls_of_indir)
+        self->non_prom_prim_type = self->rhs->non_prom_prim_type;
     else
-        self->non_prom_prim_type = self->lhs_og_type;
+        self->non_prom_prim_type = self->lhs->non_prom_prim_type;
 
     if (!PrimitiveType_non_prim_type(self->prim_type))
         self->type_idx = 0;

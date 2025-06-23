@@ -164,10 +164,6 @@ struct Expr {
     const char *file_path;
 
     struct Expr *lhs, *rhs;
-    unsigned lhs_lvls_of_indir, rhs_lvls_of_indir;
-    enum PrimitiveType lhs_type, rhs_type;
-    /* doesn't factor in type promotions or lvls of indir */
-    unsigned lhs_og_type, rhs_og_type;
     struct ExprPtrList args; /* used by function calls */
 
     bool is_array;
@@ -195,17 +191,17 @@ struct Expr Expr_init(void);
 /* automatically promotes the lhs and rhs types */
 struct Expr Expr_create(unsigned line_num, unsigned column_num,
         const char *src_start, unsigned src_len, const char *file_path,
-        struct Expr *lhs, struct Expr *rhs, unsigned lhs_lvls_of_indir,
-        unsigned rhs_lvls_of_indir, enum PrimitiveType lhs_type, 
-        enum PrimitiveType rhs_type,
+        struct Expr *lhs, struct Expr *rhs, enum PrimitiveType prim_type,
+        enum PrimitiveType non_prom_prim_type, u32 type_idx,
+        unsigned lvls_of_indir,
         struct ExprPtrList args, u32 int_value, struct ArrayLit array_value,
         i32 bp_offset, enum ExprType expr_type, bool is_array, u32 array_len);
 /* Uses the passed, tok_t_to_expr_td column numbers aswell as src_start and
  * src_len. */
 struct Expr Expr_create_w_tok(struct Token token, struct Expr *lhs,
-        struct Expr *rhs, unsigned lhs_lvls_of_indir,
-        unsigned rhs_lvls_of_indir, enum PrimitiveType lhs_type,
-        enum PrimitiveType rhs_type,
+        struct Expr *rhs, enum PrimitiveType prim_type,
+        enum PrimitiveType non_prom_prim_type, u32 type_idx,
+        unsigned lvls_of_indir,
         struct ExprPtrList args, u32 int_value, struct ArrayLit array_value,
         i32 bp_offset, enum ExprType expr_type, bool is_array, u32 array_len);
 /* Also frees self */
