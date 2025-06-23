@@ -3,10 +3,10 @@
 #define true 1
 #define false 0
 
+#define NULL (void*)0
+
 /* i haven't added sizeof yet */
 #define m_sizeof_char 1
-
-#define stderr (void*)2
 
 typedef unsigned u32;
 typedef int bool;
@@ -36,11 +36,12 @@ static void BigNum_init(struct BigNum *num) {
 
 }
 
-/* returns whether or not it failed */
+/* returns whether or not it failed. automatically converts the digit
+ * to ASCII. */
 static bool BigNum_append_digit(struct BigNum *num, int digit) {
 
     if (digit < 0 || digit > 9) {
-        fprintf(stderr, "invalid digit.\n");
+        printf("invalid digit.\n");
         return false;
     }
 
@@ -56,15 +57,16 @@ static bool BigNum_append_digit(struct BigNum *num, int digit) {
 
 }
 
-static void BigNum_print(struct BigNum *num) {
+static void BigNum_print(struct BigNum *self) {
 
     u32 i;
 
-    if (num->n_digits == 0)
+    if (self->n_digits == 0)
         return;
 
-    for (i = num->n_digits-1; i < num->n_digits; i--)
-        printf("%c", num->digits[i]);
+    for (i = self->n_digits-1; i < self->n_digits; i--)
+        printf("%c", self->digits[i]);
+    printf("\n");
 
 }
 
@@ -77,7 +79,6 @@ static void BigNum_add(struct BigNum *result, struct BigNum *x,
     u32 i;
     u32 n;
     int carry = 0;
-    char *test;
 
     /* no ternary operator yet */
     if (result->n_digits >= x->n_digits && result->n_digits >= y->n_digits)
@@ -92,10 +93,14 @@ static void BigNum_add(struct BigNum *result, struct BigNum *x,
         int y_digit = 0;
         int sum;
 
+        printf("i = %u.\n", i);
+
         if (i < x->n_digits)
-            x_digit = test[i]-5;
+            x_digit = x->digits[i]-'0';
         if (i < y->n_digits)
             y_digit = y->digits[i]-'0';
+
+        printf("x = %d, y = %d.\n", x_digit, y_digit);
 
         sum = x_digit + y_digit + carry;
         carry = 0;
@@ -103,6 +108,8 @@ static void BigNum_add(struct BigNum *result, struct BigNum *x,
             carry = 1;
             sum = sum - 10;
         }
+
+        printf("sum = %d, carry = %d.\n", sum, carry);
 
         if (i < result->n_digits)
             result->digits[i] = '0'+sum;
@@ -115,7 +122,30 @@ static void BigNum_add(struct BigNum *result, struct BigNum *x,
 
 }
 
-static u32 fibonacci(u32 n);
+static void BigNum_copy(struct BigNum *dest, struct BigNum *src) {
+
+    if (src->n_digits >= dest->capacity) {
+        dest->capacity = src->capacity;
+        dest->digits = realloc(dest->digits, dest->capacity*m_sizeof_char);
+    }
+    dest->n_digits = src->n_digits;
+    memcpy(dest->digits, src->digits, dest->n_digits*m_sizeof_char);
+
+}
+
+static void BigNum_free(struct BigNum *self) {
+
+    free(self->digits);
+    self->digits = NULL;
+    self->n_digits = 0;
+    self->capacity = 0;
+
+}
+
+/* assumes result, a and b have only been initialized with no characters
+ * inserted. */
+static void big_num_fibonacci(struct BigNum *result, struct BigNum *a,
+        struct BigNum *b, u32 n);
 
 int main(int argc, char **argv) {
 
@@ -124,10 +154,10 @@ int main(int argc, char **argv) {
 
     struct BigNum a;
     struct BigNum b;
-    struct BigNum c;
+    struct BigNum result;
     BigNum_init(&a);
     BigNum_init(&b);
-    BigNum_init(&c);
+    BigNum_init(&result);
 
     printf("MCC version %u.%u\n", __MID_CC__, __MID_CC_MINOR__);
     printf("this is being printed from '%s'.\n", __FILE__);
@@ -138,7 +168,15 @@ int main(int argc, char **argv) {
     }
 
     n = strtoul(argv[1], &end_ptr, 0);
-    printf("fibonacci nr. %d is: %u\n", n, fibonacci(n));
+
+    big_num_fibonacci(&result, &a, &b, n);
+
+    printf("fibonacci nr. %u =\n", n);
+    BigNum_print(&result);
+
+    BigNum_free(&a);
+    BigNum_free(&b);
+    BigNum_free(&result);
 
     return 0;
 
@@ -162,5 +200,29 @@ static u32 fibonacci(u32 n) {
     }
 
     return c;
+
+}
+
+static void big_num_fibonacci(struct BigNum *result, struct BigNum *a,
+        struct BigNum *b, u32 n) {
+
+    u32 i;
+
+    if (n < 2) {
+        BigNum_append_digit(result, n);
+        return;
+    }
+
+    BigNum_append_digit(a, 0);
+    BigNum_append_digit(b, 1);
+
+    for (i = 0; i < n-1; i++) {
+
+        printf("\n\n\nnew loop\n\n\n\n");
+        BigNum_add(result, a, b);
+        BigNum_copy(a, b);
+        BigNum_copy(b, result);
+
+    }
 
 }

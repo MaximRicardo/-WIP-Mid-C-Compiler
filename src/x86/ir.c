@@ -44,6 +44,20 @@ static struct GPReg GPReg_init(void) {
 
 }
 
+static char* make_str_copy(char *str) {
+
+    if (!str) {
+        return NULL;
+    }
+    else {
+        char *new_str = safe_malloc((strlen(str)+1)*sizeof(*new_str));
+        strcpy(new_str, str);
+
+        return new_str;
+    }
+
+}
+
 /* finds an unused register, returns UINT_MAX if one couldn't be found */
 static unsigned unused_reg(void) {
 
@@ -1135,6 +1149,7 @@ static void get_if_stmt_instructions(struct InstrList *instrs,
 
     free_reg(instrs, expr_reg);
 
+    instr_string(instrs, InstrType_COMMENT, make_str_copy("if body"));
     if (if_node->body_in_block)
         create_stack_frame(instrs, if_node->body->var_bytes);
     get_block_instructions(instrs, if_node->body, structs);
@@ -1147,6 +1162,7 @@ static void get_if_stmt_instructions(struct InstrList *instrs,
     instr_string(instrs, InstrType_LABEL, if_end_label[1]);
 
     if (if_node->else_body) {
+        instr_string(instrs, InstrType_COMMENT, make_str_copy("else body"));
         if (if_node->else_body_in_block)
             create_stack_frame(instrs, if_node->else_body->var_bytes);
         get_block_instructions(instrs, if_node->else_body, structs);
@@ -1188,6 +1204,7 @@ static void get_while_stmt_instructions(struct InstrList *instrs,
 
     free_reg(instrs, expr_reg);
 
+    instr_string(instrs, InstrType_COMMENT, make_str_copy("while loop body"));
     if (while_node->body_in_block)
         create_stack_frame(instrs, while_node->body->var_bytes);
     get_block_instructions(instrs, while_node->body, structs);
@@ -1239,6 +1256,7 @@ static void get_for_stmt_instructions(struct InstrList *instrs,
 
     free_reg(instrs, cond_reg);
 
+    instr_string(instrs, InstrType_COMMENT, make_str_copy("for loop body"));
     if (for_node->body_in_block)
         create_stack_frame(instrs, for_node->body->var_bytes);
     get_block_instructions(instrs, for_node->body, structs);

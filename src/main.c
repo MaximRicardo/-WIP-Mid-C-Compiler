@@ -35,8 +35,7 @@ static char *read_file(const char *file_path) {
 
 }
 
-void compile(char *src, FILE *output,
-        bool *error_occurred) {
+static void compile(char *src, FILE *output, bool *error_occurred) {
 
     struct PreProcMacroList macros;
     struct MacroInstList macro_insts;

@@ -90,6 +90,10 @@ const char *instr_type_to_asm[] = {
 
     "extern",
     "global",
+
+    "COMMENT INSTRUCTION",
+
+    "DEBUG EAX INSTRUCTION",
 };
 
 /* used in stuff like pushing an immediate */
@@ -428,6 +432,10 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
                     reg_names[type_to_reg(instr->rhs.type)][InstrSize_8]);
         else
             fprintf(output, ", %u\n", instr->rhs.value.imm);
+    }
+
+    else if (instr->type == InstrType_COMMENT) {
+        fprintf(output, ";%s\n", instr->string);
     }
 
     else if (instr->type == InstrType_DEBUG_EAX) {

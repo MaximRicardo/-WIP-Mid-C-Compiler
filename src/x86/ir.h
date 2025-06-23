@@ -75,6 +75,8 @@ enum InstrType {
     InstrType_EXTERN,
     InstrType_GLOBAL,
 
+    InstrType_COMMENT,
+
     InstrType_DEBUG_EAX
 
 };
