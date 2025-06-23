@@ -8,6 +8,7 @@
 #include "parser.h"
 #include "prim_type.h"
 #include "safe_mem.h"
+#include "structs.h"
 #include "token.h"
 #include "macros.h"
 #include "type_mods.h"
@@ -46,7 +47,8 @@ static u32 skip_to_token_type_alt(u32 start_idx, struct TokenList tokens,
 /* Moves the operator at the top of the operator queue over to the output
  * queue */
 static void move_operator_to_out_queue(struct ExprPtrList *output_queue,
-        struct ExprPtrList *operator_stack, const struct ParVarList *vars) {
+        struct ExprPtrList *operator_stack, const struct ParVarList *vars,
+        const struct StructList *structs) {
 
     struct Expr *operator =
         ExprPtrList_back(operator_stack);
@@ -67,16 +69,16 @@ static void move_operator_to_out_queue(struct ExprPtrList *output_queue,
         output_queue->elems[output_queue->size-1-(operator->rhs!=NULL)];
 
     operator->lhs_lvls_of_indir = Expr_lvls_of_indir(operator->lhs, vars);
-    operator->lhs_type = Expr_type(operator->lhs, vars);
+    operator->lhs_type = Expr_type(operator->lhs, vars, structs);
     operator->lhs_og_type = Expr_type_no_prom(operator->lhs, vars);
     if (operator->rhs) {
         operator->rhs_lvls_of_indir = Expr_lvls_of_indir(operator->rhs, vars);
-        operator->rhs_type = Expr_type(operator->rhs, vars);
+        operator->rhs_type = Expr_type(operator->rhs, vars, structs);
         operator->rhs_og_type = Expr_type_no_prom(operator->rhs, vars);
     }
 
     Expr_lvls_of_indir(operator, vars);
-    Expr_type(operator, vars);
+    Expr_type(operator, vars, structs);
     Expr_type_no_prom(operator, vars);
 
     /* Remove the lhs and rhs from the queue and replace them with the
@@ -96,7 +98,7 @@ static void move_operator_to_out_queue(struct ExprPtrList *output_queue,
  */
 static void push_operator_to_stack(struct ExprPtrList *output_queue,
         struct ExprPtrList *operator_stack, struct Token op_tok,
-        const struct ParVarList *vars) {
+        const struct ParVarList *vars, const struct StructList *structs) {
 
     struct Expr *expr = safe_malloc(sizeof(*expr));
     *expr = Expr_create_w_tok(op_tok, NULL, NULL, 0, 0, PrimType_INVALID,
@@ -124,7 +126,8 @@ static void push_operator_to_stack(struct ExprPtrList *output_queue,
         assert(output_queue->size >=
                 (Token_is_bin_operator(o2_tok_type) ? 2 : 1));
 
-        move_operator_to_out_queue(output_queue, operator_stack, vars);
+        move_operator_to_out_queue(output_queue, operator_stack, vars,
+                structs);
     }
 
     ExprPtrList_push_back(operator_stack, expr);
@@ -136,11 +139,12 @@ static void push_operator_to_stack(struct ExprPtrList *output_queue,
  * right one in LIFO order */
 static void read_r_paren(struct ExprPtrList *output_queue,
         struct ExprPtrList *operator_stack, const struct Token *r_paren_tok,
-        const struct ParVarList *vars) {
+        const struct ParVarList *vars, const struct StructList *structs) {
 
     while (operator_stack->size > 0 &&
             ExprPtrList_back(operator_stack)->expr_type != ExprType_PAREN) {
-        move_operator_to_out_queue(output_queue, operator_stack, vars);
+        move_operator_to_out_queue(output_queue, operator_stack, vars,
+                structs);
     }
 
     if (operator_stack->size == 0) {
@@ -160,7 +164,8 @@ static void read_r_paren(struct ExprPtrList *output_queue,
  * */
 static u32 read_func_call(const struct TokenList *token_tbl, u32 f_call_idx,
         u32 bp, struct ExprPtrList *output_queue,
-        const struct ParVarList *vars, const struct TypedefList *typedefs) {
+        const struct ParVarList *vars, const struct StructList *structs,
+        const struct TypedefList *typedefs) {
 
     /* this'll be useful later */
     u32 arg_start_idx = f_call_idx+2;
@@ -196,7 +201,7 @@ static u32 read_func_call(const struct TokenList *token_tbl, u32 f_call_idx,
         struct Expr *arg = SY_shunting_yard(token_tbl,
                 arg_start_idx+on_a_comma, stop_types,
                 sizeof(stop_types)/sizeof(stop_types[0]), &arg_start_idx, vars,
-                bp, false, typedefs, false);
+                structs, bp, false, typedefs, false);
         SY_error_occurred |= old_error_occurred;
 
         if (!arg)
@@ -207,8 +212,9 @@ static u32 read_func_call(const struct TokenList *token_tbl, u32 f_call_idx,
     }
 
     Expr_lvls_of_indir(expr, vars);
-    Expr_type(expr, vars);
+    Expr_type(expr, vars, structs);
     Expr_type_no_prom(expr, vars);
+    expr->type_idx = vars->elems[var_idx].type_idx;
 
     /* the function call is done being constructed */
     ExprPtrList_push_back(output_queue, expr);
@@ -232,7 +238,8 @@ static bool type_is_in_array(enum TokenType type, enum TokenType *arr,
 static void push_array_subscr_to_stack(const struct TokenList *token_tbl,
         struct ExprPtrList *output_queue, struct ExprPtrList *operator_stack,
         u32 l_arr_subscr, u32 *end_idx, const struct ParVarList *vars,
-        u32 bp, const struct TypedefList *typedefs) {
+        const struct StructList *structs, u32 bp,
+        const struct TypedefList *typedefs) {
 
     struct Expr *expr = NULL;
     struct Expr *value = NULL;
@@ -242,8 +249,8 @@ static void push_array_subscr_to_stack(const struct TokenList *token_tbl,
     assert(token_tbl->elems[l_arr_subscr].type == TokenType_L_ARR_SUBSCR);
 
     value = SY_shunting_yard(token_tbl, l_arr_subscr+1, stop_types,
-            sizeof(stop_types)/sizeof(stop_types[0]), end_idx, vars, bp, false,
-            typedefs, false);
+            sizeof(stop_types)/sizeof(stop_types[0]), end_idx, vars, structs,
+            bp, false, typedefs, false);
     SY_error_occurred |= old_error_occurred;
 
     expr = safe_malloc(sizeof(*expr));
@@ -259,8 +266,8 @@ static void push_array_subscr_to_stack(const struct TokenList *token_tbl,
 
 static void read_array_initializer(const struct TokenList *token_tbl,
         struct ExprPtrList *output_queue, u32 l_curly_idx, u32 *end_idx,
-        const struct ParVarList *vars, u32 bp,
-        const struct TypedefList *typedefs) {
+        const struct ParVarList *vars, const struct StructList *structs,
+        u32 bp, const struct TypedefList *typedefs) {
 
     struct Expr *array_expr = NULL;
     struct ExprPtrList values = ExprPtrList_init();
@@ -282,7 +289,7 @@ static void read_array_initializer(const struct TokenList *token_tbl,
 
         value = SY_shunting_yard(token_tbl, value_idx, stop_types,
                 sizeof(stop_types)/sizeof(stop_types[0]), &value_idx, vars,
-                bp, false, typedefs, false);
+                structs, bp, false, typedefs, false);
 
         if (!SY_error_occurred && !Expr_statically_evaluatable(value)) {
             ErrMsg_print(ErrMsg_on, &SY_error_occurred,
@@ -314,7 +321,7 @@ static void read_array_initializer(const struct TokenList *token_tbl,
             ExprType_ARRAY_LIT, false, 0);
 
     Expr_lvls_of_indir(array_expr, vars);
-    Expr_type(array_expr, vars);
+    Expr_type(array_expr, vars, structs);
     Expr_type_no_prom(array_expr, vars);
 
     ExprPtrList_push_back(output_queue, array_expr);
@@ -328,7 +335,7 @@ static void read_array_initializer(const struct TokenList *token_tbl,
 
 static void read_string(const struct TokenList *token_tbl,
         struct ExprPtrList *output_queue, u32 str_idx, u32 *end_idx,
-        const struct ParVarList *vars) {
+        const struct ParVarList *vars, const struct StructList *structs) {
 
     struct Expr *str_expr = NULL;
     struct ExprPtrList values = ExprPtrList_init();
@@ -357,7 +364,7 @@ static void read_string(const struct TokenList *token_tbl,
             ExprType_ARRAY_LIT, false, 0);
 
     Expr_lvls_of_indir(str_expr, vars);
-    Expr_type(str_expr, vars);
+    Expr_type(str_expr, vars, structs);
     Expr_type_no_prom(str_expr, vars);
 
     ExprPtrList_push_back(output_queue, str_expr);
@@ -368,31 +375,33 @@ static void read_string(const struct TokenList *token_tbl,
 
 static void read_type_cast(const struct TokenList *token_tbl,
         struct ExprPtrList *operator_stack, u32 l_paren_idx, u32 *end_idx,
-        const struct TypedefList *typedefs) {
+        const struct TypedefList *typedefs, const struct StructList *structs) {
 
-    u32 type_idx = l_paren_idx+1;
+    u32 type_spec_idx = l_paren_idx+1;
 
     struct Expr *expr = NULL;
 
     enum PrimitiveType type;
+    u32 type_idx;
     unsigned lvls_of_indir;
     struct TypeModifiers mods;
-    *end_idx = TypeSpec_read(token_tbl, type_idx,
-            &type, &lvls_of_indir, &mods,
-            typedefs, &SY_error_occurred);
+    *end_idx = TypeSpec_read(token_tbl, type_spec_idx,
+            &type, &type_idx, &lvls_of_indir, &mods,
+            typedefs, structs, &SY_error_occurred);
 
     if (mods.is_static) {
         ErrMsg_print(ErrMsg_on, &SY_error_occurred,
-                token_tbl->elems[type_idx].file_path,
+                token_tbl->elems[type_spec_idx].file_path,
                 "storage specifier in type cast. line %u, column %u.",
-                token_tbl->elems[type_idx].line_num,
-                token_tbl->elems[type_idx].column_num);
+                token_tbl->elems[type_spec_idx].line_num,
+                token_tbl->elems[type_spec_idx].column_num);
     }
 
     expr = safe_malloc(sizeof(*expr));
     *expr = Expr_create_w_tok(token_tbl->elems[l_paren_idx], NULL, NULL, 0, 0,
             PrimType_INVALID, PrimType_INVALID, ExprPtrList_init(), 0,
             ArrayLit_init(), 0, ExprType_TYPECAST, false, 0);
+    expr->type_idx = type_idx;
     expr->prim_type = type;
     expr->non_prom_prim_type = type;
     expr->lvls_of_indir = lvls_of_indir;
@@ -411,10 +420,59 @@ static void read_type_cast(const struct TokenList *token_tbl,
 
 }
 
+void read_struct_field(const struct TokenList *token_tbl,
+        struct ExprPtrList *output_queue, struct ExprPtrList *operator_stack,
+        u32 ident_idx, const struct ParVarList *vars,
+        const struct StructList *structs) {
+
+    char *name = Token_src(&token_tbl->elems[ident_idx]);
+
+    /* the lhs of the member access should be at the back of the
+     * output queue */
+    struct Expr *lhs = ExprPtrList_back(output_queue);
+    u32 field_idx =
+        Struct_field_idx(&structs->elems[lhs->type_idx], name);
+    if (field_idx == m_u32_max) {
+        ErrMsg_print(ErrMsg_on, &SY_error_occurred,
+                token_tbl->elems[ident_idx].file_path,
+                "accessing unknown field '%s' in struct '%s' on"
+                " line %u, column %u.\n", name,
+                structs->elems[lhs->type_idx].name,
+                token_tbl->elems[ident_idx].line_num,
+                token_tbl->elems[ident_idx].column_num);
+    }
+    else {
+        const struct StructField *field =
+           &structs->elems[lhs->type_idx].members.elems[field_idx];
+
+        struct Expr *expr = safe_malloc(sizeof(*expr));
+        *expr = Expr_create_w_tok(token_tbl->elems[ident_idx], NULL, NULL,
+                field->lvls_of_indir, 0,
+                field->type, PrimType_INVALID,
+                ExprPtrList_init(), 0, ArrayLit_init(),
+                0, ExprType_IDENT, field->is_array,
+                field->array_len);
+        Expr_lvls_of_indir(expr, vars);
+        Expr_type_no_prom(expr, vars);
+        Expr_type(expr, vars, structs);
+        expr->type_idx = 0;
+        ExprPtrList_push_back(output_queue, expr);
+
+        /* the rhs of the member access operation is always the
+         * identifier immediately following it */
+        move_operator_to_out_queue(output_queue, operator_stack, vars,
+                structs);
+    }
+
+    m_free(name);
+
+}
+
 struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
         enum TokenType *stop_types, u32 n_stop_types, u32 *end_idx,
-        const struct ParVarList *vars, u32 bp, bool is_initializer,
-        const struct TypedefList *typedefs, bool set_parser_err_occurred) {
+        const struct ParVarList *vars, const struct StructList *structs,
+        u32 bp, bool is_initializer, const struct TypedefList *typedefs,
+        bool set_parser_err_occurred) {
 
     struct ExprPtrList output_queue = ExprPtrList_init();
     struct ExprPtrList operator_stack = ExprPtrList_init();
@@ -433,11 +491,11 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
 
         if (token_tbl->elems[i].type == TokenType_L_ARR_SUBSCR) {
             push_array_subscr_to_stack(token_tbl, &output_queue,
-                    &operator_stack, i, &i, vars, bp, typedefs);
+                    &operator_stack, i, &i, vars, structs, bp, typedefs);
         }
         else if (Token_is_operator(token_tbl->elems[i].type)) {
             push_operator_to_stack(&output_queue, &operator_stack,
-                    token_tbl->elems[i], vars);
+                    token_tbl->elems[i], vars, structs);
         }
         else if (token_tbl->elems[i].type == TokenType_L_PAREN) {
             /* it could be a typecast */
@@ -445,7 +503,8 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
                 Token_src(&token_tbl->elems[i+1]) : NULL;
             if (next_src && Ident_type_spec(next_src, typedefs) !=
                     PrimType_INVALID) {
-                read_type_cast(token_tbl, &operator_stack, i, &i, typedefs);
+                read_type_cast(token_tbl, &operator_stack, i, &i, typedefs,
+                        structs);
             }
             else {
                 struct Expr *expr = safe_malloc(sizeof(*expr));
@@ -459,21 +518,21 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
         }
         else if (token_tbl->elems[i].type == TokenType_R_PAREN) {
             read_r_paren(&output_queue, &operator_stack, &token_tbl->elems[i],
-                    vars);
+                    vars, structs);
             --n_parens_deep;
         }
         else if (token_tbl->elems[i].type == TokenType_L_CURLY) {
-            read_array_initializer(token_tbl, &output_queue, i, &i, vars, bp,
-                    typedefs);
+            read_array_initializer(token_tbl, &output_queue, i, &i, vars,
+                    structs, bp, typedefs);
         }
         else if (token_tbl->elems[i].type == TokenType_STR_LIT) {
-            read_string(token_tbl, &output_queue, i, &i, vars);
+            read_string(token_tbl, &output_queue, i, &i, vars, structs);
         }
         else if (i+1 < token_tbl->size &&
                 token_tbl->elems[i].type == TokenType_IDENT &&
                 token_tbl->elems[i+1].type == TokenType_L_PAREN) {
             u32 old_i = i;
-            i = read_func_call(token_tbl, i, bp, &output_queue, vars,
+            i = read_func_call(token_tbl, i, bp, &output_queue, vars, structs,
                     typedefs);
             if (i == token_tbl->size) {
                 char *func_name = Token_src(&token_tbl->elems[old_i]);
@@ -490,29 +549,37 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
             struct Expr *expr = NULL;
             char *name = Token_src(&token_tbl->elems[i]);
             u32 var_idx = ParVarList_find_var(vars, name);
-            if (var_idx == m_u32_max) {
+
+            if (i > 0 &&
+                    (token_tbl->elems[i-1].type == TokenType_MEMBER_ACCESS_PTR
+                        ||
+                     token_tbl->elems[i-1].type == TokenType_MEMBER_ACCESS)) {
+                read_struct_field(token_tbl, &output_queue, &operator_stack,
+                        i, vars, structs);
+            }
+            else if (var_idx == m_u32_max) {
                 ErrMsg_print(ErrMsg_on, &SY_error_occurred,
                         token_tbl->elems[i].file_path,
                         "undeclared identifier '%s'. line %u, column %u\n",
                         name, token_tbl->elems[i].line_num,
                         token_tbl->elems[i].column_num);
-                m_free(name);
-                continue;
+            }
+            else {
+                expr = safe_malloc(sizeof(*expr));
+                *expr = Expr_create_w_tok(token_tbl->elems[i], NULL, NULL,
+                        vars->elems[var_idx].lvls_of_indir, 0,
+                        vars->elems[var_idx].type, PrimType_INVALID,
+                        ExprPtrList_init(), 0, ArrayLit_init(),
+                        vars->elems[var_idx].stack_pos-bp,
+                        ExprType_IDENT, vars->elems[var_idx].is_array,
+                        vars->elems[var_idx].array_len);
+                Expr_lvls_of_indir(expr, vars);
+                Expr_type_no_prom(expr, vars);
+                Expr_type(expr, vars, structs);
+                expr->type_idx = vars->elems[var_idx].type_idx;
+                ExprPtrList_push_back(&output_queue, expr);
             }
             m_free(name);
-
-            expr = safe_malloc(sizeof(*expr));
-            *expr = Expr_create_w_tok(token_tbl->elems[i], NULL, NULL,
-                    vars->elems[var_idx].lvls_of_indir, 0,
-                    vars->elems[var_idx].type, PrimType_INVALID,
-                    ExprPtrList_init(), 0, ArrayLit_init(),
-                    vars->elems[var_idx].stack_pos-bp,
-                    ExprType_IDENT, vars->elems[var_idx].is_array,
-                    vars->elems[var_idx].array_len);
-            Expr_lvls_of_indir(expr, vars);
-            Expr_type_no_prom(expr, vars);
-            Expr_type(expr, vars);
-            ExprPtrList_push_back(&output_queue, expr);
         }
         else if (token_tbl->elems[i].type == TokenType_INT_LIT) {
             struct Expr *expr = safe_malloc(sizeof(*expr));
@@ -522,7 +589,7 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
                     ExprType_INT_LIT, false, 0);
             Expr_lvls_of_indir(expr, vars);
             Expr_type_no_prom(expr, vars);
-            Expr_type(expr, vars);
+            Expr_type(expr, vars, structs);
             ExprPtrList_push_back(&output_queue, expr);
         }
         else {
@@ -557,14 +624,15 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
             ExprPtrList_pop_back(&operator_stack, Expr_recur_free_w_self);
         }
         else
-            move_operator_to_out_queue(&output_queue, &operator_stack, vars);
+            move_operator_to_out_queue(&output_queue, &operator_stack, vars,
+                    structs);
     }
     ExprPtrList_free(&operator_stack);
 
     if (output_queue.size == 1) {
         struct Expr *expr = output_queue.elems[0];
         ExprPtrList_free(&output_queue);
-        SY_error_occurred |= Expr_verify(expr, vars, is_initializer);
+        SY_error_occurred |= Expr_verify(expr, vars, structs, is_initializer);
         if (set_parser_err_occurred)
             Parser_error_occurred |= SY_error_occurred;
 

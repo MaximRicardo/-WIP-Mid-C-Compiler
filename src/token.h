@@ -33,6 +33,8 @@ enum TokenType {
     TokenType_L_THAN_OR_E,
     TokenType_G_THAN,
     TokenType_G_THAN_OR_E,
+    TokenType_MEMBER_ACCESS,
+    TokenType_MEMBER_ACCESS_PTR,
     TokenType_BINARY_OPS_END,
 
     /* unary operators */
@@ -76,6 +78,7 @@ enum TokenType {
     TokenType_STATIC,
     TokenType_SIGNED,
     TokenType_UNSIGNED,
+    TokenType_STRUCT,
 
     TokenType_VARIADIC,
 
@@ -131,6 +134,8 @@ bool Token_is_literal(enum TokenType type);
  * TokenType_MINUS->TokenType_NEGATIVE */
 bool Token_convert_to_unary(enum TokenType type);
 bool Token_has_unary_version(enum TokenType type);
+/* struct, union, and enum */
+bool Token_data_type_namespace(enum TokenType type);
 
 unsigned Token_precedence(enum TokenType type);
 /* Does the token have left to right associativity? */

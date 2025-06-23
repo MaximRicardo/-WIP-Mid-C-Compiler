@@ -2,6 +2,7 @@
 
 #include "../vector_impl.h"
 #include "../ast.h"
+#include "../structs.h"
 
 /* when changing make sure to update:
  *  expr_to_instr_t() in ir.c, instr_type_to_asm
@@ -151,4 +152,5 @@ struct InstrList {
 
 m_declare_VectorImpl_funcs(InstrList, struct Instruction)
 
-struct InstrList IR_get_instructions(const struct BlockNode *ast);
+struct InstrList IR_get_instructions(const struct BlockNode *ast,
+        const struct StructList *structs);

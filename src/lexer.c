@@ -84,6 +84,8 @@ static enum TokenType identifier_keyword(const char *ident_start,
     else if (strncmp(ident_start, "unsigned", ident_len) == 0 &&
             ident_len == 8)
         return TokenType_UNSIGNED;
+    else if (strncmp(ident_start, "struct", ident_len) == 0 && ident_len == 6)
+        return TokenType_STRUCT;
     else
         return TokenType_NONE;
 
@@ -362,6 +364,13 @@ static void lex_str(const char *src, const char *file_path,
             ++src_i;
             ++column_num;
         }
+        else if (src[src_i] == '-' && src[src_i+1] == '>') {
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
+                        &src[src_i], 2, file_path,
+                        TokenType_MEMBER_ACCESS_PTR));
+            ++src_i;
+            ++column_num;
+        }
 
         else if (src[src_i] == ';')
             TokenList_push_back(token_tbl, Token_create(line_num, column_num,
@@ -400,6 +409,9 @@ static void lex_str(const char *src, const char *file_path,
         else if (src[src_i] == '>')
             TokenList_push_back(token_tbl, Token_create(line_num, column_num,
                         &src[src_i], 1, file_path, TokenType_G_THAN));
+        else if (src[src_i] == '.')
+            TokenList_push_back(token_tbl, Token_create(line_num, column_num,
+                        &src[src_i], 1, file_path, TokenType_MEMBER_ACCESS));
 
         else if (src[src_i] == '~')
             TokenList_push_back(token_tbl, Token_create(line_num, column_num,

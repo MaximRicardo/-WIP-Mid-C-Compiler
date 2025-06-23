@@ -15,6 +15,7 @@
 #include "merge_strings.h"
 #include "pre_proc.h"
 #include "const_fold.h"
+#include "structs.h"
 
 #define m_build_bug_on(condition) \
     ((void)sizeof(char[1 - 2*!!(condition)]))
@@ -46,24 +47,41 @@ void compile(char *src, FILE *output,
         struct Lexer lexer = Lexer_lex(src, CompArgs_args.src_path, &macro_insts);
 
         if (!Lexer_error_occurred) {
-            struct BlockNode *ast;
+            struct TranslUnit tu;
 
             MergeStrings_merge(&lexer.token_tbl);
             BinToUnary_convert(&lexer.token_tbl);
             PreToPostFix_convert(&lexer.token_tbl);
 
-            ast = Parser_parse(&lexer);
+            tu = Parser_parse(&lexer);
 
             if (!Parser_error_occurred && output) {
                 if (CompArgs_args.optimize) {
-                    BlockNode_const_fold(ast);
+                    BlockNode_const_fold(tu.ast);
                 }
-                CodeGen_generate(output, ast);
+                CodeGen_generate(output, tu.ast, tu.structs);
             }
             else
                 *error_occurred = true;
 
-            BlockNode_free_w_self(ast);
+            while (tu.structs->size > 0) {
+                struct Struct back = StructList_back(tu.structs);
+                u32 i;
+
+                printf("struct %s {\n", back.name);
+                for (i = 0; i < back.members.size; i++) {
+                    printf("\t(%d) %s; //lvls of indir %u, offset %u\n",
+                            back.members.elems[i].type,
+                            back.members.elems[i].name,
+                            back.members.elems[i].lvls_of_indir,
+                            back.members.elems[i].offset);
+                }
+                printf("};\n");
+
+                StructList_pop_back(tu.structs, Struct_free);
+            }
+            StructList_free(tu.structs);
+            BlockNode_free_w_self(tu.ast);
         }
         else
             *error_occurred = true;

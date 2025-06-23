@@ -103,6 +103,12 @@ bool Token_has_unary_version(enum TokenType type) {
 
 }
 
+bool Token_data_type_namespace(enum TokenType type) {
+
+    return type == TokenType_STRUCT;
+
+}
+
 unsigned Token_precedence(enum TokenType type) {
 
     switch (type) {
@@ -153,6 +159,8 @@ unsigned Token_precedence(enum TokenType type) {
         return 2;
 
     case TokenType_L_ARR_SUBSCR:
+    case TokenType_MEMBER_ACCESS:
+    case TokenType_MEMBER_ACCESS_PTR:
     case TokenType_POSTFIX_INC:
     case TokenType_POSTFIX_DEC:
         return 1;

@@ -9,7 +9,8 @@
 #include <stdio.h>
 
 static bool verify_func_call(const struct Expr *expr,
-        const struct ParVarList *vars, bool is_root) {
+        const struct ParVarList *vars, const struct StructList *structs,
+        bool is_root) {
 
     bool error = false;
     char *func_name = Expr_src(expr);
@@ -27,7 +28,8 @@ static bool verify_func_call(const struct Expr *expr,
     if ((vars->elems[var_idx].void_args && expr->args.size > 0) ||
             (vars->elems[var_idx].args->size > 0 &&
             !VarDeclPtrList_equivalent_expr(vars->elems[var_idx].args,
-                &expr->args, vars, vars->elems[var_idx].variadic_args))) {
+                &expr->args, vars, structs,
+                vars->elems[var_idx].variadic_args))) {
         ErrMsg_print(ErrMsg_on, &error, expr->file_path,
                 "mismatching arguments for the call to '%s' on line %u,"
                 " column %u.\n", func_name, expr->line_num, expr->column_num);
@@ -108,21 +110,23 @@ static bool verify_single_ptr_operation(const struct Expr *expr) {
 }
 
 static bool verify_expr(const struct Expr *expr, const struct ParVarList *vars,
-        bool is_root, bool is_initializer) {
+        const struct StructList *structs, bool is_root, bool is_initializer) {
 
     bool error = false;
     u32 i;
 
     if (expr->lhs)
-        error |= verify_expr(expr->lhs, vars, false, is_initializer);
+        error |= verify_expr(expr->lhs, vars, structs, false, is_initializer);
     if (expr->rhs)
-        error |= verify_expr(expr->rhs, vars, false, is_initializer);
+        error |= verify_expr(expr->rhs, vars, structs, false, is_initializer);
 
     if (expr->expr_type == ExprType_FUNC_CALL) {
-        error |= verify_func_call(expr, vars, is_root);
+        error |= verify_func_call(expr, vars, structs, is_root);
     }
     else if (expr->expr_type == ExprType_REFERENCE) {
         if (expr->lhs->expr_type != ExprType_IDENT &&
+                expr->lhs->expr_type != ExprType_MEMBER_ACCESS &&
+                expr->lhs->expr_type != ExprType_MEMBER_ACCESS_PTR &&
                 /* makes sure it's not a func call */
                 expr->lhs->args.size == 0 &&
                 expr->lhs->expr_type != ExprType_DEREFERENCE) {
@@ -141,6 +145,18 @@ static bool verify_expr(const struct Expr *expr, const struct ParVarList *vars,
                 "can not dereference a non-pointer. line %u,"
                 " column %u.\n", expr->line_num, expr->column_num);
         error = true;
+    }
+    else if (expr->expr_type == ExprType_MEMBER_ACCESS &&
+            expr->lhs->lvls_of_indir != 0) {
+        ErrMsg_print(ErrMsg_on, &error, expr->file_path,
+                "can not access members of a pointer. line %u, column %u.\n",
+                expr->line_num, expr->column_num);
+    }
+    else if (expr->expr_type == ExprType_MEMBER_ACCESS_PTR &&
+            expr->lhs->lvls_of_indir != 1) {
+        ErrMsg_print(ErrMsg_on, &error, expr->file_path,
+                "can not use operator '->' on line %u, column %u.\n",
+                expr->line_num, expr->column_num);
     }
     else if (expr->lhs_lvls_of_indir > 0 && expr->rhs_lvls_of_indir > 0 &&
             ExprType_is_bin_operator(expr->expr_type)) {
@@ -161,7 +177,7 @@ static bool verify_expr(const struct Expr *expr, const struct ParVarList *vars,
     }
 
     for (i = 0; i < expr->args.size; i++) {
-        verify_expr(expr->args.elems[i], vars, false, false);
+        verify_expr(expr->args.elems[i], vars, structs, false, false);
     }
 
     return error;
@@ -169,8 +185,8 @@ static bool verify_expr(const struct Expr *expr, const struct ParVarList *vars,
 }
 
 bool Expr_verify(const struct Expr *expr, const struct ParVarList *vars,
-        bool is_initializer) {
+        const struct StructList *structs, bool is_initializer) {
 
-    return verify_expr(expr, vars, true, is_initializer);
+    return verify_expr(expr, vars, structs, true, is_initializer);
 
 }

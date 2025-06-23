@@ -446,11 +446,12 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
 
 }
 
-void CodeGenArch_generate(FILE *output, const struct BlockNode *ast) {
+void CodeGenArch_generate(FILE *output, const struct BlockNode *ast,
+        const struct StructList *structs) {
 
     struct ArrayLitList array_lits = ArrayLitList_init();
 
-    struct InstrList instrs = IR_get_instructions(ast);
+    struct InstrList instrs = IR_get_instructions(ast, structs);
     u32 i;
 
     BlockNode_get_array_lits(ast, &array_lits);

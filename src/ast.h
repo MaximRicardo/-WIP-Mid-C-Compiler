@@ -67,7 +67,8 @@ void BlockNode_get_array_lits(const struct BlockNode *self,
         struct ArrayLitList *list);
 
 /* when adding a new type make sure to update:
- *  tok_t_to_expr_t, expr_t_to_tok_t, Expr_evaluate
+ *  tok_t_to_expr_t, expr_t_to_tok_t, Expr_evaluate,
+ *  Expr_statically_evaluatable
  */
 enum ExprType {
 
@@ -95,6 +96,8 @@ enum ExprType {
     ExprType_L_THAN_OR_E,
     ExprType_G_THAN,
     ExprType_G_THAN_OR_E,
+    ExprType_MEMBER_ACCESS,
+    ExprType_MEMBER_ACCESS_PTR,
 
     /* Unary operators */
     ExprType_BITWISE_NOT,
@@ -153,7 +156,8 @@ struct Expr {
     unsigned line_num, column_num;
     /* Region of the source code that corresponds to this node's corresponding
      * token */
-    const char *src_start; unsigned src_len;
+    const char *src_start;
+    unsigned src_len;
 
     /* the file the expr is in */
     const char *file_path;
@@ -170,6 +174,8 @@ struct Expr {
 
     /* gets set via Expr_lvls_of_indir */
     unsigned lvls_of_indir;
+    /* used by structs and unions and such */
+    u32 type_idx;
     /* gets set via Expr_type */
     enum PrimitiveType prim_type;
     /* gets set via Expr_type_no_prom */
@@ -205,7 +211,7 @@ struct Expr Expr_create_w_tok(struct Token token, struct Expr *lhs,
 void Expr_recur_free_w_self(struct Expr *self);
 unsigned Expr_lvls_of_indir(struct Expr *self, const struct ParVarList *vars);
 enum PrimitiveType Expr_type(struct Expr *self,
-        const struct ParVarList *vars);
+        const struct ParVarList *vars, const struct StructList *structs);
 /* works differently from Expr_type. uses lhs_og_type and rhs_og_type instead,
  * and inherits directly from whichever operand has the highest level of indir.
  * If both have the same, then it's inherited from the left operand by default.
@@ -217,7 +223,7 @@ char* Expr_src(const struct Expr *expr); /* same as Token_src */
 /* checks if there are any errors in the expression that the shunting yard
  * function couldn't catch */
 bool Expr_verify(const struct Expr *expr, const struct ParVarList *vars,
-        bool is_initializer);
+        const struct StructList *structs, bool is_initializer);
 void Expr_get_array_lits(const struct Expr *self, struct ArrayLitList *list);
 bool Expr_statically_evaluatable(const struct Expr *self);
 
@@ -265,13 +271,16 @@ struct VarDeclNode {
 
     struct DeclList decls;
     enum PrimitiveType type;
+    /* used as a struct idx for structs, and union idx for unions, etc.
+     * should be kept at 0 for primitive types */
+    u32 type_idx;
     struct TypeModifiers mods;
 
 };
 
 struct VarDeclNode VarDeclNode_init(void);
 struct VarDeclNode VarDeclNode_create(struct DeclList decls,
-        enum PrimitiveType type, struct TypeModifiers mods);
+        enum PrimitiveType type, u32 type_idx, struct TypeModifiers mods);
 void VarDeclNode_free_w_self(struct VarDeclNode *self);
 void VarDeclNode_get_array_lits(const struct VarDeclNode *self,
         struct ArrayLitList *list);
@@ -286,7 +295,7 @@ struct VarDeclPtrList {
 
 bool VarDeclPtrList_equivalent_expr(const struct VarDeclPtrList *self,
         const struct ExprPtrList *other, const struct ParVarList *vars,
-        bool self_is_variadic);
+        const struct StructList *structs, bool self_is_variadic);
 m_declare_VectorImpl_funcs(VarDeclPtrList, struct VarDeclNode*)
 
 struct FuncDeclNode {
@@ -297,6 +306,8 @@ struct FuncDeclNode {
     unsigned ret_lvls_of_indir;
     struct TypeModifiers ret_type_mods;
     enum PrimitiveType ret_type;
+    /* used by funcs returning structs and unions and such */
+    u32 ret_type_idx;
     struct BlockNode *body;
     char *name;
 
@@ -306,7 +317,8 @@ struct FuncDeclNode FuncDeclNode_init(void);
 struct FuncDeclNode FuncDeclNode_create(struct VarDeclPtrList args,
         bool variadic_args, bool void_args, unsigned ret_lvls_of_indir,
         struct TypeModifiers ret_type_mods,
-        enum PrimitiveType ret_type, struct BlockNode *body, char *name);
+        enum PrimitiveType ret_type, u32 ret_type_idx, struct BlockNode *body,
+        char *name);
 void FuncDeclNode_free_w_self(struct FuncDeclNode *self);
 void FuncDeclNode_get_array_lits(const struct FuncDeclNode *self,
         struct ArrayLitList *list);
@@ -318,13 +330,15 @@ struct RetNode {
     struct Expr *value;
     unsigned lvls_of_indir;
     enum PrimitiveType type;
+    /* used by structs and unions and such */
+    u32 type_idx;
     unsigned n_stack_frames_deep;
 
 };
 
 struct RetNode RetNode_init(void);
 struct RetNode RetNode_create(struct Expr *value, unsigned lvls_of_indir,
-        enum PrimitiveType type, u32 n_stack_frames_deep);
+        enum PrimitiveType type, u32 type_idx, u32 n_stack_frames_deep);
 void RetNode_free_w_self(struct RetNode *self);
 void RetNode_get_array_lits(const struct RetNode *self,
         struct ArrayLitList *list);
