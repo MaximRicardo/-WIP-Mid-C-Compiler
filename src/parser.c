@@ -221,135 +221,6 @@ static struct Expr* var_decl_value(const struct Lexer *lexer, u32 ident_idx,
 
 }
 
-static struct VarDeclNode* create_struct_var(const struct Lexer *lexer,
-        u32 struct_keyword_idx, u32 bp, u32 *sp, void *par_var_parent,
-        u32 *end_idx, bool is_func_param, unsigned *n_func_param_bytes) {
-
-    struct VarDeclNode *node = NULL;
-    struct Expr *init_value = NULL;
-    u32 decl_bp_offset;
-
-    u32 struct_name_idx = struct_keyword_idx+1;
-    char *struct_name = NULL;
-    u32 type_struct_idx;
-
-    unsigned lvls_of_indir = 0;
-    u32 var_name_idx = struct_name_idx+1;
-
-    u32 equal_sign_idx;
-
-    while (var_name_idx < lexer->token_tbl.size &&
-            (lexer->token_tbl.elems[var_name_idx].type ==
-                TokenType_DEREFERENCE ||
-             lexer->token_tbl.elems[var_name_idx].type == TokenType_MUL)) {
-        ++lvls_of_indir;
-        ++var_name_idx;
-    }
-
-    equal_sign_idx = var_name_idx+1;
-    if (end_idx)
-        *end_idx = equal_sign_idx;
-
-    if (struct_name_idx >= lexer->token_tbl.size ||
-            lexer->token_tbl.elems[struct_name_idx].type != TokenType_IDENT) {
-        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
-                lexer->token_tbl.elems[struct_keyword_idx].file_path,
-                "expected a struct name after the 'struct' keyword on"
-                " line %u.\n",
-                lexer->token_tbl.elems[struct_keyword_idx].line_num);
-        return NULL;
-    }
-
-    struct_name = Token_src(&lexer->token_tbl.elems[struct_name_idx]);
-    type_struct_idx = StructList_find_struct(&structs, struct_name);
-
-    if (type_struct_idx == m_u32_max) {
-        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
-                lexer->token_tbl.elems[struct_keyword_idx].file_path,
-                "unknown struct '%s' on line %u, column %u.\n",
-                struct_name,
-                lexer->token_tbl.elems[struct_keyword_idx].line_num,
-                lexer->token_tbl.elems[struct_keyword_idx].column_num);
-        m_free(struct_name);
-        return NULL;
-    }
-
-    else if (var_name_idx >= lexer->token_tbl.size ||
-            lexer->token_tbl.elems[var_name_idx].type != TokenType_IDENT) {
-        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
-                lexer->token_tbl.elems[struct_name_idx].file_path,
-                "expected a variable name on line %u.\n",
-                lexer->token_tbl.elems[struct_name_idx].line_num);
-        m_free(struct_name);
-        return NULL;
-    }
-
-    else if (!structs.elems[type_struct_idx].defined && lvls_of_indir == 0) {
-        char *var_name = Token_src(&lexer->token_tbl.elems[var_name_idx]);
-
-        ErrMsg_print(ErrMsg_on, &Parser_error_occurred,
-                lexer->token_tbl.elems[var_name_idx].file_path,
-                "variable '%s' has incomplete type 'struct %s'. line %u,"
-                " column %u.\n", var_name, struct_name,
-                lexer->token_tbl.elems[var_name_idx].line_num,
-                lexer->token_tbl.elems[var_name_idx].column_num);
-
-        m_free(var_name);
-        return NULL;
-    }
-
-    init_value = is_func_param ? NULL :
-        var_decl_value(lexer, var_name_idx, equal_sign_idx, end_idx, bp);
-
-    node = safe_malloc(sizeof(*node));
-
-    node->type = PrimType_STRUCT;
-    node->type_idx = type_struct_idx;
-    node->mods = TypeModifiers_init();
-    node->decls = DeclList_init();
-
-    if (structs.elems[type_struct_idx].alignment != 0) {
-        if (!is_func_param) {
-            *sp = round_down(*sp, structs.elems[type_struct_idx].alignment);
-            *sp -= structs.elems[type_struct_idx].size;
-            decl_bp_offset = *sp-bp;
-        }
-        else {
-            *n_func_param_bytes = round_up(*n_func_param_bytes,
-                    structs.elems[type_struct_idx].alignment);
-
-            decl_bp_offset = m_TypeSize_callee_saved_regs_stack_size +
-                m_TypeSize_return_address_size + m_TypeSize_stack_frame_size +
-                *n_func_param_bytes;
-
-            *n_func_param_bytes += structs.elems[type_struct_idx].size;
-
-            *end_idx = var_name_idx+1;
-        }
-    }
-    else {
-        decl_bp_offset = *sp-bp;
-    }
-
-    ParVarList_push_back(&vars, ParserVar_create(
-                lexer->token_tbl.elems[var_name_idx].line_num,
-                lexer->token_tbl.elems[var_name_idx].column_num,
-                Token_src(&lexer->token_tbl.elems[var_name_idx]),
-                lvls_of_indir, node->mods, PrimType_STRUCT, node->type_idx,
-                false, 0, decl_bp_offset+bp, NULL, false, false, false, false,
-                par_var_parent
-                ));
-
-    DeclList_push_back(&node->decls, Declarator_create(init_value,
-                Token_src(&lexer->token_tbl.elems[var_name_idx]),
-                lvls_of_indir, false, 0, decl_bp_offset));
-
-    m_free(struct_name);
-
-    return node;
-
-}
-
 /*
  * n_func_param_bytes   - how many bytes of parameters/arguments does the func
  *                        have thus far? can be NULL if is_func_param is false.
@@ -374,12 +245,6 @@ static struct VarDeclNode* parse_var_decl(const struct Lexer *lexer,
     u32 n_lvls_of_indir;
     struct TypeModifiers mods;
     u32 ident_idx;
-
-    if (lexer->token_tbl.elems[v_decl_idx].type == TokenType_STRUCT) {
-        var_decl = create_struct_var(lexer, v_decl_idx, bp, sp, par_var_parent,
-                end_idx, is_func_param, n_func_param_bytes);
-        return var_decl;
-    }
 
     ident_idx = TypeSpec_read(&lexer->token_tbl, v_decl_idx, &var_type,
             &var_type_idx, &n_lvls_of_indir, &mods, &typedefs, &structs,
@@ -1469,8 +1334,8 @@ static u32 parse_struct_decl(const struct Lexer *lexer, u32 decl_idx,
         if (lexer->token_tbl.elems[ident_idx+1].type != TokenType_L_PAREN) {
 
             struct VarDeclNode *var_decl =
-                create_struct_var(lexer, decl_idx, bp, sp, block, &end_idx, false,
-                    NULL);
+                parse_var_decl(lexer, decl_idx, &end_idx, bp, sp, false, NULL,
+                        block);
             block->var_bytes += old_sp-*sp;
 
             VarDeclNode_free_w_self(var_decl);
