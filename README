@@ -33,9 +33,9 @@ Thus far the compiler has:
     constant-folding
     #define macros
     signed/unsigned keywords
+    structs
 
 Next thing I'ma implement (maybe):
-    structs
     global variables
     static variables
 
