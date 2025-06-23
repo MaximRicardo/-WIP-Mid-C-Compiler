@@ -441,26 +441,35 @@ static void instr_only_type(struct InstrList *instrs, enum InstrType type) {
 
 }
 
-/* returns the log2 of bytes. only works for 1, 2, and 4 bytes. i can't get
- * log2 and friends to work for some reason, my best guess is that c89 doesn't
- * support them? */
-static unsigned bytes_log2(unsigned bytes) {
+/* returns the log2 of bytes */
+static u32 bytes_log2(u32 bytes) {
 
-    switch (bytes) {
+    u32 i = 0;
+    u32 og_bytes = bytes;
 
-    case 1:
-        return 0;
+    assert(bytes > 0);
 
-    case 2:
-        return 1;
-
-    case 4:
-        return 2;
-
-    default:
-        assert(false);
-
+    /* the logarithm of any unsigned integer, is the index of it's most
+     * significant active bit, minus one.
+     * for example: log2(10):
+     *    8 in binary is 1000
+     *    the most significant active bit is the 3rd one (starting from 0).
+     *    and you get log2(8) = 3.
+     *  to get the index of that bit, you just need to count how many times
+     *  you can right shift the number before it becomes 0, and then decrement
+     *  the result by 1. */
+    while (bytes != 0) {
+        bytes >>= 1;
+        ++i;
     }
+    --i;
+
+    /* the result of this rounds the logarithm down, but we wanna round it up,
+     * so we gotta do this */
+    if ((1 << i) != og_bytes)
+        ++i;
+
+    return i;
 
 }
 
@@ -725,13 +734,15 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
         /* if load_reference is true then it cancels out the dereference */
     }
     else if (expr->expr_type == ExprType_L_ARR_SUBSCR) {
-        unsigned deref_ptr_size = PrimitiveType_size(expr->lhs_og_type,
-                        expr->lhs_lvls_of_indir-1, expr->type_idx, structs);
+        unsigned deref_ptr_size =
+            PrimitiveType_size(expr->lhs->non_prom_prim_type,
+                        expr->lhs->lvls_of_indir-1, expr->lhs->type_idx,
+                        structs);
 
         if (expr->rhs->expr_type != ExprType_INT_LIT) {
             instr_reg_and_imm32(instrs, InstrType_SHL, InstrSize_32,
                     reg_idx_to_operand_t(rhs_reg.reg_idx),
-                    (1<<deref_ptr_size)-1, 0);
+                    bytes_log2(deref_ptr_size), 0);
 
             instr_reg_and_reg(instrs, InstrType_ADD, InstrSize_32,
                     reg_idx_to_operand_t(lhs_reg.reg_idx),
