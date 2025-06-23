@@ -116,3 +116,9 @@ enum PrimitiveType PrimitiveType_make_unsigned(enum PrimitiveType type) {
     }
 
 }
+
+bool PrimitiveType_non_prim_type(enum PrimitiveType type) {
+
+    return type == PrimType_STRUCT;
+
+}

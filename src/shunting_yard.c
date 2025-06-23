@@ -375,31 +375,33 @@ static void read_string(const struct TokenList *token_tbl,
 
 static void read_type_cast(const struct TokenList *token_tbl,
         struct ExprPtrList *operator_stack, u32 l_paren_idx, u32 *end_idx,
-        const struct TypedefList *typedefs) {
+        const struct TypedefList *typedefs, const struct StructList *structs) {
 
-    u32 type_idx = l_paren_idx+1;
+    u32 type_spec_idx = l_paren_idx+1;
 
     struct Expr *expr = NULL;
 
     enum PrimitiveType type;
+    u32 type_idx;
     unsigned lvls_of_indir;
     struct TypeModifiers mods;
-    *end_idx = TypeSpec_read(token_tbl, type_idx,
-            &type, &lvls_of_indir, &mods,
-            typedefs, &SY_error_occurred);
+    *end_idx = TypeSpec_read(token_tbl, type_spec_idx,
+            &type, &type_idx, &lvls_of_indir, &mods,
+            typedefs, structs, &SY_error_occurred);
 
     if (mods.is_static) {
         ErrMsg_print(ErrMsg_on, &SY_error_occurred,
-                token_tbl->elems[type_idx].file_path,
+                token_tbl->elems[type_spec_idx].file_path,
                 "storage specifier in type cast. line %u, column %u.",
-                token_tbl->elems[type_idx].line_num,
-                token_tbl->elems[type_idx].column_num);
+                token_tbl->elems[type_spec_idx].line_num,
+                token_tbl->elems[type_spec_idx].column_num);
     }
 
     expr = safe_malloc(sizeof(*expr));
     *expr = Expr_create_w_tok(token_tbl->elems[l_paren_idx], NULL, NULL, 0, 0,
             PrimType_INVALID, PrimType_INVALID, ExprPtrList_init(), 0,
             ArrayLit_init(), 0, ExprType_TYPECAST, false, 0);
+    expr->type_idx = type_idx;
     expr->prim_type = type;
     expr->non_prom_prim_type = type;
     expr->lvls_of_indir = lvls_of_indir;
@@ -501,7 +503,8 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
                 Token_src(&token_tbl->elems[i+1]) : NULL;
             if (next_src && Ident_type_spec(next_src, typedefs) !=
                     PrimType_INVALID) {
-                read_type_cast(token_tbl, &operator_stack, i, &i, typedefs);
+                read_type_cast(token_tbl, &operator_stack, i, &i, typedefs,
+                        structs);
             }
             else {
                 struct Expr *expr = safe_malloc(sizeof(*expr));

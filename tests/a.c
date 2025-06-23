@@ -19,8 +19,9 @@ struct TestStruct {
 
 struct Struct2ElectricBoogaloo;
 
-void func(struct TestStruct *var) {
+struct TestStruct* func(struct TestStruct *var) {
     var->x[2] = 123;
+    return var;
 }
 
 int main(int argc, char **argv) {
@@ -40,6 +41,8 @@ int main(int argc, char **argv) {
 
     printf("m_test_macro = %s\n", m_test_macro);
     printf("x.x[2] = %d\n", x.x[2]);
+
+    return 0;
 
 }
 

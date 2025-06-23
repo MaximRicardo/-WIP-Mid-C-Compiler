@@ -369,6 +369,8 @@ enum PrimitiveType Expr_type(struct Expr *self,
                     Expr_lvls_of_indir(self, vars));
     }
 
+    if (!PrimitiveType_non_prim_type(self->prim_type))
+        self->type_idx = 0;
     return self->prim_type;
 
 }
@@ -406,6 +408,8 @@ enum PrimitiveType Expr_type_no_prom(struct Expr *self,
     else
         self->non_prom_prim_type = self->lhs_og_type;
 
+    if (!PrimitiveType_non_prim_type(self->prim_type))
+        self->type_idx = 0;
     return self->non_prom_prim_type;
 
 }
