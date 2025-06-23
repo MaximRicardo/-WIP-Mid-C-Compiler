@@ -64,6 +64,8 @@ static void compile(char *src, FILE *output, bool *error_occurred) {
                 *error_occurred = true;
 
             while (tu.structs->size > 0) {
+
+#ifdef m_print_structs
                 struct Struct back = StructList_back(tu.structs);
                 u32 i;
 
@@ -76,6 +78,7 @@ static void compile(char *src, FILE *output, bool *error_occurred) {
                             back.members.elems[i].offset);
                 }
                 printf("};\n");
+#endif
 
                 StructList_pop_back(tu.structs, Struct_free);
             }
@@ -120,7 +123,6 @@ int main(int argc, char *argv[]) {
     src = read_file(CompArgs_args.src_path);
     if (!src)
         return 1;
-    puts(src);
 
     if (CompArgs_args.asm_out_path) {
         output = fopen(CompArgs_args.asm_out_path, "w");
