@@ -472,7 +472,6 @@ void CodeGenArch_generate(FILE *output, const struct BlockNode *ast,
 
     for (i = 0; i < instrs.size; i++) {
         write_instr(output, &instrs.elems[i]);
-        fprintf(output, "\n");
     }
 
     fprintf(output, "\nsection .rodata\n");
