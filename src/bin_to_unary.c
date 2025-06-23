@@ -42,7 +42,8 @@ void BinToUnary_convert(struct TokenList *token_tbl) {
             ((token_tbl->elems[i-1].type != TokenType_R_PAREN ||
               is_typecast(token_tbl, i-1)) &&
             !Token_is_literal(token_tbl->elems[i-1].type) &&
-            token_tbl->elems[i-1].type != TokenType_IDENT);
+            token_tbl->elems[i-1].type != TokenType_IDENT &&
+            token_tbl->elems[i-1].type != TokenType_R_ARR_SUBSCR);
 
         m_free(prev_token_src);
 

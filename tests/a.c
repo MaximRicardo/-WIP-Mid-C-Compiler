@@ -77,6 +77,7 @@ static void BigNum_add(struct BigNum *result, struct BigNum *x,
     u32 i;
     u32 n;
     int carry = 0;
+    char *test;
 
     /* no ternary operator yet */
     if (result->n_digits >= x->n_digits && result->n_digits >= y->n_digits)
@@ -92,9 +93,9 @@ static void BigNum_add(struct BigNum *result, struct BigNum *x,
         int sum;
 
         if (i < x->n_digits)
-            x_digit = (x->digits[i])-'0';
+            x_digit = test[i]-5;
         if (i < y->n_digits)
-            y_digit = (y->digits[i])-'0';
+            y_digit = y->digits[i]-'0';
 
         sum = x_digit + y_digit + carry;
         carry = 0;

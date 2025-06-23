@@ -2,7 +2,6 @@
 #include "backend_dependent/type_sizes.h"
 #include "structs.h"
 #include <assert.h>
-#include <stdio.h>
 
 bool PrimitiveType_signed(enum PrimitiveType type, unsigned lvls_of_indir) {
 

@@ -92,6 +92,40 @@ static void move_operator_to_out_queue(struct ExprPtrList *output_queue,
 
 }
 
+/* needs to be run before you push an operator to the stack.
+ * op_tok_type          - the type of the operator you're gonna push.
+ */
+static void pop_higher_precedence_operators(struct ExprPtrList *output_queue,
+        struct ExprPtrList *operator_stack, enum TokenType op_tok_type,
+        const struct ParVarList *vars, const struct StructList *structs) {
+
+    /* If the operator o2 at the top of the stack has greater precedence than
+     * the current operator o1, o2 must be moved to the output queue. Then if
+     * there is another operator below o2, it now becomes the new o2 and the
+     * process repeats. */
+    while (operator_stack->size > 0 &&
+            ExprPtrList_back(operator_stack)->expr_type != ExprType_PAREN) {
+        enum TokenType o2_tok_type = expr_t_to_tok_t(
+                ExprPtrList_back(operator_stack)->expr_type
+            );
+        unsigned o1_prec = Token_precedence(op_tok_type);
+        unsigned o2_prec = Token_precedence(o2_tok_type);
+
+        /* Remember, precedence levels in c are reversed, so 1 is the highest
+         * level and 15 is the lowest. */
+        if (!(o2_prec < o1_prec || (Token_l_to_right_asso(op_tok_type) &&
+                 o2_prec == o1_prec)))
+            break;
+
+        assert(output_queue->size >=
+                (Token_is_bin_operator(o2_tok_type) ? 2 : 1));
+
+        move_operator_to_out_queue(output_queue, operator_stack, vars,
+                structs);
+    }
+
+}
+
 /*
  * check_below_operators  - Checks whether any previous operators in the
  *    operator stack should be popped first.
@@ -105,30 +139,8 @@ static void push_operator_to_stack(struct ExprPtrList *output_queue,
             PrimType_INVALID, ExprPtrList_init(), 0, ArrayLit_init(), 0,
             tok_t_to_expr_t(op_tok.type), false, 0);
 
-    /* If the operator o2 at the top of the stack has greater precedence than
-     * the current operator o1, o2 must be moved to the output queue. Then if
-     * there is another operator below o2, it now becomes the new o2 and the
-     * process repeats. */
-    while (operator_stack->size > 0 &&
-            ExprPtrList_back(operator_stack)->expr_type != ExprType_PAREN) {
-        enum TokenType o2_tok_type = expr_t_to_tok_t(
-                ExprPtrList_back(operator_stack)->expr_type
-            );
-        unsigned o1_prec = Token_precedence(op_tok.type);
-        unsigned o2_prec = Token_precedence(o2_tok_type);
-
-        /* Remember, precedence levels in c are reversed, so 1 is the highest
-         * level and 15 is the lowest. */
-        if (!(o2_prec < o1_prec || (Token_l_to_right_asso(op_tok.type) &&
-                 o2_prec == o1_prec)))
-            break;
-
-        assert(output_queue->size >=
-                (Token_is_bin_operator(o2_tok_type) ? 2 : 1));
-
-        move_operator_to_out_queue(output_queue, operator_stack, vars,
-                structs);
-    }
+    pop_higher_precedence_operators(output_queue, operator_stack, op_tok.type,
+            vars, structs);
 
     ExprPtrList_push_back(operator_stack, expr);
 
@@ -167,7 +179,6 @@ static u32 read_func_call(const struct TokenList *token_tbl, u32 f_call_idx,
         const struct ParVarList *vars, const struct StructList *structs,
         const struct TypedefList *typedefs) {
 
-    /* this'll be useful later */
     u32 arg_start_idx = f_call_idx+2;
 
     struct Expr *expr = NULL;
@@ -259,8 +270,10 @@ static void push_array_subscr_to_stack(const struct TokenList *token_tbl,
             ArrayLit_init(), 0,
             tok_t_to_expr_t(token_tbl->elems[l_arr_subscr].type), false, 0);
 
-    ExprPtrList_push_back(output_queue, value);
+    pop_higher_precedence_operators(output_queue, operator_stack,
+            TokenType_L_ARR_SUBSCR, vars, structs);
     ExprPtrList_push_back(operator_stack, expr);
+    ExprPtrList_push_back(output_queue, value);
 
 }
 
