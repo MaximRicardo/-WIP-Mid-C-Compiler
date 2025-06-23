@@ -1,6 +1,7 @@
 #include "comp_args.h"
 #include "bool.h"
 #include "comp_args_help.h"
+#include "version.h"
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
@@ -48,6 +49,11 @@ struct CompArgs CompArgs_get_args(int argc, char **argv) {
         else if (strcmp(argv[i], "-h") == 0 ||
                 strcmp(argv[i], "--help") == 0) {
             printf("%s", CompArgs_help_str);
+        }
+
+        else if (strcmp(argv[i], "-v") == 0 ||
+                strcmp(argv[i], "--version") == 0) {
+            printf("MCC %u.%u\n", m_MCC_major_version, m_MCC_minor_version);
         }
 
         else if (strcmp(argv[i], "-Werror") == 0) {
