@@ -111,6 +111,7 @@ enum ExprType {
     ExprType_POSTFIX_INC,
     ExprType_POSTFIX_DEC,
     ExprType_TYPECAST,
+    ExprType_SIZEOF,
 
     /* parentheses are only used in the shunting yard algorithm */
     ExprType_PAREN,
@@ -218,7 +219,7 @@ enum PrimitiveType Expr_type(struct Expr *self,
  */
 enum PrimitiveType Expr_type_no_prom(struct Expr *self,
         const struct ParVarList *vars);
-u32 Expr_evaluate(const struct Expr *expr);
+u32 Expr_evaluate(const struct Expr *expr, const struct StructList *structs);
 char* Expr_src(const struct Expr *expr); /* same as Token_src */
 /* checks if there are any errors in the expression that the shunting yard
  * function couldn't catch */

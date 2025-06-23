@@ -29,7 +29,7 @@ enum PrimitiveType {
 
 bool PrimitiveType_signed(enum PrimitiveType type, unsigned lvls_of_indir);
 /* type_idx is used by structs and unions and such. */
-unsigned PrimitiveType_size(enum PrimitiveType type, unsigned lvls_of_indir,
+u32 PrimitiveType_size(enum PrimitiveType type, unsigned lvls_of_indir,
         u32 type_idx, const struct StructList *structs);
 enum PrimitiveType PrimitiveType_promote(enum PrimitiveType type,
         unsigned lvls_of_indir);

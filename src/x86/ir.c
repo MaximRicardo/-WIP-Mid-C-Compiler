@@ -845,6 +845,10 @@ static struct GPReg get_expr_instructions(struct InstrList *instrs,
 
         m_free(member_name);
     }
+    else if (expr->expr_type == ExprType_SIZEOF) {
+        /* will always be optimized out via constant folding */
+        assert(false);
+    }
     else {
         struct Instruction instr = Instruction_init();
         bool is_ptr_int_operation =

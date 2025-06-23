@@ -53,6 +53,7 @@ enum TokenType {
     /* not used by the lexer but the parser uses this token to get the
      * precedence level of typecasts */
     TokenType_TYPECAST,
+    TokenType_SIZEOF,
     TokenType_UNARY_OPS_END,
 
     TokenType_L_PAREN,

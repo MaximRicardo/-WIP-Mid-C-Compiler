@@ -56,7 +56,7 @@ static void compile(char *src, FILE *output, bool *error_occurred) {
 
             if (!Parser_error_occurred && output) {
                 if (CompArgs_args.optimize) {
-                    BlockNode_const_fold(tu.ast);
+                    /* no optional optimizations yet */
                 }
                 CodeGen_generate(output, tu.ast, tu.structs);
             }

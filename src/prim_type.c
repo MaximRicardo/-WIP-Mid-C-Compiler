@@ -12,7 +12,7 @@ bool PrimitiveType_signed(enum PrimitiveType type, unsigned lvls_of_indir) {
 
 }
 
-unsigned PrimitiveType_size(enum PrimitiveType type, unsigned lvls_of_indir,
+u32 PrimitiveType_size(enum PrimitiveType type, unsigned lvls_of_indir,
         u32 type_idx, const struct StructList *structs) {
 
     if (lvls_of_indir > 0)

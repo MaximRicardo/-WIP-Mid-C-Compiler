@@ -143,7 +143,8 @@ bool ExprType_is_valid_single_ptr_operation(enum ExprType type) {
 bool ExprType_is_valid_unary_ptr_operation(enum ExprType type) {
 
     return type == ExprType_REFERENCE || type == ExprType_DEREFERENCE ||
-        type == ExprType_TYPECAST || ExprType_is_inc_or_dec_operator(type);
+        type == ExprType_TYPECAST || ExprType_is_inc_or_dec_operator(type) ||
+        type == ExprType_SIZEOF;
 
 }
 
@@ -252,6 +253,9 @@ unsigned Expr_lvls_of_indir(struct Expr *self, const struct ParVarList *vars) {
 
     if (self->expr_type == ExprType_TYPECAST) {
     }
+    else if (self->expr_type == ExprType_SIZEOF) {
+        self->lvls_of_indir = 0;
+    }
     else if (self->expr_type == ExprType_MEMBER_ACCESS ||
             self->expr_type == ExprType_MEMBER_ACCESS_PTR) {
         self->lvls_of_indir = self->rhs->lvls_of_indir;
@@ -297,6 +301,9 @@ enum PrimitiveType Expr_type(struct Expr *self,
         self->type_idx = self->lhs->type_idx;
 
     if (self->expr_type == ExprType_TYPECAST) {
+    }
+    else if (self->expr_type == ExprType_SIZEOF) {
+        self->prim_type = PrimType_ULONG;
     }
     else if (self->expr_type == ExprType_MEMBER_ACCESS ||
             self->expr_type == ExprType_MEMBER_ACCESS_PTR) {
@@ -383,6 +390,9 @@ enum PrimitiveType Expr_type_no_prom(struct Expr *self,
 
     if (self->expr_type == ExprType_TYPECAST) {
     }
+    else if (self->expr_type == ExprType_SIZEOF) {
+        self->non_prom_prim_type = PrimType_ULONG;
+    }
     else if (self->expr_type == ExprType_MEMBER_ACCESS ||
             self->expr_type == ExprType_MEMBER_ACCESS_PTR) {
         self->type_idx = self->rhs->type_idx;
@@ -414,14 +424,23 @@ enum PrimitiveType Expr_type_no_prom(struct Expr *self,
 
 }
 
-u32 Expr_evaluate(const struct Expr *self) {
+u32 Expr_evaluate(const struct Expr *self, const struct StructList *structs) {
 
-    u32 lhs_val = self->lhs ? Expr_evaluate(self->lhs) :
+    u32 lhs_val;
+    u32 rhs_val;
+    bool is_signed;
+
+    if (self->expr_type == ExprType_SIZEOF) {
+        u32 mul = self->lhs->is_array ? self->lhs->array_len : 1;
+        return PrimitiveType_size(self->lhs->prim_type,
+                self->lhs->lvls_of_indir, self->lhs->type_idx, structs) * mul;
+    }
+
+    lhs_val = self->lhs ? Expr_evaluate(self->lhs, structs) :
         !self->rhs ? self->int_value : 0;
-    u32 rhs_val = self->rhs ? Expr_evaluate(self->rhs) : 0;
+    rhs_val = self->rhs ? Expr_evaluate(self->rhs, structs) : 0;
 
-    bool is_signed =
-        PrimitiveType_signed(self->prim_type, self->lvls_of_indir);
+    is_signed = PrimitiveType_signed(self->prim_type, self->lvls_of_indir);
 
     assert(!(!self->lhs && self->rhs));
 
@@ -562,6 +581,9 @@ bool Expr_statically_evaluatable(const struct Expr *self) {
             self->expr_type == ExprType_MEMBER_ACCESS ||
             self->expr_type == ExprType_MEMBER_ACCESS_PTR)
         return false;
+
+    else if (self->expr_type == ExprType_SIZEOF)
+        return true;
 
     if (self->lhs && !Expr_statically_evaluatable(self->lhs))
         return false;
@@ -739,6 +761,9 @@ enum ExprType tok_t_to_expr_t(enum TokenType type) {
     case TokenType_TYPECAST:
         return ExprType_TYPECAST;
 
+    case TokenType_SIZEOF:
+        return ExprType_SIZEOF;
+
     case TokenType_FUNC_CALL:
         return ExprType_FUNC_CALL;
 
@@ -854,6 +879,9 @@ enum TokenType expr_t_to_tok_t(enum ExprType type) {
 
     case ExprType_TYPECAST:
         return TokenType_TYPECAST;
+
+    case ExprType_SIZEOF:
+        return TokenType_SIZEOF;
 
     case ExprType_FUNC_CALL:
         return TokenType_FUNC_CALL;

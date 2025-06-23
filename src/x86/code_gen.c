@@ -488,7 +488,7 @@ void CodeGenArch_generate(FILE *output, const struct BlockNode *ast,
             if (j != 0)
                 fprintf(output, ", ");
             fprintf(output, "%d",
-                    Expr_evaluate(array_lits.elems[i].values[j]));
+                    Expr_evaluate(array_lits.elems[i].values[j], structs));
         }
         fprintf(output, "\n");
     }

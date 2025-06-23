@@ -156,6 +156,7 @@ unsigned Token_precedence(enum TokenType type) {
     case TokenType_PREFIX_INC:
     case TokenType_PREFIX_DEC:
     case TokenType_TYPECAST:
+    case TokenType_SIZEOF:
         return 2;
 
     case TokenType_L_ARR_SUBSCR:

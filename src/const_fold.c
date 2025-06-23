@@ -3,14 +3,18 @@
 #include "ast.h"
 #include "prim_type.h"
 #include "safe_mem.h"
+#include <stdio.h>
 
-void Expr_const_fold(struct Expr **expr) {
+void Expr_const_fold(struct Expr **expr, const struct StructList *structs) {
+
+    u32 i;
 
     if (!*expr)
         return;
 
     if (Expr_statically_evaluatable(*expr)) {
-        u32 value = Expr_evaluate(*expr);
+        enum PrimitiveType old_type = (*expr)->prim_type;
+        u32 value = Expr_evaluate(*expr, structs);
         struct Expr old_expr = **expr;
 
         Expr_recur_free_w_self(*expr);
@@ -20,108 +24,124 @@ void Expr_const_fold(struct Expr **expr) {
                 NULL, NULL, 0, 0, PrimType_INVALID, PrimType_INVALID,
                 ExprPtrList_init(), value, ArrayLit_init(), 0,
                 ExprType_INT_LIT, false, 0);
+        (*expr)->lvls_of_indir = 0;
+        (*expr)->prim_type = old_type;
+        (*expr)->non_prom_prim_type = old_type;
     }
     else {
         if ((*expr)->lhs)
-            Expr_const_fold(&(*expr)->lhs);
+            Expr_const_fold(&(*expr)->lhs, structs);
         if ((*expr)->rhs)
-            Expr_const_fold(&(*expr)->rhs);
+            Expr_const_fold(&(*expr)->rhs, structs);
+    }
+
+    for (i = 0; i < (*expr)->args.size; i++) {
+        Expr_const_fold(&(*expr)->args.elems[i], structs);
     }
 
 }
 
-void ExprNode_const_fold(struct ExprNode *self) {
+void ExprNode_const_fold(struct ExprNode *self,
+        const struct StructList *structs) {
 
-    Expr_const_fold(&self->expr);
-
-}
-
-void Declarator_const_fold(struct Declarator *self) {
-
-    Expr_const_fold(&self->value);
+    Expr_const_fold(&self->expr, structs);
 
 }
 
-void VarDeclNode_const_fold(struct VarDeclNode *self) {
+void Declarator_const_fold(struct Declarator *self,
+        const struct StructList *structs) {
+
+    Expr_const_fold(&self->value, structs);
+
+}
+
+void VarDeclNode_const_fold(struct VarDeclNode *self,
+        const struct StructList *structs) {
 
     u32 i;
 
     for (i = 0; i < self->decls.size; i++) {
-        Declarator_const_fold(&self->decls.elems[i]);
+        Declarator_const_fold(&self->decls.elems[i], structs);
     }
 
 }
 
-void FuncDeclNode_const_fold(struct FuncDeclNode *self) {
+void FuncDeclNode_const_fold(struct FuncDeclNode *self,
+        const struct StructList *structs) {
 
     if (self->body)
-        BlockNode_const_fold(self->body);
+        BlockNode_const_fold(self->body, structs);
 
 }
 
-void RetNode_const_fold(struct RetNode *self) {
+void RetNode_const_fold(struct RetNode *self,
+        const struct StructList *structs) {
 
-    Expr_const_fold(&self->value);
+    Expr_const_fold(&self->value, structs);
 
 }
 
-void IfNode_const_fold(struct IfNode *self) {
+void IfNode_const_fold(struct IfNode *self, const struct StructList *structs) {
 
-    Expr_const_fold(&self->expr);
+    Expr_const_fold(&self->expr, structs);
     if (self->body)
-        BlockNode_const_fold(self->body);
+        BlockNode_const_fold(self->body, structs);
     if (self->else_body)
-        BlockNode_const_fold(self->else_body);
+        BlockNode_const_fold(self->else_body, structs);
 
 }
 
-void WhileNode_const_fold(struct WhileNode *self) {
+void WhileNode_const_fold(struct WhileNode *self,
+        const struct StructList *structs) {
 
-    Expr_const_fold(&self->expr);
+    Expr_const_fold(&self->expr, structs);
     if (self->body)
-        BlockNode_const_fold(self->body);
+        BlockNode_const_fold(self->body, structs);
 
 }
 
-void ForNode_const_fold(struct ForNode *self) {
+void ForNode_const_fold(struct ForNode *self,
+        const struct StructList *structs) {
 
-    Expr_const_fold(&self->init);
-    Expr_const_fold(&self->condition);
-    Expr_const_fold(&self->inc);
+    Expr_const_fold(&self->init, structs);
+    Expr_const_fold(&self->condition, structs);
+    Expr_const_fold(&self->inc, structs);
     if (self->body)
-        BlockNode_const_fold(self->body);
+        BlockNode_const_fold(self->body, structs);
 
 }
 
-void ASTNode_const_fold(struct ASTNode *self) {
+void ASTNode_const_fold(struct ASTNode *self,
+        const struct StructList *structs) {
 
     if (self->node_struct) {
         if (self->type == ASTType_EXPR)
-            ExprNode_const_fold(self->node_struct);
+            ExprNode_const_fold(self->node_struct, structs);
         else if (self->type == ASTType_VAR_DECL)
-            VarDeclNode_const_fold(self->node_struct);
+            VarDeclNode_const_fold(self->node_struct, structs);
         else if (self->type == ASTType_FUNC)
-            FuncDeclNode_const_fold(self->node_struct);
+            FuncDeclNode_const_fold(self->node_struct, structs);
         else if (self->type == ASTType_BLOCK)
-            BlockNode_const_fold(self->node_struct);
+            BlockNode_const_fold(self->node_struct, structs);
         else if (self->type == ASTType_RETURN)
-            RetNode_const_fold(self->node_struct);
+            RetNode_const_fold(self->node_struct, structs);
         else if (self->type == ASTType_IF_STMT)
-            IfNode_const_fold(self->node_struct);
+            IfNode_const_fold(self->node_struct, structs);
         else if (self->type == ASTType_WHILE_STMT)
-            WhileNode_const_fold(self->node_struct);
+            WhileNode_const_fold(self->node_struct, structs);
         else if (self->type == ASTType_FOR_STMT)
-            ForNode_const_fold(self->node_struct);
+            ForNode_const_fold(self->node_struct, structs);
     }
 
 }
 
-void BlockNode_const_fold(struct BlockNode *self) {
+void BlockNode_const_fold(struct BlockNode *self,
+        const struct StructList *structs) {
 
     u32 i;
 
     for (i = 0; i < self->nodes.size; i++) {
-        ASTNode_const_fold(&self->nodes.elems[i]);
+        ASTNode_const_fold(&self->nodes.elems[i], structs);
     }
 
 }

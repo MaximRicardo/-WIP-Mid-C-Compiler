@@ -5,9 +5,6 @@
 
 #define NULL (void*)0
 
-/* i haven't added sizeof yet */
-#define m_sizeof_char 1
-
 typedef unsigned u32;
 typedef unsigned char u8;
 typedef int bool;
@@ -46,7 +43,7 @@ static void BigNum_init(struct BigNum *num) {
 
     num->capacity = m_big_num_start_capacity;
     num->n_digits = 0;
-    num->digits = calloc(num->capacity, m_sizeof_char);
+    num->digits = calloc(num->capacity, sizeof(*num->digits));
 
 }
 
@@ -61,7 +58,7 @@ static bool BigNum_append_digit(struct BigNum *num, int digit) {
 
     while (num->n_digits+1 >= num->capacity) {
         num->capacity = num->capacity*num->capacity;
-        num->digits = realloc(num->digits, num->capacity*m_sizeof_char);
+        num->digits = realloc(num->digits, num->capacity*sizeof(*num->digits));
     }
 
     num->digits[num->n_digits] = '0'+digit;
@@ -134,10 +131,11 @@ static void BigNum_copy(struct BigNum *dest, struct BigNum *src) {
 
     if (src->n_digits >= dest->capacity) {
         dest->capacity = src->capacity;
-        dest->digits = realloc(dest->digits, dest->capacity*m_sizeof_char);
+        dest->digits =
+            realloc(dest->digits, dest->capacity*sizeof(*dest->digits));
     }
     dest->n_digits = src->n_digits;
-    my_memcpy(dest->digits, src->digits, dest->n_digits*m_sizeof_char);
+    my_memcpy(dest->digits, src->digits, dest->n_digits*sizeof(*dest->digits));
 
 }
 

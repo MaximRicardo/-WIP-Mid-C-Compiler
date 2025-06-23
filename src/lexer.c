@@ -69,7 +69,7 @@ static enum TokenType identifier_keyword(const char *ident_start,
 
     if (strncmp(ident_start, "if", ident_len) == 0 && ident_len == 2)
         return TokenType_IF_STMT;
-    if (strncmp(ident_start, "else", ident_len) == 0 && ident_len == 4)
+    else if (strncmp(ident_start, "else", ident_len) == 0 && ident_len == 4)
         return TokenType_ELSE;
     else if (strncmp(ident_start, "while", ident_len) == 0 && ident_len == 5)
         return TokenType_WHILE_STMT;
@@ -86,6 +86,17 @@ static enum TokenType identifier_keyword(const char *ident_start,
         return TokenType_UNSIGNED;
     else if (strncmp(ident_start, "struct", ident_len) == 0 && ident_len == 6)
         return TokenType_STRUCT;
+    else
+        return TokenType_NONE;
+
+}
+
+/* returns TokenType_NONE if the identifier isn't an operator */
+static enum TokenType identifier_operator(const char *ident_start,
+        u32 ident_len) {
+
+    if (strncmp(ident_start, "sizeof", ident_len) == 0 && ident_len == 6)
+        return TokenType_SIZEOF;
     else
         return TokenType_NONE;
 
@@ -472,12 +483,22 @@ static void lex_str(const char *src, const char *file_path,
             unsigned len = get_identifier_len(&src[src_i]);
 
             enum TokenType keyword_type = identifier_keyword(&src[src_i], len);
+            enum TokenType operator_type = identifier_operator(&src[src_i],
+                    len);
 
             if (keyword_type != TokenType_NONE) {
                 TokenList_push_back(token_tbl,
                         Token_create(
                             line_num, column_num, &src[src_i], len, file_path,
                             keyword_type
+                            )
+                        );
+            }
+            else if (operator_type != TokenType_NONE) {
+                TokenList_push_back(token_tbl,
+                        Token_create(
+                            line_num, column_num, &src[src_i], len, file_path,
+                            operator_type
                             )
                         );
             }

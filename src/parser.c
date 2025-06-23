@@ -2,6 +2,7 @@
 #include "ast.h"
 #include "comp_args.h"
 #include "comp_dependent/ints.h"
+#include "const_fold.h"
 #include "err_msg.h"
 #include "lexer.h"
 #include "prim_type.h"
@@ -175,7 +176,7 @@ static u32 get_array_len(const struct Lexer *lexer, u32 l_subscr_idx,
         array_len = 1;
     }
     else
-        array_len = Expr_evaluate(arr_len_expr);
+        array_len = Expr_evaluate(arr_len_expr, &structs);
 
     Expr_recur_free_w_self(arr_len_expr);
 
@@ -1624,6 +1625,9 @@ struct TranslUnit Parser_parse(const struct Lexer *lexer) {
     Parser_error_occurred = false;
 
     root = parse(lexer, NULL, bp, bp, 0, NULL, 0, NULL, true, 0);
+
+    if (!Parser_error_occurred)
+        BlockNode_const_fold(root, &structs);
 
     assert(vars.size == 0);
     ParVarList_free(&vars);
