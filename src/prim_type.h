@@ -36,3 +36,6 @@ enum PrimitiveType PrimitiveType_promote(enum PrimitiveType type,
 enum PrimitiveType PrimitiveType_make_unsigned(enum PrimitiveType type);
 /* structs, unions and enums */
 bool PrimitiveType_non_prim_type(enum PrimitiveType type);
+bool PrimitiveType_can_convert_to(enum PrimitiveType conv_dest,
+        unsigned dest_indir, u32 dest_type_idx, enum PrimitiveType conv_src,
+        unsigned src_indir, u32 src_type_idx);

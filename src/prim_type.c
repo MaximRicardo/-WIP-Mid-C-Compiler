@@ -2,6 +2,7 @@
 #include "backend_dependent/type_sizes.h"
 #include "structs.h"
 #include <assert.h>
+#include <stdio.h>
 
 bool PrimitiveType_signed(enum PrimitiveType type, unsigned lvls_of_indir) {
 
@@ -120,5 +121,32 @@ enum PrimitiveType PrimitiveType_make_unsigned(enum PrimitiveType type) {
 bool PrimitiveType_non_prim_type(enum PrimitiveType type) {
 
     return type == PrimType_STRUCT;
+
+}
+
+bool PrimitiveType_can_convert_to(enum PrimitiveType conv_dest,
+        unsigned dest_indir, u32 dest_type_idx, enum PrimitiveType conv_src,
+        unsigned src_indir, u32 src_type_idx) {
+
+    if (dest_type_idx != src_type_idx)
+        return false;
+
+    /* any pointer can get cast to a void pointer */
+    else if (dest_indir == 1 && conv_dest == PrimType_VOID && src_indir > 0)
+        return true;
+    /* and a void pointer can be cast to any other pointer */
+    else if (src_indir == 1 && conv_src == PrimType_VOID && dest_indir > 0)
+        return true;
+
+    else if (conv_dest == conv_src && dest_indir > 0 == src_indir > 0)
+        return true;
+    else if (conv_dest == conv_src)
+        return false;
+
+    else if (PrimitiveType_non_prim_type(conv_dest) ==
+            PrimitiveType_non_prim_type(conv_src) && dest_indir == src_indir)
+        return true;
+
+    return false;
 
 }

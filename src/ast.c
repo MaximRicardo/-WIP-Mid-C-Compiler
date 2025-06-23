@@ -979,17 +979,16 @@ bool VarDeclPtrList_equivalent_expr(const struct VarDeclPtrList *self,
         u32 j;
 
         for (j = 0; j < self->elems[i]->decls.size; j++) {
-            /* any pointer can be casted to a void pointer */
-            if (self->elems[i]->decls.elems[j].lvls_of_indir == 1 &&
-                    self->elems[i]->type == PrimType_VOID &&
-                    other->elems[i]->lvls_of_indir >= 1)
-                continue;
 
-            if (PrimitiveType_promote(self->elems[i]->type,
-                        self->elems[i]->decls.elems[j].lvls_of_indir) !=
-                    Expr_type(other->elems[i], vars, structs) ||
-                    self->elems[i]->decls.elems[j].lvls_of_indir !=
-                    other->elems[i]->lvls_of_indir) {
+            bool can_convert =
+                PrimitiveType_can_convert_to(self->elems[i]->type,
+                    self->elems[i]->decls.elems[j].lvls_of_indir,
+                    self->elems[i]->type_idx,
+                    other->elems[i]->prim_type,
+                    other->elems[i]->lvls_of_indir,
+                    other->elems[i]->type_idx);
+
+            if (!can_convert) {
                 /* print stmts for debugging */
                 printf("left indir = %d, right indir = %d.\n",
                         self->elems[i]->decls.elems[j].lvls_of_indir,
