@@ -128,10 +128,6 @@ int main(int argc, char *argv[]) {
     if (!CompArgs_args.src_path)
         return 0;
 
-    printf("src = %s\nmccir = %s\nasm out = %s\n",
-            CompArgs_args.src_path, CompArgs_args.mccir_out_path,
-            CompArgs_args.asm_out_path);
-
     src = read_file(CompArgs_args.src_path);
     if (!src)
         return 1;
@@ -159,6 +155,8 @@ int main(int argc, char *argv[]) {
     m_free(src);
     if (output)
         fclose(output);
+    if (mccir_output)
+        fclose(mccir_output);
 
     return error_occurred != false;
 
