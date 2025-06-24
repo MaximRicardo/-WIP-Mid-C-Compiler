@@ -1,5 +1,6 @@
 #include "ir_to_str.h"
 #include "../utils/dyn_str.h"
+#include "data_types.h"
 #include "instr.h"
 #include "ir_instr_to_str.h"
 #include "data_type_to_str.h"
@@ -10,8 +11,9 @@
 static void instr_arg_to_str(struct DynamicStr *output,
         const struct IRInstrArg *arg) {
 
-    DynamicStr_append_printf(output, "%s ",
-            IR_data_type_to_str(&arg->data_type));
+    char *data_type_str = IR_data_type_to_str(&arg->data_type);
+
+    DynamicStr_append_printf(output, "%s ", data_type_str);
 
     if (arg->type == IRInstrArg_REG) {
         DynamicStr_append_printf(output, "%%%s", arg->value.reg_name);
@@ -22,6 +24,10 @@ static void instr_arg_to_str(struct DynamicStr *output,
     else if (arg->type == IRInstrArg_IMM32 && !arg->data_type.is_signed) {
         DynamicStr_append_printf(output, "%u", arg->value.imm_u32);
     }
+    else
+        assert(false);
+
+    m_free(data_type_str);
 
 }
 
@@ -60,13 +66,45 @@ static void basic_block_to_str(struct DynamicStr *output,
 
 }
 
+/* if the original C version of func was structured like this:
+ *    int foo(int x, unsigned char y, short *z);
+ * this function would return:
+ *    "i32 x, u8 y, i16* z"
+ */
+static char* func_args_to_str(const struct IRFunc *func) {
+
+    u32 i;
+
+    struct DynamicStr final_str = DynamicStr_init();
+
+    for (i = 0; i < func->args.size; i++) {
+
+        char *type_str = IR_data_type_to_str(&func->args.elems[i].type);
+
+        DynamicStr_append_printf(&final_str, "%s %s",
+                type_str, func->args.elems[i].name);
+
+        m_free(type_str);
+
+        if (i+1 < func->args.size)
+            DynamicStr_append(&final_str, ", ");
+
+    }
+
+    return final_str.str;
+
+}
+
 static void func_to_str(struct DynamicStr *output, const struct IRFunc *func) {
 
     u32 i;
 
+    char *func_type_str = IR_data_type_to_str(&func->ret_type);
+    char *func_args_str = func_args_to_str(func);
+
     DynamicStr_append_printf(output,
-            "define (unknown type) @%s((unknown args)) {\n",
-            func->name);
+            "define %s @%s((%s)) {\n",
+            func_type_str, func->name, func_args_str);
 
     for (i = 0; i < func->blocks.size; i++) {
         DynamicStr_append_printf(output,
@@ -79,6 +117,9 @@ static void func_to_str(struct DynamicStr *output, const struct IRFunc *func) {
     }
 
     DynamicStr_append(output, "}\n");
+
+    m_free(func_type_str);
+    m_free(func_args_str);
 
 }
 

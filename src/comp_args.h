@@ -11,6 +11,10 @@ struct CompArgs {
     const char *asm_out_path;
 
     bool optimize;
+    /* WARNING: TEMPORARY OPTION TO MAKE DEBUGGING THE MCCIR BACKEND EASIER,
+     * BUT WILL CRASH THE COMPILER IF SIZEOF IS USED ANYWHERE IN THE COMPILED
+     * CODE */
+    bool no_const_folding;
     bool w_error;
     bool pedantic;
 

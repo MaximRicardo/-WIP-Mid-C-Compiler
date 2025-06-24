@@ -13,7 +13,8 @@
     m_define_VectorImpl_push_back(VecStruct, ElemType) \
     m_define_VectorImpl_pop_back(VecStruct, ElemType) \
     m_define_VectorImpl_back(VecStruct, ElemType) \
-    m_define_VectorImpl_erase(VecStruct, ElemType) \
+    m_define_VectorImpl_back_ptr(VecStruct, ElemType) \
+    m_define_VectorImpl_erase(VecStruct, ElemType)
 
 #define m_declare_VectorImpl_funcs(VecStruct, ElemType) \
     struct VecStruct VecStruct##_init(void); \
@@ -22,6 +23,7 @@
     void VecStruct##_pop_back(struct VecStruct *self, \
             void free_func(ElemType)); \
     ElemType VecStruct##_back(struct VecStruct *self); \
+    ElemType* VecStruct##_back_ptr(struct VecStruct *self); \
     void VecStruct##_erase(struct VecStruct *self, u32 erase_idx, \
             void free_func(ElemType));
 
@@ -64,6 +66,11 @@
 #define m_define_VectorImpl_back(VecStruct, ElemType) \
     ElemType VecStruct##_back(struct VecStruct *self) { \
         return self->elems[self->size-1]; \
+    }
+
+#define m_define_VectorImpl_back_ptr(VecStruct, ElemType) \
+    ElemType* VecStruct##_back_ptr(struct VecStruct *self) { \
+        return &self->elems[self->size-1]; \
     }
 
 #define m_define_VectorImpl_erase(VecStruct, ElemType) \

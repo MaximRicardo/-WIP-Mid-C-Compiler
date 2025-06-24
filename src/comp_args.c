@@ -12,6 +12,7 @@ struct CompArgs CompArgs_init(void) {
 
     struct CompArgs args;
     memset(&args, 0, sizeof(args));
+
     return args;
 
 }
@@ -51,6 +52,10 @@ struct CompArgs CompArgs_get_args(int argc, char **argv) {
         else if (strcmp(argv[i], "-O") == 0 ||
                 strcmp(argv[i], "--optimize") == 0) {
             args.optimize = true;
+        }
+
+        else if (strcmp(argv[i], "--no-const-folding") == 0) {
+            args.no_const_folding = true;
         }
 
         else if (strcmp(argv[i], "-h") == 0 ||

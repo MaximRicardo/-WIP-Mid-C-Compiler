@@ -3,6 +3,7 @@
 #include "../comp_dependent/ints.h"
 #include "../vector_impl.h"
 #include "data_types.h"
+#include "../ast.h"
 
 enum IRInstrType {
 
@@ -49,6 +50,12 @@ struct IRInstrArg {
 struct IRInstrArg IRInstrArg_init(void);
 struct IRInstrArg IRInstrArg_create(enum IRInstrArgType type,
         struct IRDataType data_type, union IRInstrArgValue value);
+/*
+ * reg                - if the instr arg ends up using a register, this is the
+ *                      name of the reg it should use.
+ */
+struct IRInstrArg IRInstrArg_create_from_expr(const struct Expr *expr,
+        const struct StructList *structs, char *reg);
 void IRInstrArg_free(struct IRInstrArg arg);
 
 struct IRInstrArgList {

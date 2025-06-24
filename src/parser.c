@@ -1626,8 +1626,10 @@ struct TranslUnit Parser_parse(const struct Lexer *lexer) {
 
     root = parse(lexer, NULL, bp, bp, 0, NULL, 0, NULL, true, 0);
 
-    if (!Parser_error_occurred)
-        BlockNode_const_fold(root, &structs);
+    if (!Parser_error_occurred) {
+        if (!CompArgs_args.no_const_folding)
+            BlockNode_const_fold(root, &structs);
+    }
 
     assert(vars.size == 0);
     ParVarList_free(&vars);

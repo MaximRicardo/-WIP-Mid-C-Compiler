@@ -1,7 +1,7 @@
 #include "data_type_to_str.h"
 #include "../utils/dyn_str.h"
 
-const char* IR_data_type_to_str(const struct IRDataType *d_type) {
+char* IR_data_type_to_str(const struct IRDataType *d_type) {
 
     struct DynamicStr str = DynamicStr_init();
     u32 i;
