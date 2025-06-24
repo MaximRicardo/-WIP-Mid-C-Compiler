@@ -6,6 +6,7 @@
 #include "comp_args.h"
 #include "file_io.h"
 #include "comp_dependent/ints.h"
+#include "ir/module.h"
 #include "safe_mem.h"
 #include "lexer.h"
 #include "parser.h"
@@ -14,6 +15,11 @@
 #include "merge_strings.h"
 #include "pre_proc.h"
 #include "transl_unit.h"
+#include "structs.h"
+#include "ir/ir_gen.h"
+#include "ir/ir_to_str.h"
+
+#define m_gen_ir
 
 #define m_build_bug_on(condition) \
     ((void)sizeof(char[1 - 2*!!(condition)]))

@@ -1,0 +1,36 @@
+define (unknown type) @my_memcpy((unknown args)) {
+}
+
+define (unknown type) @my_memset((unknown args)) {
+}
+
+define (unknown type) @my_calloc((unknown args)) {
+}
+
+define (unknown type) @my_realloc((unknown args)) {
+}
+
+define (unknown type) @BigNum_init((unknown args)) {
+}
+
+define (unknown type) @BigNum_append_digit((unknown args)) {
+}
+
+define (unknown type) @BigNum_print((unknown args)) {
+}
+
+define (unknown type) @BigNum_add((unknown args)) {
+}
+
+define (unknown type) @BigNum_copy((unknown args)) {
+}
+
+define (unknown type) @BigNum_free((unknown args)) {
+}
+
+define (unknown type) @main((unknown args)) {
+}
+
+define (unknown type) @big_num_fibonacci((unknown args)) {
+}
+
