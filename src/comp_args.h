@@ -7,6 +7,7 @@
 struct CompArgs {
 
     const char *src_path;
+    const char *mccir_out_path;
     const char *asm_out_path;
 
     bool optimize;

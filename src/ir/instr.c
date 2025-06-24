@@ -1,5 +1,3 @@
-#pragma once
-
 #include "instr.h"
 #include "data_types.h"
 #include <stddef.h>

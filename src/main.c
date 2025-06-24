@@ -15,7 +15,6 @@
 #include "merge_strings.h"
 #include "pre_proc.h"
 #include "transl_unit.h"
-#include "structs.h"
 #include "ir/ir_gen.h"
 #include "ir/ir_to_str.h"
 
@@ -53,7 +52,8 @@ static void free_macros(struct PreProcMacroList *macros,
 }
 
 /* preprocessing */
-static void compile(char *src, FILE *output, bool *error_occurred) {
+static void compile(char *src, FILE *output, FILE *mccir_output,
+        bool *error_occurred) {
 
     struct PreProcMacroList macros;
     struct MacroInstList macro_insts;
@@ -88,6 +88,16 @@ static void compile(char *src, FILE *output, bool *error_occurred) {
         return;
     }
 
+    if (mccir_output) {
+        struct IRModule ir_tu = IRGen_generate(&tu);
+        char *output_str = IRToStr_gen(&ir_tu);
+
+        fputs(output_str, mccir_output);
+
+        m_free(output_str);
+        IRModule_free(ir_tu);
+    }
+
     if (CompArgs_args.optimize) {
         /* no optional optimizations yet */
     }
@@ -104,6 +114,7 @@ int main(int argc, char *argv[]) {
 
     char *src = NULL;
     FILE *output = NULL;
+    FILE *mccir_output = NULL;
     bool error_occurred = false;
 
     m_build_bug_on(sizeof(i32) != 4);
@@ -116,6 +127,10 @@ int main(int argc, char *argv[]) {
     CompArgs_args = CompArgs_get_args(argc, argv);
     if (!CompArgs_args.src_path)
         return 0;
+
+    printf("src = %s\nmccir = %s\nasm out = %s\n",
+            CompArgs_args.src_path, CompArgs_args.mccir_out_path,
+            CompArgs_args.asm_out_path);
 
     src = read_file(CompArgs_args.src_path);
     if (!src)
@@ -130,7 +145,16 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    compile(src, output, &error_occurred);
+    if (CompArgs_args.mccir_out_path) {
+        mccir_output = fopen(CompArgs_args.mccir_out_path, "w");
+        if (!mccir_output) {
+            fprintf(stderr, "can't open file '%s': %s\n",
+                    CompArgs_args.mccir_out_path, strerror(errno));
+            return 1;
+        }
+    }
+
+    compile(src, output, mccir_output, &error_occurred);
 
     m_free(src);
     if (output)

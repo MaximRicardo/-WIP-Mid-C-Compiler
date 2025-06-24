@@ -41,6 +41,13 @@ struct CompArgs CompArgs_get_args(int argc, char **argv) {
             ++i;
         }
 
+        else if (strcmp(argv[i], "-mccir") == 0) {
+            if (err_if_missing_operand(argv[i], i+1, argc))
+                break;
+            args.mccir_out_path = argv[i+1];
+            ++i;
+        }
+
         else if (strcmp(argv[i], "-O") == 0 ||
                 strcmp(argv[i], "--optimize") == 0) {
             args.optimize = true;
