@@ -8,21 +8,27 @@
 
 #define m_tab "    "
 
+bool show_basic_block_boundaries = false;
+
 static void instr_arg_to_str(struct DynamicStr *output,
         const struct IRInstrArg *arg) {
 
     char *data_type_str = IR_data_type_to_str(&arg->data_type);
 
-    DynamicStr_append_printf(output, "%s ", data_type_str);
-
     if (arg->type == IRInstrArg_REG) {
+        DynamicStr_append_printf(output, "%s ", data_type_str);
         DynamicStr_append_printf(output, "%%%s", arg->value.reg_name);
     }
     else if (arg->type == IRInstrArg_IMM32 && arg->data_type.is_signed) {
+        DynamicStr_append_printf(output, "%s ", data_type_str);
         DynamicStr_append_printf(output, "%d", arg->value.imm_i32);
     }
     else if (arg->type == IRInstrArg_IMM32 && !arg->data_type.is_signed) {
+        DynamicStr_append_printf(output, "%s ", data_type_str);
         DynamicStr_append_printf(output, "%u", arg->value.imm_u32);
+    }
+    else if (arg->type == IRInstrArg_STR) {
+        DynamicStr_append(output, arg->value.generic_str);
     }
     else
         assert(false);
@@ -59,6 +65,8 @@ static void basic_block_to_str(struct DynamicStr *output,
         const struct IRBasicBlock *block) {
 
     u32 i;
+
+    DynamicStr_append_printf(output, "%s:\n", block->label);
 
     for (i = 0; i < block->instrs.size; i++) {
         instr_to_str(output, &block->instrs.elems[i]);
@@ -107,13 +115,17 @@ static void func_to_str(struct DynamicStr *output, const struct IRFunc *func) {
             func_type_str, func->name, func_args_str);
 
     for (i = 0; i < func->blocks.size; i++) {
-        DynamicStr_append_printf(output,
-                "; start of block %u.\n", i);
+        if (show_basic_block_boundaries) {
+            DynamicStr_append_printf(output,
+                    "; start of block %u.\n", i);
+        }
 
         basic_block_to_str(output, &func->blocks.elems[i]);
 
-        DynamicStr_append_printf(output,
-                "; end of block %u.\n", i);
+        if (show_basic_block_boundaries) {
+            DynamicStr_append_printf(output,
+                    "; end of block %u.\n", i);
+        }
     }
 
     DynamicStr_append(output, "}\n");

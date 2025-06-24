@@ -6,12 +6,15 @@
 
 struct IRBasicBlock {
 
+    /* the label goes at the very beginning of the block */
+    char *label;
     struct IRInstrList instrs;
 
 };
 
 struct IRBasicBlock IRBasicBlock_init(void);
-struct IRBasicBlock IRBasicBlock_create(struct IRInstrList instrs);
+struct IRBasicBlock IRBasicBlock_create(char *label,
+        struct IRInstrList instrs);
 void IRBasicBlock_free(struct IRBasicBlock block);
 
 struct IRBasicBlockList {

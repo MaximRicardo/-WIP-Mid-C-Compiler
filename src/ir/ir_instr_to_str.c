@@ -20,6 +20,15 @@ const char *IR_instr_t_to_str(enum IRInstrType type) {
     case IRInstr_DIV:
         return "div";
 
+    case IRInstr_JMP:
+        return "jmp";
+
+    case IRInstr_JE:
+        return "je";
+
+    case IRInstr_RET:
+        return "ret";
+
     case IRInstr_COMMENT:
         return "COMMENT INSTRUCTION!";
 

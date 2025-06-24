@@ -107,6 +107,9 @@ static void emit_instr_operand(struct DynamicStr *output,
     else if (arg->type == IRInstrArg_IMM32 && !arg->data_type.is_signed) {
         DynamicStr_append_printf(output, "%u", arg->value.imm_u32);
     }
+    else if (arg->type == IRInstrArg_STR) {
+        DynamicStr_append(output, arg->value.generic_str);
+    }
     else {
         assert(false);
     }
@@ -117,20 +120,18 @@ static void gen_from_instr(struct DynamicStr *output,
         const struct IRInstr *instr,
         ATTRIBUTE((unused)) const struct TranslUnit *tu) {
 
-    u32 self_reg;
+    u32 i;
 
-    assert(instr->args.size == 3);
-    assert(instr->args.elems[0].type == IRInstrArg_REG);
+    assert(instr->args.size <= 3);
 
-    self_reg = virt_reg_to_cpu_reg(instr->args.elems[0].value.reg_name);
+    DynamicStr_append_printf(output, "%s ",
+            MidAsm_get_instr(instr->type, IRInstr_data_type(instr)));
 
-    DynamicStr_append_printf(output, "%s %s, ",
-            MidAsm_get_instr(instr->type, IRInstr_data_type(instr)),
-            cpu_regs[self_reg]);
-
-    emit_instr_operand(output, &instr->args.elems[1]);
-    DynamicStr_append(output, ", ");
-    emit_instr_operand(output, &instr->args.elems[2]);
+    for (i = 0; i < instr->args.size; i++) {
+        if (i > 0)
+            DynamicStr_append(output, ", ");
+        emit_instr_operand(output, &instr->args.elems[i]);
+    }
     DynamicStr_append(output, "\n");
 
 }
@@ -139,6 +140,8 @@ static void gen_from_basic_block(struct DynamicStr *output,
         const struct IRBasicBlock *block, const struct TranslUnit *tu) {
 
     u32 i;
+
+    DynamicStr_append_printf(output, ".%s:\n", block->label);
 
     for (i = 0; i < block->instrs.size; i++) {
 

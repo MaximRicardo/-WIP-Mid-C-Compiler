@@ -130,19 +130,22 @@ int main(int argc, char *argv[]) {
     m_build_bug_on(sizeof(u8) != 1);
 
     CompArgs_args = CompArgs_get_args(argc, argv);
-    if (!CompArgs_args.src_path)
-        return 0;
+    if (!CompArgs_args.src_path) {
+        goto clean_up_and_ret;
+    }
 
     src = read_file(CompArgs_args.src_path);
-    if (!src)
-        return 1;
+    if (!src) {
+        goto clean_up_and_ret;
+    }
 
     if (CompArgs_args.asm_out_path) {
         output = fopen(CompArgs_args.asm_out_path, "w");
         if (!output) {
             fprintf(stderr, "can't open file '%s': %s\n",
                     CompArgs_args.asm_out_path, strerror(errno));
-            return 1;
+            error_occurred = true;
+            goto clean_up_and_ret;
         }
     }
 
@@ -151,18 +154,20 @@ int main(int argc, char *argv[]) {
         if (!mccir_output) {
             fprintf(stderr, "can't open file '%s': %s\n",
                     CompArgs_args.mccir_out_path, strerror(errno));
-            return 1;
+            error_occurred = true;
+            goto clean_up_and_ret;
         }
     }
 
     compile(src, output, mccir_output, &error_occurred);
 
+clean_up_and_ret:
     m_free(src);
     if (output)
         fclose(output);
     if (mccir_output)
         fclose(mccir_output);
 
-    return error_occurred != false;
+    return !error_occurred;
 
 }
