@@ -1,0 +1,4 @@
+MCCIR/Mid C Compiler Intermediate Representation
+
+    MCCIR is an Intermediate Language designed for easy optimization. The IR is
+in SSA format.
