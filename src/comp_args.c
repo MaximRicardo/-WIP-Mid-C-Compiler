@@ -60,7 +60,11 @@ struct CompArgs CompArgs_get_args(int argc, char **argv) {
 
         else if (strcmp(argv[i], "-h") == 0 ||
                 strcmp(argv[i], "--help") == 0) {
-            printf("%s", CompArgs_help_str);
+            unsigned long i;
+            for (i = 0; i <
+                    sizeof(CompArgs_help_str)/sizeof(CompArgs_help_str[0]);
+                    i++)
+                printf("%s", CompArgs_help_str[i]);
         }
 
         else if (strcmp(argv[i], "-v") == 0 ||
@@ -73,6 +77,10 @@ struct CompArgs CompArgs_get_args(int argc, char **argv) {
         }
         else if (strcmp(argv[i], "--pedantic") == 0) {
             args.pedantic = true;
+        }
+
+        else if (strcmp(argv[i], "--skip-ir") == 0) {
+            args.skip_ir = true;
         }
 
         else if (argv[i][0] == '-') {

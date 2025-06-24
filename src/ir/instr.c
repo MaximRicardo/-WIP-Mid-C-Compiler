@@ -1,6 +1,7 @@
 #include "instr.h"
 #include "data_types.h"
 #include <stddef.h>
+#include <assert.h>
 
 union IRInstrArgValue IRInstrArgValue_imm_u32(u32 imm32) {
 
@@ -99,6 +100,14 @@ void IRInstr_free(struct IRInstr instr) {
         IRInstrArgList_pop_back(&instr.args, IRInstrArg_free);
     }
     IRInstrArgList_free(&instr.args);
+
+}
+
+struct IRDataType IRInstr_data_type(const struct IRInstr *self) {
+
+    assert(self->args.size > 0);
+
+    return self->args.elems[0].data_type;
 
 }
 

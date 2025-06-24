@@ -17,6 +17,7 @@ struct CompArgs {
     bool no_const_folding;
     bool w_error;
     bool pedantic;
+    bool skip_ir;
 
 };
 

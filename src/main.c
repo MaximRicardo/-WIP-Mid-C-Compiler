@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "code_gen.h"
+#include "ir/mid_asm/code_gen.h"
 #include "comp_args.h"
 #include "file_io.h"
 #include "comp_dependent/ints.h"
@@ -88,21 +89,25 @@ static void compile(char *src, FILE *output, FILE *mccir_output,
         return;
     }
 
-    if (mccir_output) {
+    if (!CompArgs_args.skip_ir) {
         struct IRModule ir_tu = IRGen_generate(&tu);
-        char *output_str = IRToStr_gen(&ir_tu);
+        char *asm_output = NULL;
 
-        fputs(output_str, mccir_output);
+        if (mccir_output) {
+            char *ir_output_str = IRToStr_gen(&ir_tu);
+            fputs(ir_output_str, mccir_output);
+            m_free(ir_output_str);
+        }
 
-        m_free(output_str);
+        asm_output = gen_Mid_Asm_from_ir(&ir_tu, &tu);
+        fputs(asm_output, output);
+
+        m_free(asm_output);
         IRModule_free(ir_tu);
     }
-
-    if (CompArgs_args.optimize) {
-        /* no optional optimizations yet */
+    else {
+        CodeGen_generate(output, tu.ast, tu.structs);
     }
-
-    CodeGen_generate(output, tu.ast, tu.structs);
 
     TranslUnit_free(tu);
     Lexer_free(&lexer);

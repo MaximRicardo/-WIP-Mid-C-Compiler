@@ -1,12 +1,15 @@
 #include "comp_args_help.h"
 
-char *CompArgs_help_str =
+char *CompArgs_help_str[] = {
     "--help/-h                Show this menu.\n"
     "--version/-v             Show the installed version of the compiler.\n"
     "<file>                   Select the C source file path.\n"
     "-o <file>                Select the output file path.\n"
     "-mccir <file>            Outputs the MCCIR code to the specified path.\n"
+    "                         Disabled if --skip-ir is enabled.\n"
     "-O/--optimize            Applies compiler optimizations.\n"
-    "-Werror                  Turns warnings into errors.\n"
+    "-Werror                  Turns warnings into errors.\n",
     "--pedantic               Warns about usage of non-standard extensions.\n"
-;
+    "--skip-ir                Skips using the IR, and instead compiles\n"
+    "                         directly to assembly. Disables optimizations.\n"
+};

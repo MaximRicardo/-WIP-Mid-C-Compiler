@@ -79,6 +79,7 @@ struct IRInstr IRInstr_init(void);
 struct IRInstr IRInstr_create(enum IRInstrType type,
         struct IRInstrArgList args);
 void IRInstr_free(struct IRInstr instr);
+struct IRDataType IRInstr_data_type(const struct IRInstr *self);
 
 struct IRInstrList {
 
