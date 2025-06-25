@@ -2,7 +2,12 @@ int main(int argc, char **argv) {
 
     char x = 5;
     char y = 10;
-    return x+y;
+    if (x) {
+        return x+y;
+    }
+    else {
+        return x*y;
+    }
 
 /*
     if (5+100) {

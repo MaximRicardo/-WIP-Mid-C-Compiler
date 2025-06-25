@@ -77,7 +77,7 @@ static void basic_block_to_str(struct DynamicStr *output,
 /* if the original C version of func was structured like this:
  *    int foo(int x, unsigned char y, short *z);
  * this function would return:
- *    "i32 x, u8 y, i16* z"
+ *    "i32 %arg.0, u8 %arg.1, i16* %arg.2"
  */
 static char* func_args_to_str(const struct IRFunc *func) {
 
@@ -89,7 +89,7 @@ static char* func_args_to_str(const struct IRFunc *func) {
 
         char *type_str = IR_data_type_to_str(&func->args.elems[i].type);
 
-        DynamicStr_append_printf(&final_str, "%s %s",
+        DynamicStr_append_printf(&final_str, "%s %%%s",
                 type_str, func->args.elems[i].name);
 
         m_free(type_str);
@@ -111,7 +111,7 @@ static void func_to_str(struct DynamicStr *output, const struct IRFunc *func) {
     char *func_args_str = func_args_to_str(func);
 
     DynamicStr_append_printf(output,
-            "define %s @%s((%s)) {\n",
+            "define %s @%s(%s) {\n",
             func_type_str, func->name, func_args_str);
 
     for (i = 0; i < func->blocks.size; i++) {

@@ -308,7 +308,7 @@ static struct IRFuncArgList func_node_get_args(const struct FuncDeclNode *func,
         struct IRFuncArg arg;
 
         struct DynamicStr arg_name = DynamicStr_init();
-        DynamicStr_append_printf(&arg_name, "arg.%u$", i);
+        DynamicStr_append_printf(&arg_name, "arg.%u", i);
 
         arg = IRFuncArg_create(
                 IRDataType_create_from_prim_type(
