@@ -135,15 +135,19 @@ static void if_stmt_gen_ir(const struct IfNode *node,
 
     struct IRBasicBlock *cur_block = IRBasicBlockList_back_ptr(basic_blocks);
 
-    struct IRBasicBlock if_true = IRBasicBlock_init();
-    struct IRBasicBlock if_false = IRBasicBlock_init();
-    struct IRBasicBlock if_end = IRBasicBlock_init();
+    struct IRBasicBlock if_true = IRBasicBlock_create(
+            cur_block->parent, make_str_copy("if_true"), IRInstrList_init()
+            );
+
+    struct IRBasicBlock if_false = IRBasicBlock_create(
+            cur_block->parent, make_str_copy("if_false"), IRInstrList_init()
+            );
+
+    struct IRBasicBlock if_end = IRBasicBlock_create(
+            cur_block->parent, make_str_copy("if_end"), IRInstrList_init()
+            );
 
     char *cond_reg = NULL;
-
-    if_true.label = make_str_copy("if_true");
-    if_false.label = make_str_copy("if_false");
-    if_end.label = make_str_copy("if_end");
 
     cond_reg = expr_gen_ir(node->expr, tu, cur_block);
 
@@ -284,7 +288,7 @@ static struct IRFunc func_node_gen_ir(const struct FuncDeclNode *func,
 
     IRBasicBlockList_push_back(&ir_func.blocks,
             IRBasicBlock_create(
-                make_str_copy("start"), IRInstrList_init()
+                &ir_func, make_str_copy("start"), IRInstrList_init()
                 )
             );
 
