@@ -7,4 +7,9 @@ int main(int argc, char **argv) {
         10/5;
     }
 
+    5+5;
+    5+5;
+    5+5;
+    return 10+7;
+
 }

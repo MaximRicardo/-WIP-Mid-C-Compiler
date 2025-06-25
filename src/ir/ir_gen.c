@@ -232,6 +232,7 @@ static void block_node_gen_ir(const struct BlockNode *block,
     for (i = 0; i < block->nodes.size; i++) {
 
         ast_node_gen_ir(&block->nodes.elems[i], cur_block, basic_blocks, tu);
+        cur_block = IRBasicBlockList_back_ptr(basic_blocks);
 
     }
 
