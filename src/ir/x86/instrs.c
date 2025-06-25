@@ -35,6 +35,11 @@ const char* X86_get_instr(enum IRInstrType type, struct IRDataType d_type) {
     case IRInstr_COMMENT:
         assert(false);
 
+    case IRInstr_ALLOCA:
+    case IRInstr_STORE:
+    case IRInstr_LOAD:
+        assert(false);
+
     };
 
 }

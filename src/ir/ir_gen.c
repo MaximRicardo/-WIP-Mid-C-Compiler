@@ -16,6 +16,76 @@ u32 reg_counter = 0;
 static void block_node_gen_ir(const struct BlockNode *block,
         struct IRBasicBlockList *basic_blocks, const struct TranslUnit *tu);
 
+static char* create_new_reg(void) {
+
+    struct DynamicStr name = DynamicStr_init();
+
+    DynamicStr_append_printf(&name, "%u", reg_counter++);
+
+    return name.str;
+
+}
+
+/* offset is in bytes */
+static void store_gen_ir(const char *src_reg, const char *dest_reg, u32 offset,
+        struct IRDataType src_type, struct IRBasicBlock *cur_block) {
+
+    struct IRInstr instr = IRInstr_create(
+            IRInstr_STORE, IRInstrArgList_init()
+            );
+
+    IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
+                IRInstrArg_REG, src_type,
+                IRInstrArgValue_reg_name(make_str_copy(src_reg))
+                ));
+
+    IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
+                IRInstrArg_REG, IRDataType_create(
+                    src_type.is_signed, src_type.width,
+                    src_type.lvls_of_indir+1),
+                IRInstrArgValue_reg_name(make_str_copy(dest_reg))
+                ));
+
+    IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
+                IRInstrArg_IMM32,
+                IRDataType_create(false, 32, 0),
+                IRInstrArgValue_imm_u32(offset)
+                ));
+
+    IRInstrList_push_back(&cur_block->instrs, instr);
+
+}
+
+/* offset is in bytes */
+static void load_gen_ir(const char *dest_reg, const char *src_reg, u32 offset,
+        struct IRDataType dest_type, struct IRBasicBlock *cur_block) {
+
+    struct IRInstr instr = IRInstr_create(
+            IRInstr_LOAD, IRInstrArgList_init()
+            );
+
+    IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
+                IRInstrArg_REG, dest_type,
+                IRInstrArgValue_reg_name(make_str_copy(dest_reg))
+                ));
+
+    IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
+                IRInstrArg_REG, IRDataType_create(
+                    dest_type.is_signed, dest_type.width,
+                    dest_type.lvls_of_indir+1),
+                IRInstrArgValue_reg_name(make_str_copy(src_reg))
+                ));
+
+    IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
+                IRInstrArg_IMM32,
+                IRDataType_create(false, 32, 0),
+                IRInstrArgValue_imm_u32(offset)
+                ));
+
+    IRInstrList_push_back(&cur_block->instrs, instr);
+
+}
+
 /* returns the register the result of the expr got put into
  * result_reg               - if not NULL, the result of the expression will
  *                            get put in this register. */
@@ -27,10 +97,9 @@ static char* expr_gen_ir(const struct Expr *expr,
 
     char *lhs_reg = NULL;
     char *rhs_reg = NULL;
-    struct DynamicStr self_reg = DynamicStr_init();
+    char *self_reg = NULL;
 
     if (expr->expr_type == ExprType_INT_LIT) {
-        DynamicStr_free(self_reg);
         if (result_reg) {
             struct IRDataType d_type = IRDataType_create_from_prim_type(
                     expr->prim_type, expr->type_idx, expr->lvls_of_indir,
@@ -51,25 +120,29 @@ static char* expr_gen_ir(const struct Expr *expr,
         }
     }
     else if (expr->expr_type == ExprType_IDENT) {
-        DynamicStr_free(self_reg);
+        struct IRDataType d_type;
+        char *ident_name;
+        char *reg_name;
+
+        IRInstr_free(instr);
+
+        d_type = IRDataType_create_from_prim_type(
+                expr->prim_type, expr->type_idx, expr->lvls_of_indir,
+                tu->structs
+                );
+        ident_name = Expr_src(expr);
+
         if (result_reg) {
-            struct IRDataType d_type = IRDataType_create_from_prim_type(
-                    expr->prim_type, expr->type_idx, expr->lvls_of_indir,
-                    tu->structs
-                    );
-            instr = IRInstr_create_mov(make_str_copy(result_reg),
-                    *result_reg_type,
-                    IRInstrArg_create(IRInstrArg_REG, d_type,
-                        IRInstrArgValue_reg_name(Expr_src(expr))
-                        )
-                    );
-            IRInstrList_push_back(&cur_block->instrs, instr);
-            return make_str_copy(result_reg);
+            reg_name = make_str_copy(result_reg);
         }
         else {
-            IRInstr_free(instr);
-            return Expr_src(expr);
+            reg_name = create_new_reg();
         }
+
+        load_gen_ir(reg_name, ident_name, 0, d_type, cur_block);
+
+        m_free(ident_name);
+        return reg_name;
     }
 
     if (expr->lhs) {
@@ -81,9 +154,9 @@ static char* expr_gen_ir(const struct Expr *expr,
     }
 
     if (!result_reg)
-        DynamicStr_append_printf(&self_reg, "%u", reg_counter++);
+        self_reg = create_new_reg();
     else
-        DynamicStr_append(&self_reg, result_reg);
+        self_reg = make_str_copy(result_reg);
 
     /* the operands go in this order:
      * self, lhs, rhs
@@ -91,7 +164,7 @@ static char* expr_gen_ir(const struct Expr *expr,
 
     IRInstrArgList_push_back(&instr.args,
             IRInstrArg_create_from_expr(
-                expr, tu->structs, make_str_copy(self_reg.str)
+                expr, tu->structs, make_str_copy(self_reg)
                 ));
 
     IRInstrArgList_push_back(&instr.args,
@@ -126,7 +199,36 @@ static char* expr_gen_ir(const struct Expr *expr,
     m_free(lhs_reg);
     m_free(rhs_reg);
 
-    return self_reg.str;
+    return self_reg;
+
+}
+
+/* size and alignment are in bytes */
+static void alloca_gen_ir(const char *result_reg,
+        struct IRDataType result_type, struct IRBasicBlock *cur_block) {
+
+    struct IRInstr instr = IRInstr_create(
+            IRInstr_ALLOCA, IRInstrArgList_init()
+            );
+
+    IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
+                IRInstrArg_REG, result_type,
+                IRInstrArgValue_reg_name(make_str_copy(result_reg))
+                ));
+
+    IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
+                IRInstrArg_IMM32,
+                IRDataType_create(false, 32, 0),
+                IRInstrArgValue_imm_u32(result_type.width/8)
+                ));
+
+    IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
+                IRInstrArg_IMM32,
+                IRDataType_create(false, 32, 0),
+                IRInstrArgValue_imm_u32(result_type.width/8)
+                ));
+
+    IRInstrList_push_back(&cur_block->instrs, instr);
 
 }
 
@@ -233,17 +335,34 @@ static void var_decl_gen_ir(const struct VarDeclNode *node,
     for (i = 0; i < node->decls.size; i++) {
 
         struct IRDataType var_type;
-
-        if (!node->decls.elems[i].value)
-            continue;
+        /* the reg holding the result of alloca */
+        struct DynamicStr init_reg = DynamicStr_init();
 
         var_type = IRDataType_create_from_prim_type(
                 node->type, node->type_idx, node->decls.elems[i].lvls_of_indir,
                 tu->structs
                 );
 
+        alloca_gen_ir(node->decls.elems[i].ident, IRDataType_create(
+                    var_type.is_signed, var_type.width,
+                    var_type.lvls_of_indir+1),
+                cur_block);
+
+        if (!node->decls.elems[i].value) {
+            DynamicStr_free(init_reg);
+            continue;
+        }
+
+        DynamicStr_append_printf(&init_reg, "%s.init",
+                node->decls.elems[i].ident);
+
         free(expr_gen_ir(node->decls.elems[i].value, tu, cur_block,
-                node->decls.elems[i].ident, &var_type));
+                init_reg.str, &var_type));
+
+        store_gen_ir(init_reg.str, node->decls.elems[i].ident, 0, var_type,
+                cur_block);
+
+        DynamicStr_free(init_reg);
 
     }
 

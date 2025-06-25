@@ -32,6 +32,15 @@ const char *IR_instr_t_to_str(enum IRInstrType type) {
     case IRInstr_RET:
         return "ret";
 
+    case IRInstr_ALLOCA:
+        return "alloca";
+
+    case IRInstr_STORE:
+        return "store";
+
+    case IRInstr_LOAD:
+        return "load";
+
     case IRInstr_COMMENT:
         return "COMMENT INSTRUCTION!";
 

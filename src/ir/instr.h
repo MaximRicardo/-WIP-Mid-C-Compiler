@@ -21,6 +21,11 @@ enum IRInstrType {
     IRInstr_JE,
     IRInstr_RET,
 
+    /* mem instructions */
+    IRInstr_ALLOCA,
+    IRInstr_STORE,
+    IRInstr_LOAD,
+
     IRInstr_COMMENT
 
 };

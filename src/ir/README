@@ -2,3 +2,25 @@ MCCIR/Mid C Compiler Intermediate Representation
 
     MCCIR is an Intermediate Language designed for easy optimization. The IR is
 in SSA format.
+
+Notable Instructions:
+
+    je REG_0/IMM_0, REG_1/IMM_1, LABEL_2
+
+Jumps to LABEL if the first and second arguments are equal.
+
+    alloca REG_0, IMM_0, IMM_1
+
+This instruction allocates IMM_0 bytes of space on the stack, with an alignment
+of IMM_1 bytes, and puts a ptr to the start of the allocated space in REG_0.
+The specified alignment MUST be a power of 2.
+
+    store REG_0/IMM_0, REG_1, REG_2/IMM_2
+
+Stores the first argument at the second argument offset by the third
+argument (in bytes).
+
+    load REG_0, REG_1, REG_2/IMM_2
+
+Loads the value at the second argument offset by the third argument (in bytes),
+into the first argument.
