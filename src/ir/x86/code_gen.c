@@ -215,6 +215,15 @@ static void gen_from_uncond_jmp_instr(struct DynamicStr *output,
 
 }
 
+static void gen_from_ret_instr(struct DynamicStr *output,
+        const struct IRInstr *instr) {
+
+    load_operand_to_reg(output, CPUReg_AX, &instr->args.elems[0]);
+
+    DynamicStr_append(output, "ret\n");
+
+}
+
 static void gen_from_instr(struct DynamicStr *output,
         const struct IRInstr *instr,
         ATTRIBUTE((unused)) const struct TranslUnit *tu) {
@@ -233,6 +242,9 @@ static void gen_from_instr(struct DynamicStr *output,
     }
     else if (IRInstrType_is_branch(instr->type)) {
         gen_from_uncond_jmp_instr(output, instr);
+    }
+    else if (instr->type == IRInstr_RET) {
+        gen_from_ret_instr(output, instr);
     }
     else {
         DynamicStr_append_printf(output, "%s ",
