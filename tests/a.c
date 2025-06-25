@@ -1,15 +1,10 @@
 int main(int argc, char **argv) {
 
     int x = 5;
-    int y = 10;
+    int y = 42;
 
-    if (x) {
-        return x*y;
-    }
-    else {
-        return x+y;
-    }
+    y = y+x;
 
-    return 1;
+    return y;
 
 }

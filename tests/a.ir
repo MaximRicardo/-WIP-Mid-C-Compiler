@@ -4,24 +4,14 @@ start:
     mov i32 %x.init, i32 5
     store i32 %x.init, i32* %x, u32 0
     alloca i32* %y, u32 4, u32 4
-    mov i32 %y.init, i32 10
+    mov i32 %y.init, i32 42
     store i32 %y.init, i32* %y, u32 0
-    load i32 %0, i32* %x, u32 0
-    je i32 %0, i32 0, if_false
-    jmp if_true
-if_true:
+    load i32 %0, i32* %y, u32 0
     load i32 %1, i32* %x, u32 0
-    load i32 %2, i32* %y, u32 0
-    mul i32 %3, i32 %1, i32 %2
-    ret i32 %3
-    jmp if_end
-if_false:
-    load i32 %4, i32* %x, u32 0
-    load i32 %5, i32* %y, u32 0
-    add i32 %6, i32 %4, i32 %5
-    ret i32 %6
-    jmp if_end
-if_end:
-    ret i32 1
+    add i32 %2, i32 %0, i32 %1
+    store i32 %2, i32* %y, u32 0
+    mov i32 %3, i32 %2
+    load i32 %4, i32* %y, u32 0
+    ret i32 %4
 }
 
