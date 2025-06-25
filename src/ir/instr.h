@@ -9,6 +9,8 @@ enum IRInstrType {
 
     IRInstr_INVALID,
 
+    IRInstr_MOV,
+
     IRInstr_ADD,
     IRInstr_SUB,
     IRInstr_MUL,
@@ -95,6 +97,9 @@ struct IRInstr IRInstr_create(enum IRInstrType type,
         struct IRInstrArgList args);
 void IRInstr_free(struct IRInstr instr);
 struct IRDataType IRInstr_data_type(const struct IRInstr *self);
+
+struct IRInstr IRInstr_create_mov(char *dest, struct IRDataType dest_d_type,
+        struct IRInstrArg arg);
 
 struct IRInstr IRInstr_create_str_instr(enum IRInstrType type, char *dest);
 struct IRInstr IRInstr_create_cond_jmp_instr(enum IRInstrType type,

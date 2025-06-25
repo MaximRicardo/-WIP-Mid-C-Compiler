@@ -5,6 +5,7 @@
 #include "instr.h"
 #include "module.h"
 #include "../utils/dyn_str.h"
+#include "../utils/make_str_cpy.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,26 +16,12 @@ u32 reg_counter = 0;
 static void block_node_gen_ir(const struct BlockNode *block,
         struct IRBasicBlockList *basic_blocks, const struct TranslUnit *tu);
 
-static char* make_str_copy(const char *str) {
-
-    u32 len;
-    char *new_str = NULL;
-
-    if (!str)
-        return NULL;
-
-    len = strlen(str);
-    new_str = safe_malloc((len+1)*sizeof(*new_str));
-
-    strcpy(new_str, str);
-
-    return new_str;
-
-}
-
-/* returns the register the result of the expr got put into */
+/* returns the register the result of the expr got put into
+ * result_reg               - if not NULL, the result of the expression will
+ *                            get put in this register. */
 static char* expr_gen_ir(const struct Expr *expr,
-        const struct TranslUnit *tu, struct IRBasicBlock *cur_block) {
+        const struct TranslUnit *tu, struct IRBasicBlock *cur_block,
+        const char *result_reg, const struct IRDataType *result_reg_type) {
 
     struct IRInstr instr = IRInstr_init();
 
@@ -44,19 +31,59 @@ static char* expr_gen_ir(const struct Expr *expr,
 
     if (expr->expr_type == ExprType_INT_LIT) {
         DynamicStr_free(self_reg);
-        IRInstr_free(instr);
-        return NULL;
+        if (result_reg) {
+            struct IRDataType d_type = IRDataType_create_from_prim_type(
+                    expr->prim_type, expr->type_idx, expr->lvls_of_indir,
+                    tu->structs
+                    );
+            instr = IRInstr_create_mov(make_str_copy(result_reg),
+                    *result_reg_type,
+                    IRInstrArg_create(IRInstrArg_IMM32, d_type,
+                        IRInstrArgValue_imm_u32(expr->int_value)
+                        )
+                    );
+            IRInstrList_push_back(&cur_block->instrs, instr);
+            return make_str_copy(result_reg);
+        }
+        else {
+            IRInstr_free(instr);
+            return NULL;
+        }
+    }
+    else if (expr->expr_type == ExprType_IDENT) {
+        DynamicStr_free(self_reg);
+        if (result_reg) {
+            struct IRDataType d_type = IRDataType_create_from_prim_type(
+                    expr->prim_type, expr->type_idx, expr->lvls_of_indir,
+                    tu->structs
+                    );
+            instr = IRInstr_create_mov(make_str_copy(result_reg),
+                    *result_reg_type,
+                    IRInstrArg_create(IRInstrArg_REG, d_type,
+                        IRInstrArgValue_reg_name(Expr_src(expr))
+                        )
+                    );
+            IRInstrList_push_back(&cur_block->instrs, instr);
+            return make_str_copy(result_reg);
+        }
+        else {
+            IRInstr_free(instr);
+            return Expr_src(expr);
+        }
     }
 
     if (expr->lhs) {
-        lhs_reg = expr_gen_ir(expr->lhs, tu, cur_block);
+        lhs_reg = expr_gen_ir(expr->lhs, tu, cur_block, NULL, NULL);
     }
 
     if (expr->rhs) {
-        rhs_reg = expr_gen_ir(expr->rhs, tu, cur_block);
+        rhs_reg = expr_gen_ir(expr->rhs, tu, cur_block, NULL, NULL);
     }
 
-    DynamicStr_append_printf(&self_reg, "%u", reg_counter++);
+    if (!result_reg)
+        DynamicStr_append_printf(&self_reg, "%u", reg_counter++);
+    else
+        DynamicStr_append(&self_reg, result_reg);
 
     /* the operands go in this order:
      * self, lhs, rhs
@@ -110,7 +137,7 @@ static void ret_stmt_gen_ir(const struct RetNode *ret,
     char *ret_reg = NULL;
 
     if (ret->value) {
-        ret_reg = expr_gen_ir(ret->value, tu, cur_block);
+        ret_reg = expr_gen_ir(ret->value, tu, cur_block, NULL, NULL);
 
         IRInstrArgList_push_back(&instr.args,
                 IRInstrArg_create_from_expr(
@@ -149,7 +176,7 @@ static void if_stmt_gen_ir(const struct IfNode *node,
 
     char *cond_reg = NULL;
 
-    cond_reg = expr_gen_ir(node->expr, tu, cur_block);
+    cond_reg = expr_gen_ir(node->expr, tu, cur_block, NULL, NULL);
 
     /* jmp to the false node if the condition resulted in a 0, and to the
      * true node otherwise */
@@ -198,6 +225,30 @@ static void if_stmt_gen_ir(const struct IfNode *node,
 
 }
 
+static void var_decl_gen_ir(const struct VarDeclNode *node,
+        struct IRBasicBlock *cur_block, const struct TranslUnit *tu) {
+
+    u32 i;
+
+    for (i = 0; i < node->decls.size; i++) {
+
+        struct IRDataType var_type;
+
+        if (!node->decls.elems[i].value)
+            continue;
+
+        var_type = IRDataType_create_from_prim_type(
+                node->type, node->type_idx, node->decls.elems[i].lvls_of_indir,
+                tu->structs
+                );
+
+        free(expr_gen_ir(node->decls.elems[i].value, tu, cur_block,
+                node->decls.elems[i].ident, &var_type));
+
+    }
+
+}
+
 static void ast_node_gen_ir(const struct ASTNode *node,
         struct IRBasicBlock *cur_block, struct IRBasicBlockList *basic_blocks,
         const struct TranslUnit *tu) {
@@ -207,13 +258,16 @@ static void ast_node_gen_ir(const struct ASTNode *node,
 
         expr = ((struct ExprNode*)node->node_struct)->expr;
 
-        free(expr_gen_ir(expr, tu, cur_block));
+        free(expr_gen_ir(expr, tu, cur_block, NULL, NULL));
     }
     else if (node->type == ASTType_RETURN) {
         ret_stmt_gen_ir(node->node_struct, cur_block, tu);
     }
     else if (node->type == ASTType_IF_STMT) {
         if_stmt_gen_ir(node->node_struct, basic_blocks, tu);
+    }
+    else if (node->type == ASTType_VAR_DECL) {
+        var_decl_gen_ir(node->node_struct, cur_block, tu);
     }
     else if (node->type == ASTType_BLOCK) {
         block_node_gen_ir(node->node_struct, basic_blocks, tu);

@@ -8,6 +8,9 @@ const char *IR_instr_t_to_str(enum IRInstrType type) {
     case IRInstr_INVALID:
         return "INVALID INSTRUCTION!";
 
+    case IRInstr_MOV:
+        return "mov";
+
     case IRInstr_ADD:
         return "add";
 

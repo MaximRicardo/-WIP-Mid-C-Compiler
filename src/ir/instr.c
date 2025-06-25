@@ -143,6 +143,22 @@ struct IRDataType IRInstr_data_type(const struct IRInstr *self) {
 
 }
 
+struct IRInstr IRInstr_create_mov(char *dest, struct IRDataType dest_d_type,
+        struct IRInstrArg arg) {
+
+    struct IRInstr instr = IRInstr_init();
+    instr.type = IRInstr_MOV;
+
+    IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
+                IRInstrArg_REG, dest_d_type, IRInstrArgValue_reg_name(dest)
+                ));
+
+    IRInstrArgList_push_back(&instr.args, arg);
+
+    return instr;
+
+}
+
 struct IRInstr IRInstr_create_str_instr(enum IRInstrType type, char *dest) {
 
     struct IRInstr instr = IRInstr_init();

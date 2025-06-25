@@ -8,6 +8,9 @@ const char* X86_get_instr(enum IRInstrType type, struct IRDataType d_type) {
     case IRInstr_INVALID:
         assert(false);
 
+    case IRInstr_MOV:
+        return "mov";
+
     case IRInstr_ADD:
         return "add";
 
@@ -30,9 +33,6 @@ const char* X86_get_instr(enum IRInstrType type, struct IRDataType d_type) {
         return "je";
 
     case IRInstr_COMMENT:
-        assert(false);
-
-    default:
         assert(false);
 
     };
