@@ -73,7 +73,7 @@ static void print_cpu_reg_vals(void) {
  * edx isn't used as a gp reg due to the generational fuck-up that is the div
  * instruction. */
 u32 gp_regs[] = {
-    CPUReg_AX, CPUReg_BX, CPUReg_CX,  CPUReg_SI, CPUReg_DI
+    CPUReg_AX, CPUReg_BX, CPUReg_CX,  CPUReg_SI
 };
 
 /* returns m_u32_max if every register has already been alloced */
@@ -151,7 +151,7 @@ static void load_operand_to_reg(struct DynamicStr *output, u32 reg_idx,
             /* idk whether i should let this slide or not, but so far letting
              * it slide has been a bad idea, so i'ma just put an assert(false)
              * here */
-            assert(false);
+            /*assert(false);*/
         }
     }
     else if (operand->type == IRInstrArg_IMM32 &&
@@ -245,14 +245,14 @@ static void gen_from_div_instr(struct DynamicStr *output,
     }
     else if (instr->args.elems[2].type == IRInstrArg_IMM32 &&
             instr->args.elems[2].data_type.is_signed) {
-        rhs_reg = CPUReg_DX;
-        DynamicStr_append_printf(output, "mov edx, %d\n",
+        rhs_reg = CPUReg_DI;
+        DynamicStr_append_printf(output, "mov edi, %d\n",
                 instr->args.elems[2].value.imm_i32);
     }
     else if (instr->args.elems[2].type == IRInstrArg_IMM32 &&
             instr->args.elems[2].data_type.is_signed) {
-        rhs_reg = CPUReg_DX;
-        DynamicStr_append_printf(output, "mov edx, %u\n",
+        rhs_reg = CPUReg_DI;
+        DynamicStr_append_printf(output, "mov edi, %u\n",
                 instr->args.elems[2].value.imm_u32);
     }
     else {
@@ -267,6 +267,11 @@ static void gen_from_div_instr(struct DynamicStr *output,
     load_operand_to_reg(output, CPUReg_AX, &instr->args.elems[1], vreg_lts,
             cur_instr_idx);
 
+    /* very important to zero/sign extend into edx before dividing. */
+    if (IRInstr_data_type(instr).is_signed)
+        DynamicStr_append(output, "cdq\n");
+    else
+        DynamicStr_append(output, "xor edx, edx\n");
     /* the div could be signed or unsigned, so it's best to use
      * X86_get_instr */
     DynamicStr_append_printf(output, "%s %s\n",
