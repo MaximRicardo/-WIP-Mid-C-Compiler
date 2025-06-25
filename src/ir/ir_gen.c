@@ -116,6 +116,40 @@ static void load_gen_ir(const char *dest_reg, const char *src_reg, u32 offset,
 
 }
 
+/* returns the register holding the loaded value */
+static char* load_ident_expr_gen_ir(const struct Expr *expr,
+        bool load_reference, const char *result_reg,
+        struct IRBasicBlock *cur_block, const struct TranslUnit *tu) {
+
+    struct IRDataType d_type;
+    char *ident_name;
+    char *reg_name;
+
+    d_type = IRDataType_create_from_prim_type(
+            expr->prim_type, expr->type_idx, expr->lvls_of_indir,
+            tu->structs
+            );
+    ident_name = Expr_src(expr);
+
+    if (load_reference) {
+        /* return a pointer to the variable instead */
+        return ident_name;
+    }
+
+    if (result_reg) {
+        reg_name = make_str_copy(result_reg);
+    }
+    else {
+        reg_name = create_new_reg();
+    }
+
+    load_gen_ir(reg_name, ident_name, 0, d_type, cur_block);
+
+    m_free(ident_name);
+    return reg_name;
+
+}
+
 /* returns the register the result of the expr got put into
  * result_reg               - if not NULL, the result of the expression will
  *                            get put in this register.
@@ -153,34 +187,10 @@ static char* expr_gen_ir(const struct Expr *expr,
         }
     }
     else if (expr->expr_type == ExprType_IDENT) {
-        struct IRDataType d_type;
-        char *ident_name;
-        char *reg_name;
-
         IRInstr_free(instr);
 
-        d_type = IRDataType_create_from_prim_type(
-                expr->prim_type, expr->type_idx, expr->lvls_of_indir,
-                tu->structs
-                );
-        ident_name = Expr_src(expr);
-
-        if (load_reference) {
-            /* return a pointer to the variable instead */
-            return ident_name;
-        }
-
-        if (result_reg) {
-            reg_name = make_str_copy(result_reg);
-        }
-        else {
-            reg_name = create_new_reg();
-        }
-
-        load_gen_ir(reg_name, ident_name, 0, d_type, cur_block);
-
-        m_free(ident_name);
-        return reg_name;
+        return load_ident_expr_gen_ir(expr, load_reference, result_reg,
+                cur_block, tu);
     }
 
     if (expr->lhs) {
