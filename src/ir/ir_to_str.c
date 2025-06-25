@@ -49,11 +49,12 @@ static void instr_to_str(struct DynamicStr *output,
         assert(false);
     }
 
-    DynamicStr_append_printf(output, m_tab "%s",
+    DynamicStr_append_printf(output, m_tab "%s ",
             IR_instr_t_to_str(instr->type));
 
     for (i = 0; i < instr->args.size; i++) {
-        DynamicStr_append(output, " ");
+        if (i > 0)
+            DynamicStr_append(output, ", ");
         instr_arg_to_str(output, &instr->args.elems[i]);
     }
 
