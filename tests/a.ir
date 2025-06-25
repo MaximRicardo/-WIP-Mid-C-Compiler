@@ -4,10 +4,10 @@ start:
     je i32 %0 i32 0 if_false
     jmp if_true
 if_true:
-    add i32 %1 i32 10 i32 5
+    mul i32 %1 i32 10 i32 5
     jmp if_end
 if_false:
-    sub i32 %2 i32 10 i32 5
+    div i32 %2 i32 10 i32 5
     jmp if_end
 if_end:
 }

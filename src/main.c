@@ -3,7 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "code_gen.h"
-#include "ir/mid_asm/code_gen.h"
+#include "ir/x86/code_gen.h"
 #include "comp_args.h"
 #include "file_io.h"
 #include "comp_dependent/ints.h"
@@ -99,7 +99,7 @@ static void compile(char *src, FILE *output, FILE *mccir_output,
             m_free(ir_output_str);
         }
 
-        asm_output = gen_Mid_Asm_from_ir(&ir_tu, &tu);
+        asm_output = gen_x86_from_ir(&ir_tu, &tu);
         fputs(asm_output, output);
 
         m_free(asm_output);

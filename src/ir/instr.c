@@ -3,6 +3,25 @@
 #include <stddef.h>
 #include <assert.h>
 
+bool IRInstrType_is_branch(enum IRInstrType type) {
+
+    return type == IRInstr_JMP || type == IRInstr_JE;
+
+}
+
+bool IRInstrType_is_cond_branch(enum IRInstrType type) {
+
+    return IRInstrType_is_branch(type) && type != IRInstr_JMP;
+
+}
+
+bool IRInstrType_is_bin_op(enum IRInstrType type) {
+
+    return type == IRInstr_ADD || type == IRInstr_SUB ||
+        type == IRInstr_MUL || type == IRInstr_DIV;
+
+}
+
 union IRInstrArgValue IRInstrArgValue_imm_u32(u32 imm32) {
 
     union IRInstrArgValue value;

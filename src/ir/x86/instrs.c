@@ -1,7 +1,7 @@
 #include "instrs.h"
 #include <assert.h>
 
-const char* MidAsm_get_instr(enum IRInstrType type, struct IRDataType d_type) {
+const char* X86_get_instr(enum IRInstrType type, struct IRDataType d_type) {
 
     switch (type) {
 
@@ -15,10 +15,10 @@ const char* MidAsm_get_instr(enum IRInstrType type, struct IRDataType d_type) {
         return "sub";
 
     case IRInstr_MUL:
-        return d_type.is_signed ? "smul" : "mul";
+        return "imul";
 
     case IRInstr_DIV:
-        return d_type.is_signed ? "sdiv" : "div";
+        return d_type.is_signed ? "idiv" : "div";
 
     case IRInstr_RET:
         return "ret";
