@@ -398,12 +398,10 @@ static void if_stmt_gen_ir(const struct IfNode *node,
                 IRInstr_create_cond_jmp_instr(IRInstr_JE,
                     comp_lhs,
                     comp_rhs,
-                    if_false.label)
+                    if_false.label,
+                    if_true.label)
                 );
     }
-    IRInstrList_push_back(&cur_block->instrs,
-            IRInstr_create_str_instr(IRInstr_JMP, if_true.label)
-            );
 
     IRBasicBlockList_push_back(&cur_func->blocks, if_true);
     if (node->body)

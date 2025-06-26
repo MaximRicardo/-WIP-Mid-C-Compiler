@@ -111,7 +111,7 @@ struct IRInstr IRInstr_create_str_instr(enum IRInstrType type,
         const char *dest);
 struct IRInstr IRInstr_create_cond_jmp_instr(enum IRInstrType type,
         struct IRInstrArg cond_lhs, struct IRInstrArg cond_rhs,
-        const char *dest);
+        const char *true_dest, const char *false_dest);
 
 struct IRInstrList {
 

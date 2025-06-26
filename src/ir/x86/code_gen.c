@@ -75,11 +75,82 @@ static void print_cpu_reg_vals(void) {
 
 }
 
-/* returns m_u32_max if every register has already been alloced */
-static u32 get_reg_to_alloc(const struct IRRegLTList *vreg_lts,
-        u32 cur_instr_idx) {
+/* doesn't count the destination operand */
+static bool is_phi_node_with_vreg_operand(const struct IRInstr *instr,
+        const char *vreg) {
 
     u32 i;
+
+    if (instr->type != IRInstr_PHI)
+        return false;
+
+    for (i = 1; i < instr->args.size; i++) {
+        if (instr->args.elems[i].type != IRInstrArg_REG)
+            continue;
+
+        if (strcmp(instr->args.elems[i].value.reg_name, vreg) == 0)
+            return true;
+    }
+
+    return false;
+
+}
+
+static u32 find_phi_node_w_vreg_block(const struct IRBasicBlock *block,
+        const char *vreg, u32 *instr_idx) {
+
+    u32 i;
+
+    for (i = 0; i < block->instrs.size; i++) {
+
+        if (is_phi_node_with_vreg_operand(&block->instrs.elems[i], vreg))
+            return *instr_idx;
+
+        ++*instr_idx;
+
+    }
+
+    return m_u32_max;
+
+}
+
+/* returns the index of a phi node using vreg as an operand (not including the
+ * dest of the phi node). returns m_u32_max if there isn't one. the index is
+ * relative to the start of the function */
+static u32 find_phi_node_w_vreg(const struct IRFunc *func, const char *vreg) {
+
+    u32 i;
+    u32 instr_idx = 0;
+
+    for (i = 0; i < func->blocks.size; i++) {
+
+        u32 phi_node = find_phi_node_w_vreg_block(&func->blocks.elems[i],
+                vreg, &instr_idx);
+
+        if (phi_node != m_u32_max)
+            return phi_node;
+
+    }
+
+    return m_u32_max;
+
+}
+
+/* returns m_u32_max if every register has already been alloced */
+static u32 get_reg_to_alloc(const char *virt_reg,
+        const struct IRRegLTList *vreg_lts, u32 cur_instr_idx,
+        const struct IRFunc *cur_func) {
+
+    u32 i;
+
+    /* check if there is a phi node anywhere using this vreg. if so, use the
+     * reg the result of that phi node would use. */
+    u32 phi_node = find_phi_node_w_vreg(cur_func, virt_reg);
+
+    if (phi_node != m_u32_max) {
+        /* pretend we are at the phi node */
+        cur_instr_idx = phi_node;
+    }
 
     for (i = 0; i < m_arr_size(gp_regs); i++) {
         u32 reg_idx = gp_regs[i];
@@ -103,7 +174,8 @@ static u32 get_reg_to_alloc(const struct IRRegLTList *vreg_lts,
 
 /* breaks if there are more virtual registers than physical ones */
 static u32 virt_reg_to_cpu_reg(const char *virt_reg,
-        const struct IRRegLTList *vreg_lts, u32 cur_instr_idx) {
+        const struct IRRegLTList *vreg_lts, u32 cur_instr_idx,
+        const struct IRFunc *cur_func) {
 
     u32 i;
 
@@ -121,7 +193,7 @@ static u32 virt_reg_to_cpu_reg(const char *virt_reg,
     }
 
     if (i >= m_arr_size(gp_regs))
-        i = get_reg_to_alloc(vreg_lts, cur_instr_idx);
+        i = get_reg_to_alloc(virt_reg, vreg_lts, cur_instr_idx, cur_func);
     else
         i = gp_regs[i];
 
@@ -141,11 +213,11 @@ static u32 virt_reg_to_cpu_reg(const char *virt_reg,
 
 static void load_operand_to_reg(struct DynamicStr *output, u32 reg_idx,
         const struct IRInstrArg *operand, const struct IRRegLTList *vreg_lts,
-        u32 cur_instr_idx) {
+        u32 cur_instr_idx, const struct IRFunc *cur_func) {
 
     if (operand->type == IRInstrArg_REG) {
         u32 operand_phys_reg = virt_reg_to_cpu_reg(operand->value.reg_name,
-                vreg_lts, cur_instr_idx);
+                vreg_lts, cur_instr_idx, cur_func);
 
         if(operand_phys_reg != reg_idx) {
             DynamicStr_append_printf(output, "mov %s, %s\n",
@@ -170,11 +242,11 @@ static void load_operand_to_reg(struct DynamicStr *output, u32 reg_idx,
 
 static void emit_instr_operand(struct DynamicStr *output,
         const struct IRInstrArg *arg, const struct IRRegLTList *vreg_lts,
-        u32 cur_instr_idx) {
+        u32 cur_instr_idx, const struct IRFunc *cur_func) {
 
     if (arg->type == IRInstrArg_REG) {
         u32 operand_phys_reg = virt_reg_to_cpu_reg(arg->value.reg_name,
-                vreg_lts, cur_instr_idx);
+                vreg_lts, cur_instr_idx, cur_func);
 
         DynamicStr_append(output, cpu_regs[operand_phys_reg]);
     }
@@ -195,7 +267,7 @@ static void emit_instr_operand(struct DynamicStr *output,
 
 static void gen_from_bin_instr(struct DynamicStr *output,
         const struct IRInstr *instr, const struct IRRegLTList *vreg_lts,
-        u32 cur_instr_idx) {
+        u32 cur_instr_idx, const struct IRFunc *cur_func) {
 
     u32 self_reg;
 
@@ -203,7 +275,7 @@ static void gen_from_bin_instr(struct DynamicStr *output,
     assert(instr->args.elems[Arg_SELF].type == IRInstrArg_REG);
 
     self_reg = virt_reg_to_cpu_reg(instr->args.elems[Arg_SELF].value.reg_name,
-            vreg_lts, cur_instr_idx);
+            vreg_lts, cur_instr_idx, cur_func);
 
     /* since x86 is a 2 operand architecture, but MCCIR is a 3 operand IL,
      * instructions will need to be converted from 3 to 2 operands. The
@@ -214,21 +286,21 @@ static void gen_from_bin_instr(struct DynamicStr *output,
      *    add r1 <- r2
      */
     load_operand_to_reg(output, self_reg, &instr->args.elems[Arg_LHS], vreg_lts,
-            cur_instr_idx);
+            cur_instr_idx, cur_func);
 
     DynamicStr_append_printf(output, "%s %s, ",
             X86_get_instr(instr->type, IRInstr_data_type(instr)),
             cpu_regs[self_reg]);
 
     emit_instr_operand(output, &instr->args.elems[Arg_RHS], vreg_lts,
-            cur_instr_idx);
+            cur_instr_idx, cur_func);
     DynamicStr_append(output, "\n");
 
 }
 
 static void gen_from_div_instr(struct DynamicStr *output,
         const struct IRInstr *instr, const struct IRRegLTList *vreg_lts,
-        u32 cur_instr_idx) {
+        u32 cur_instr_idx, const struct IRFunc *cur_func) {
 
     u32 self_reg;
     u32 rhs_reg;
@@ -240,7 +312,7 @@ static void gen_from_div_instr(struct DynamicStr *output,
      * the stack, with would make all the stack offsets off by 4 bytes */
     if (instr->args.elems[Arg_RHS].type == IRInstrArg_REG) {
         rhs_reg = virt_reg_to_cpu_reg(instr->args.elems[2].value.reg_name,
-                vreg_lts, cur_instr_idx);
+                vreg_lts, cur_instr_idx, cur_func);
     }
     else if (instr->args.elems[Arg_RHS].type == IRInstrArg_IMM32 &&
             instr->args.elems[Arg_RHS].data_type.is_signed) {
@@ -259,12 +331,12 @@ static void gen_from_div_instr(struct DynamicStr *output,
     }
 
     self_reg = virt_reg_to_cpu_reg(instr->args.elems[Arg_SELF].value.reg_name,
-            vreg_lts, cur_instr_idx);
+            vreg_lts, cur_instr_idx, cur_func);
     if (self_reg != CPUReg_AX) {
         DynamicStr_append(output, "push eax\n");
     }
     load_operand_to_reg(output, CPUReg_AX, &instr->args.elems[Arg_LHS],
-            vreg_lts, cur_instr_idx);
+            vreg_lts, cur_instr_idx, cur_func);
 
     /* very important to zero/sign extend into edx before dividing. */
     if (IRInstr_data_type(instr).is_signed)
@@ -287,45 +359,50 @@ static void gen_from_div_instr(struct DynamicStr *output,
 
 static void gen_cmp_instr(struct DynamicStr *output,
         const struct IRInstrArg *cmp_lhs, const struct IRInstrArg *cmp_rhs,
-        const struct IRRegLTList *vreg_lts, u32 cur_instr_idx) {
+        const struct IRRegLTList *vreg_lts, u32 cur_instr_idx,
+        const struct IRFunc *cur_func) {
 
     if (cmp_lhs->type != IRInstrArg_REG) {
         DynamicStr_append(output, "mov edx, ");
-        emit_instr_operand(output, cmp_lhs, vreg_lts, cur_instr_idx);
+        emit_instr_operand(output, cmp_lhs, vreg_lts, cur_instr_idx, cur_func);
         DynamicStr_append(output, "\n");
     }
 
     DynamicStr_append(output, "cmp ");
 
     if (cmp_lhs->type == IRInstrArg_REG) {
-        emit_instr_operand(output, cmp_lhs, vreg_lts, cur_instr_idx);
+        emit_instr_operand(output, cmp_lhs, vreg_lts, cur_instr_idx, cur_func);
     }
     else {
         DynamicStr_append(output, "edx");
     }
 
     DynamicStr_append(output, ", ");
-    emit_instr_operand(output, cmp_rhs, vreg_lts, cur_instr_idx);
+    emit_instr_operand(output, cmp_rhs, vreg_lts, cur_instr_idx, cur_func);
     DynamicStr_append(output, "\n");
 
 }
 
 static void gen_from_cond_jmp_instr(struct DynamicStr *output,
         const struct IRInstr *instr, const struct IRRegLTList *vreg_lts,
-        u32 cur_instr_idx) {
+        u32 cur_instr_idx, const struct IRFunc *cur_func) {
 
-    assert(instr->args.size == 3);
-    assert(instr->args.elems[Arg_RHS].type == IRInstrArg_STR);
+    assert(instr->args.size == 4);
+    assert(instr->args.elems[2].type == IRInstrArg_STR);
+    assert(instr->args.elems[3].type == IRInstrArg_STR);
 
-    /* the conditional jump will get split into a seperate cmp and jmp
-     * instruction. */
+    /* the conditional jump will get split into seperate cmp, cond jmp
+     * and non-cond jmp instructions. */
 
     gen_cmp_instr(output, &instr->args.elems[Arg_SELF],
-            &instr->args.elems[Arg_LHS], vreg_lts, cur_instr_idx);
+            &instr->args.elems[Arg_LHS], vreg_lts, cur_instr_idx, cur_func);
 
     DynamicStr_append_printf(output, "%s .%s\n",
             X86_get_instr(instr->type, IRInstr_data_type(instr)),
-            instr->args.elems[Arg_RHS].value.generic_str);
+            instr->args.elems[2].value.generic_str);
+
+    DynamicStr_append_printf(output, "jmp .%s\n",
+            instr->args.elems[3].value.generic_str);
 
 }
 
@@ -342,10 +419,10 @@ static void gen_from_uncond_jmp_instr(struct DynamicStr *output,
 
 static void gen_from_ret_instr(struct DynamicStr *output,
         const struct IRInstr *instr, const struct IRRegLTList *vreg_lts,
-        u32 cur_instr_idx) {
+        u32 cur_instr_idx, const struct IRFunc *cur_func) {
 
     load_operand_to_reg(output, CPUReg_AX, &instr->args.elems[Arg_SELF],
-            vreg_lts, cur_instr_idx);
+            vreg_lts, cur_instr_idx, cur_func);
 
     /* esp needs to get sent back to the return address */
     DynamicStr_append_printf(output, "sub esp, %d\n", sp);
@@ -356,7 +433,7 @@ static void gen_from_ret_instr(struct DynamicStr *output,
 
 static void gen_from_alloca_instr(struct DynamicStr *output,
         const struct IRInstr *instr, const struct IRRegLTList *vreg_lts,
-        u32 cur_instr_idx) {
+        u32 cur_instr_idx, const struct IRFunc *cur_func) {
 
     u32 self_reg;
     u32 amount_to_sub = 0;
@@ -367,7 +444,7 @@ static void gen_from_alloca_instr(struct DynamicStr *output,
     assert(instr->args.elems[Arg_RHS].type == IRInstrArg_IMM32);
 
     self_reg = virt_reg_to_cpu_reg(instr->args.elems[Arg_SELF].value.reg_name,
-            vreg_lts, cur_instr_idx);
+            vreg_lts, cur_instr_idx, cur_func);
 
     if (sp % instr->args.elems[Arg_RHS].value.imm_u32) {
         amount_to_sub += sp % instr->args.elems[Arg_RHS].value.imm_u32;
@@ -383,7 +460,7 @@ static void gen_from_alloca_instr(struct DynamicStr *output,
 
 static void gen_from_store_instr(struct DynamicStr *output,
         const struct IRInstr *instr, const struct IRRegLTList *vreg_lts,
-        u32 cur_instr_idx) {
+        u32 cur_instr_idx, const struct IRFunc *cur_func) {
 
     u32 self_reg = m_u32_max;
     u32 lhs_reg;
@@ -394,17 +471,17 @@ static void gen_from_store_instr(struct DynamicStr *output,
     if (instr->args.elems[Arg_SELF].type == IRInstrArg_REG) {
         self_reg = virt_reg_to_cpu_reg(
                 instr->args.elems[Arg_SELF].value.reg_name, vreg_lts,
-                cur_instr_idx
+                cur_instr_idx, cur_func
                 );
     }
 
     lhs_reg = virt_reg_to_cpu_reg(instr->args.elems[Arg_LHS].value.reg_name,
-            vreg_lts, cur_instr_idx);
+            vreg_lts, cur_instr_idx, cur_func);
 
     if (instr->args.elems[Arg_RHS].type == IRInstrArg_REG) {
         u32 rhs_reg = virt_reg_to_cpu_reg(
                 instr->args.elems[Arg_RHS].value.reg_name, vreg_lts,
-                cur_instr_idx);
+                cur_instr_idx, cur_func);
 
         DynamicStr_append_printf(output, "mov [%s+%s], ",
                 cpu_regs[lhs_reg], cpu_regs[rhs_reg]);
@@ -432,7 +509,7 @@ static void gen_from_store_instr(struct DynamicStr *output,
 
 static void gen_from_load_instr(struct DynamicStr *output,
         const struct IRInstr *instr, const struct IRRegLTList *vreg_lts,
-        u32 cur_instr_idx) {
+        u32 cur_instr_idx, const struct IRFunc *func) {
 
     u32 self_reg;
     u32 lhs_reg;
@@ -442,16 +519,16 @@ static void gen_from_load_instr(struct DynamicStr *output,
     assert(instr->args.elems[Arg_LHS].type == IRInstrArg_REG);
 
     self_reg = virt_reg_to_cpu_reg(instr->args.elems[Arg_SELF].value.reg_name,
-            vreg_lts, cur_instr_idx);
+            vreg_lts, cur_instr_idx, func);
 
     lhs_reg = virt_reg_to_cpu_reg(instr->args.elems[Arg_LHS].value.reg_name,
-            vreg_lts, cur_instr_idx);
+            vreg_lts, cur_instr_idx, func);
 
 
     if (instr->args.elems[Arg_RHS].type == IRInstrArg_REG) {
         u32 rhs_reg = virt_reg_to_cpu_reg(
                 instr->args.elems[Arg_RHS].value.reg_name, vreg_lts,
-                cur_instr_idx);
+                cur_instr_idx, func);
 
         DynamicStr_append_printf(output, "%mov %s, [%s+%s]\n",
                 cpu_regs[self_reg], cpu_regs[lhs_reg], cpu_regs[rhs_reg]);
@@ -467,34 +544,39 @@ static void gen_from_load_instr(struct DynamicStr *output,
 static void gen_from_instr(struct DynamicStr *output,
         const struct IRInstr *instr,
         ATTRIBUTE((unused)) const struct TranslUnit *tu,
-        const struct IRRegLTList *vreg_lts, u32 cur_instr_idx) {
+        const struct IRRegLTList *vreg_lts, u32 cur_instr_idx,
+        const struct IRFunc *func) {
 
     u32 i;
 
     if (instr->type == IRInstr_DIV) {
-        gen_from_div_instr(output, instr, vreg_lts, cur_instr_idx);
+        gen_from_div_instr(output, instr, vreg_lts, cur_instr_idx, func);
     }
     /* important that this comes after DIV */
     else if (IRInstrType_is_bin_op(instr->type)) {
-        gen_from_bin_instr(output, instr, vreg_lts, cur_instr_idx);
+        gen_from_bin_instr(output, instr, vreg_lts, cur_instr_idx, func);
     }
     else if (IRInstrType_is_cond_branch(instr->type)) {
-        gen_from_cond_jmp_instr(output, instr, vreg_lts, cur_instr_idx);
+        gen_from_cond_jmp_instr(output, instr, vreg_lts, cur_instr_idx, func);
     }
     else if (IRInstrType_is_branch(instr->type)) {
         gen_from_uncond_jmp_instr(output, instr);
     }
     else if (instr->type == IRInstr_RET) {
-        gen_from_ret_instr(output, instr, vreg_lts, cur_instr_idx);
+        gen_from_ret_instr(output, instr, vreg_lts, cur_instr_idx, func);
     }
     else if (instr->type == IRInstr_ALLOCA) {
-        gen_from_alloca_instr(output, instr, vreg_lts, cur_instr_idx);
+        gen_from_alloca_instr(output, instr, vreg_lts, cur_instr_idx, func);
     }
     else if (instr->type == IRInstr_STORE) {
-        gen_from_store_instr(output, instr, vreg_lts, cur_instr_idx);
+        gen_from_store_instr(output, instr, vreg_lts, cur_instr_idx, func);
     }
     else if (instr->type == IRInstr_LOAD) {
-        gen_from_load_instr(output, instr, vreg_lts, cur_instr_idx);
+        gen_from_load_instr(output, instr, vreg_lts, cur_instr_idx, func);
+    }
+    else if (instr->type == IRInstr_PHI) {
+        /* no need to do anything, as the register allocator should already
+         * have set everything up */
     }
     else {
         DynamicStr_append_printf(output, "%s ",
@@ -504,7 +586,7 @@ static void gen_from_instr(struct DynamicStr *output,
             if (i > 0)
                 DynamicStr_append(output, ", ");
             emit_instr_operand(output, &instr->args.elems[i], vreg_lts,
-                    cur_instr_idx);
+                    cur_instr_idx, func);
         }
         DynamicStr_append(output, "\n");
     }
@@ -512,7 +594,8 @@ static void gen_from_instr(struct DynamicStr *output,
 }
 
 static void gen_from_basic_block(struct DynamicStr *output,
-        const struct IRBasicBlock *block, const struct TranslUnit *tu,
+        const struct IRBasicBlock *block, const struct IRFunc *cur_func,
+        const struct TranslUnit *tu,
         const struct IRRegLTList *vreg_lts, u32 *n_instrs) {
 
     u32 i;
@@ -522,7 +605,7 @@ static void gen_from_basic_block(struct DynamicStr *output,
     for (i = 0; i < block->instrs.size; i++) {
 
         gen_from_instr(output, &block->instrs.elems[i], tu, vreg_lts,
-                *n_instrs);
+                *n_instrs, cur_func);
 
         ++*n_instrs;
 
@@ -544,8 +627,8 @@ static void gen_from_func(struct DynamicStr *output,
 
     for (i = 0; i < func->blocks.size; i++) {
 
-        gen_from_basic_block(output, &func->blocks.elems[i], tu, &vreg_lts,
-                &n_instrs);
+        gen_from_basic_block(output, &func->blocks.elems[i], func, tu,
+                &vreg_lts, &n_instrs);
 
     }
 

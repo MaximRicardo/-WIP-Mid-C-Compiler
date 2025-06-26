@@ -346,8 +346,9 @@ static void convert_load_to_mov(struct IRInstr *instr,
 
 }
 
-/* the phi node gets put at the beginning of the block */
-static void create_phi_node(u32 r2c_idx,
+/* the phi node gets put at the beginning of the block.
+ * returns whether or not a phi node actually got generated. */
+static bool create_phi_node(u32 r2c_idx,
         struct IRBasicBlock *cur_block, struct IRFunc *func,
         struct RegToConvList *regs_to_conv) {
 
@@ -396,9 +397,12 @@ static void create_phi_node(u32 r2c_idx,
             regs_to_conv->elems[r2c_idx].new_name;
 
         IRInstrList_push_front(&cur_block->instrs, instr);
+        return true;
     }
-    else
+    else {
         IRInstr_free(instr);
+        return false;
+    }
 
 }
 
@@ -429,7 +433,22 @@ static void opt_alloca_block(struct IRBasicBlock *block,
     u32 i;
 
     for (i = 0; i < regs_to_conv->size; i++) {
-        create_phi_node(i, block, cur_func, regs_to_conv);
+        if (!create_phi_node(i, block, cur_func, regs_to_conv) &&
+                block->dom_frontiers.size > 0) {
+            /* make sure to use the same virt reg as this block's dominator(s)
+             */
+            const struct IRBasicBlock *dom =
+                &cur_func->blocks.elems[block->dom_frontiers.elems[0]];
+
+            u32 store_idx = StoreInfoList_find_block(
+                    &regs_to_conv->elems[i].last_store, dom
+                    );
+
+            if (store_idx != m_u32_max) {
+                regs_to_conv->elems[i].new_name =
+                    regs_to_conv->elems[i].last_store.elems[store_idx].new_name;
+            }
+        }
     }
 
     for (i = 0; i < block->instrs.size; i++) {

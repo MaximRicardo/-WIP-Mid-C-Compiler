@@ -101,12 +101,12 @@ static void compile(char *src, FILE *output, FILE *mccir_output,
         if (mccir_output) {
             char *ir_output_str = IRToStr_gen(&ir_tu);
             fputs(ir_output_str, mccir_output);
+            fflush(mccir_output);
             m_free(ir_output_str);
         }
 
-        /*
         asm_output = gen_x86_from_ir(&ir_tu, &tu);
-        fputs(asm_output, output);*/
+        fputs(asm_output, output);
 
         m_free(asm_output);
         IRModule_free(ir_tu);

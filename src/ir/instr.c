@@ -164,7 +164,7 @@ struct IRInstr IRInstr_create_str_instr(enum IRInstrType type,
 
 struct IRInstr IRInstr_create_cond_jmp_instr(enum IRInstrType type,
         struct IRInstrArg cmp_lhs, struct IRInstrArg cmp_rhs,
-        const char *dest) {
+        const char *true_dest, const char *false_dest) {
 
     struct IRInstr instr = IRInstr_init();
     instr.type = type;
@@ -175,7 +175,14 @@ struct IRInstr IRInstr_create_cond_jmp_instr(enum IRInstrType type,
     IRInstrArgList_push_back(&instr.args,
             IRInstrArg_create(
                 IRInstrArg_STR, IRDataType_init(),
-                IRInstrArgValue_generic_str(dest)
+                IRInstrArgValue_generic_str(true_dest)
+                )
+            );
+
+    IRInstrArgList_push_back(&instr.args,
+            IRInstrArg_create(
+                IRInstrArg_STR, IRDataType_init(),
+                IRInstrArgValue_generic_str(false_dest)
                 )
             );
 
