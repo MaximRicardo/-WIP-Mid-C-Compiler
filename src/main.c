@@ -18,6 +18,7 @@
 #include "transl_unit.h"
 #include "ir/ir_gen.h"
 #include "ir/ir_to_str.h"
+#include "ir/opt_alloca.h"
 
 #define m_gen_ir
 
@@ -92,6 +93,10 @@ static void compile(char *src, FILE *output, FILE *mccir_output,
     if (!CompArgs_args.skip_ir) {
         struct IRModule ir_tu = IRGen_generate(&tu);
         char *asm_output = NULL;
+
+        if (CompArgs_args.optimize) {
+            IROpt_alloca(&ir_tu);
+        }
 
         if (mccir_output) {
             char *ir_output_str = IRToStr_gen(&ir_tu);
