@@ -195,7 +195,8 @@ static char* expr_gen_ir(const struct Expr *expr,
 
     if (expr->lhs) {
         lhs_reg = expr_gen_ir(expr->lhs, tu, cur_block, NULL, NULL,
-                expr->expr_type == ExprType_EQUAL);
+                expr->expr_type == ExprType_EQUAL ||
+                expr->expr_type == ExprType_REFERENCE);
     }
 
     if (expr->rhs) {
@@ -216,15 +217,19 @@ static char* expr_gen_ir(const struct Expr *expr,
                 expr, tu->structs, make_str_copy(self_reg)
                 ));
 
-    IRInstrArgList_push_back(&instr.args,
-            IRInstrArg_create_from_expr(
-                expr->lhs, tu->structs, make_str_copy(lhs_reg)
-                ));
+    if (expr->lhs) {
+        IRInstrArgList_push_back(&instr.args,
+                IRInstrArg_create_from_expr(
+                    expr->lhs, tu->structs, make_str_copy(lhs_reg)
+                    ));
+    }
 
-    IRInstrArgList_push_back(&instr.args,
-            IRInstrArg_create_from_expr(
-                expr->rhs, tu->structs, make_str_copy(rhs_reg)
-                ));
+    if (expr->rhs) {
+        IRInstrArgList_push_back(&instr.args,
+                IRInstrArg_create_from_expr(
+                    expr->rhs, tu->structs, make_str_copy(rhs_reg)
+                    ));
+    }
 
     if (expr->expr_type == ExprType_PLUS) {
         instr.type = IRInstr_ADD;
@@ -259,6 +264,9 @@ static char* expr_gen_ir(const struct Expr *expr,
                 IRInstrArg_create_from_expr(
                     expr->rhs, tu->structs, make_str_copy(rhs_reg))
                 );
+    }
+    else if (expr->expr_type == ExprType_REFERENCE) {
+        instr.type = IRInstr_MOV;
     }
     else {
         instr.type = IRInstr_INVALID;

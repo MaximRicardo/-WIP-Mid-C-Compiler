@@ -5,6 +5,7 @@
 #include "../utils/dyn_str.h"
 #include <stddef.h>
 #include <assert.h>
+#include <stdio.h>
 #include <string.h>
 
 /* information about a virtual register to convert from an alloca ptr to a
@@ -77,18 +78,77 @@ u32 RegToConvList_find_reg(const struct RegToConvList *self,
     u32 i;
 
     for (i = 0; i < self->size; i++) {
-        if (strcmp(self->elems[i].old_name, old_name) == 0)
+        if (strcmp(self->elems[i].old_name, old_name) == 0) {
             return i;
+        }
     }
 
     return m_u32_max;
 
 }
 
+static bool alloca_required_instr(const char *reg,
+        const struct IRInstr *instr) {
+
+    u32 i;
+
+    if (instr->type == IRInstr_ALLOCA || instr->type == IRInstr_STORE ||
+            instr->type == IRInstr_LOAD)
+        return false;
+
+    for (i = 0; i < instr->args.size; i++) {
+
+        if (instr->args.elems[i].type != IRInstrArg_REG)
+            continue;
+
+        if (strcmp(instr->args.elems[i].value.reg_name, reg) == 0)
+            return true;
+
+    }
+
+    return false;
+
+}
+
+static bool alloca_required_block(const char *reg,
+        const struct IRBasicBlock *block) {
+
+    u32 i;
+
+    for (i = 0; i < block->instrs.size; i++) {
+
+        if (alloca_required_instr(reg, &block->instrs.elems[i]))
+            return true;
+
+    }
+
+    return false;
+
+}
+
+/* searches through the given function to determine whether or not it's
+ * necessary that reg stays alloca'd. assumes reg is a ptr to the result of an
+ * alloca instruction */
+static bool alloca_required(const char *reg, const struct IRFunc *func) {
+
+    u32 i;
+
+    for (i = 0; i < func->blocks.size; i++) {
+
+        if (alloca_required_block(reg, &func->blocks.elems[i]))
+            return true;
+
+    }
+
+    return false;
+
+}
+
 static void create_new_reg_to_conv_from_alloca(const struct IRInstr *instr,
         struct RegToConvList *regs_to_conv) {
 
-    /* dunno how to deal with stuff bigger than 4 bytes yet */
+    /* anything bigger than 4 bytes can't be held in a virtual register.
+     * for now just crash if anything bigger than 4 bytes in alloca'd. */
     if (instr->args.elems[1].value.imm_u32 > 4)
         assert(false);
 
@@ -105,7 +165,6 @@ static void create_new_reg_to_conv_from_alloca(const struct IRInstr *instr,
                 make_str_copy(instr->args.elems[0].value.reg_name),
                 false
                 ));
-
 
 }
 
@@ -178,7 +237,10 @@ static void convert_store_to_init(struct IRInstr *instr,
 
     r2c_idx = RegToConvList_find_reg(regs_to_conv, store_dest);
 
-    assert(r2c_idx != m_u32_max);
+    /* if it's not in the list, it's not to be converted to a virtual reg */
+    if (r2c_idx == m_u32_max) {
+        return;
+    }
 
     if (regs_to_conv->elems[r2c_idx].initialized) {
         RegToConv_gen_new_name(&regs_to_conv->elems[r2c_idx]);
@@ -204,16 +266,20 @@ static void convert_load_to_mov(struct IRInstr *instr,
 
     r2c_idx = RegToConvList_find_reg(regs_to_conv, load_src);
 
-    assert(r2c_idx != m_u32_max);
+    /* if it's not in the list, it's not to be converted to a virtual reg */
+    if (r2c_idx == m_u32_max)
+        return;
 
     load_to_mov_instr(instr, regs_to_conv->elems[r2c_idx].new_name);
 
 }
 
 static void opt_alloca_instr(struct IRInstr *instr,
-        struct IRBasicBlock *cur_block, struct RegToConvList *regs_to_conv) {
+        struct IRBasicBlock *cur_block, struct IRFunc *cur_func,
+        struct RegToConvList *regs_to_conv) {
 
-    if (instr->type == IRInstr_ALLOCA) {
+    if (instr->type == IRInstr_ALLOCA &&
+            !alloca_required(instr->args.elems[0].value.reg_name, cur_func)) {
         create_new_reg_to_conv_from_alloca(instr, regs_to_conv);
         IRInstrList_erase(
                 &cur_block->instrs, instr - cur_block->instrs.elems,
@@ -230,12 +296,13 @@ static void opt_alloca_instr(struct IRInstr *instr,
 }
 
 static void opt_alloca_block(struct IRBasicBlock *block,
-        struct RegToConvList *regs_to_conv) {
+        struct IRFunc *cur_func, struct RegToConvList *regs_to_conv) {
 
     u32 i;
 
     for (i = 0; i < block->instrs.size; i++) {
-        opt_alloca_instr(&block->instrs.elems[i], block, regs_to_conv);
+        opt_alloca_instr(&block->instrs.elems[i], block, cur_func,
+                regs_to_conv);
     }
 
 }
@@ -247,7 +314,7 @@ static void opt_alloca_func(struct IRFunc *func) {
     struct RegToConvList regs_to_conv = RegToConvList_init();
 
     for (i = 0; i < func->blocks.size; i++) {
-        opt_alloca_block(&func->blocks.elems[i], &regs_to_conv);
+        opt_alloca_block(&func->blocks.elems[i], func, &regs_to_conv);
     }
 
     while (regs_to_conv.size > 0) {
