@@ -38,7 +38,7 @@ union IRInstrArgValue IRInstrArgValue_imm_i32(i32 imm32) {
 
 }
 
-union IRInstrArgValue IRInstrArgValue_reg_name(char *reg_name) {
+union IRInstrArgValue IRInstrArgValue_reg_name(const char *reg_name) {
 
     union IRInstrArgValue value;
     value.reg_name = reg_name;
@@ -46,7 +46,7 @@ union IRInstrArgValue IRInstrArgValue_reg_name(char *reg_name) {
 
 }
 
-union IRInstrArgValue IRInstrArgValue_generic_str(char *str) {
+union IRInstrArgValue IRInstrArgValue_generic_str(const char *str) {
 
     union IRInstrArgValue value;
     value.generic_str = str;
@@ -76,7 +76,7 @@ struct IRInstrArg IRInstrArg_create(enum IRInstrArgType type,
 }
 
 struct IRInstrArg IRInstrArg_create_from_expr(const struct Expr *expr,
-        const struct StructList *structs, char *reg) {
+        const struct StructList *structs, const char *reg) {
 
     struct IRInstrArg x;
 
@@ -91,19 +91,7 @@ struct IRInstrArg IRInstrArg_create_from_expr(const struct Expr *expr,
         x.data_type.is_signed ? IRInstrArgValue_imm_i32(expr->int_value) :
         IRInstrArgValue_imm_u32(expr->int_value);
 
-    if (x.type != IRInstrArg_REG)
-        m_free(reg);
-
     return x;
-
-}
-
-void IRInstrArg_free(struct IRInstrArg arg) {
-
-    if (arg.type == IRInstrArg_REG)
-        m_free(arg.value.reg_name);
-    else if (arg.type == IRInstrArg_STR)
-        m_free(arg.value.generic_str);
 
 }
 
@@ -129,7 +117,7 @@ struct IRInstr IRInstr_create(enum IRInstrType type,
 void IRInstr_free(struct IRInstr instr) {
 
     while (instr.args.size > 0) {
-        IRInstrArgList_pop_back(&instr.args, IRInstrArg_free);
+        IRInstrArgList_pop_back(&instr.args, NULL);
     }
     IRInstrArgList_free(&instr.args);
 
@@ -143,8 +131,8 @@ struct IRDataType IRInstr_data_type(const struct IRInstr *self) {
 
 }
 
-struct IRInstr IRInstr_create_mov(char *dest, struct IRDataType dest_d_type,
-        struct IRInstrArg arg) {
+struct IRInstr IRInstr_create_mov(const char *dest,
+        struct IRDataType dest_d_type, struct IRInstrArg arg) {
 
     struct IRInstr instr = IRInstr_init();
     instr.type = IRInstr_MOV;
@@ -159,7 +147,8 @@ struct IRInstr IRInstr_create_mov(char *dest, struct IRDataType dest_d_type,
 
 }
 
-struct IRInstr IRInstr_create_str_instr(enum IRInstrType type, char *dest) {
+struct IRInstr IRInstr_create_str_instr(enum IRInstrType type,
+        const char *dest) {
 
     struct IRInstr instr = IRInstr_init();
     instr.type = type;
@@ -174,7 +163,8 @@ struct IRInstr IRInstr_create_str_instr(enum IRInstrType type, char *dest) {
 }
 
 struct IRInstr IRInstr_create_cond_jmp_instr(enum IRInstrType type,
-        struct IRInstrArg cmp_lhs, struct IRInstrArg cmp_rhs, char *dest) {
+        struct IRInstrArg cmp_lhs, struct IRInstrArg cmp_rhs,
+        const char *dest) {
 
     struct IRInstr instr = IRInstr_init();
     instr.type = type;
@@ -188,6 +178,7 @@ struct IRInstr IRInstr_create_cond_jmp_instr(enum IRInstrType type,
                 IRInstrArgValue_generic_str(dest)
                 )
             );
+
     return instr;
 
 }

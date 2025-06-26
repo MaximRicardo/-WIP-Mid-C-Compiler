@@ -14,13 +14,15 @@
 u32 reg_counter = 0;
 
 static void block_node_gen_ir(const struct BlockNode *block,
-        struct IRBasicBlockList *basic_blocks, const struct TranslUnit *tu);
+        struct IRFunc *cur_func, const struct TranslUnit *tu);
 
-static char* create_new_reg(void) {
+static char* create_new_reg(struct IRFunc *func) {
 
     struct DynamicStr name = DynamicStr_init();
 
     DynamicStr_append_printf(&name, "%u", reg_counter++);
+
+    StringList_push_back(&func->vregs, name.str);
 
     return name.str;
 
@@ -36,14 +38,14 @@ static void store_gen_ir(const char *src_reg, const char *dest_reg, u32 offset,
 
     IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
                 IRInstrArg_REG, src_type,
-                IRInstrArgValue_reg_name(make_str_copy(src_reg))
+                IRInstrArgValue_reg_name(src_reg)
                 ));
 
     IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
                 IRInstrArg_REG, IRDataType_create(
                     src_type.is_signed, src_type.width,
                     src_type.lvls_of_indir+1),
-                IRInstrArgValue_reg_name(make_str_copy(dest_reg))
+                IRInstrArgValue_reg_name(dest_reg)
                 ));
 
     IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
@@ -73,7 +75,7 @@ static void store_imm_gen_ir(i32 imm, const char *dest_reg, u32 offset,
                 IRInstrArg_REG, IRDataType_create(
                     src_type.is_signed, src_type.width,
                     src_type.lvls_of_indir+1),
-                IRInstrArgValue_reg_name(make_str_copy(dest_reg))
+                IRInstrArgValue_reg_name(dest_reg)
                 ));
 
     IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
@@ -96,14 +98,14 @@ static void load_gen_ir(const char *dest_reg, const char *src_reg, u32 offset,
 
     IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
                 IRInstrArg_REG, dest_type,
-                IRInstrArgValue_reg_name(make_str_copy(dest_reg))
+                IRInstrArgValue_reg_name(dest_reg)
                 ));
 
     IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
                 IRInstrArg_REG, IRDataType_create(
                     dest_type.is_signed, dest_type.width,
                     dest_type.lvls_of_indir+1),
-                IRInstrArgValue_reg_name(make_str_copy(src_reg))
+                IRInstrArgValue_reg_name(src_reg)
                 ));
 
     IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
@@ -117,19 +119,31 @@ static void load_gen_ir(const char *dest_reg, const char *src_reg, u32 offset,
 }
 
 /* returns the register holding the loaded value */
-static char* load_ident_expr_gen_ir(const struct Expr *expr,
+static const char* load_ident_expr_gen_ir(const struct Expr *expr,
         bool load_reference, const char *result_reg,
-        struct IRBasicBlock *cur_block, const struct TranslUnit *tu) {
+        struct IRBasicBlock *cur_block, struct IRFunc *cur_func,
+        const struct TranslUnit *tu) {
 
     struct IRDataType d_type;
     char *ident_name;
-    char *reg_name;
+    u32 ident_reg_idx;
+    const char *reg_name;
 
     d_type = IRDataType_create_from_prim_type(
             expr->prim_type, expr->type_idx, expr->lvls_of_indir,
             tu->structs
             );
+
     ident_name = Expr_src(expr);
+    ident_reg_idx = StringList_find(&cur_func->vregs, ident_name);
+    if (ident_reg_idx == m_u32_max) {
+        ident_reg_idx = cur_func->vregs.size;
+        StringList_push_back(&cur_func->vregs, ident_name);
+    }
+    else {
+        m_free(ident_name);
+        ident_name = cur_func->vregs.elems[ident_reg_idx];
+    }
 
     if (load_reference) {
         /* return a pointer to the variable instead */
@@ -137,15 +151,14 @@ static char* load_ident_expr_gen_ir(const struct Expr *expr,
     }
 
     if (result_reg) {
-        reg_name = make_str_copy(result_reg);
+        reg_name = result_reg;
     }
     else {
-        reg_name = create_new_reg();
+        reg_name = create_new_reg(cur_func);
     }
 
     load_gen_ir(reg_name, ident_name, 0, d_type, cur_block);
 
-    m_free(ident_name);
     return reg_name;
 
 }
@@ -155,16 +168,17 @@ static char* load_ident_expr_gen_ir(const struct Expr *expr,
  *                            get put in this register.
  * load_reference           - if true and if possible, a pointer to the result
  *                            of the expr will be loaded instead. */
-static char* expr_gen_ir(const struct Expr *expr,
+static const char* expr_gen_ir(const struct Expr *expr,
         const struct TranslUnit *tu, struct IRBasicBlock *cur_block,
-        const char *result_reg, const struct IRDataType *result_reg_type,
+        struct IRFunc *cur_func, const char *result_reg,
+        const struct IRDataType *result_reg_type,
         bool load_reference) {
 
     struct IRInstr instr = IRInstr_init();
 
-    char *lhs_reg = NULL;
-    char *rhs_reg = NULL;
-    char *self_reg = NULL;
+    const char *lhs_reg = NULL;
+    const char *rhs_reg = NULL;
+    const char *self_reg = NULL;
 
     if (expr->expr_type == ExprType_INT_LIT) {
         if (result_reg) {
@@ -172,14 +186,14 @@ static char* expr_gen_ir(const struct Expr *expr,
                     expr->prim_type, expr->type_idx, expr->lvls_of_indir,
                     tu->structs
                     );
-            instr = IRInstr_create_mov(make_str_copy(result_reg),
+            instr = IRInstr_create_mov(result_reg,
                     *result_reg_type,
                     IRInstrArg_create(IRInstrArg_IMM32, d_type,
                         IRInstrArgValue_imm_u32(expr->int_value)
                         )
                     );
             IRInstrList_push_back(&cur_block->instrs, instr);
-            return make_str_copy(result_reg);
+            return result_reg;
         }
         else {
             IRInstr_free(instr);
@@ -190,23 +204,24 @@ static char* expr_gen_ir(const struct Expr *expr,
         IRInstr_free(instr);
 
         return load_ident_expr_gen_ir(expr, load_reference, result_reg,
-                cur_block, tu);
+                cur_block, cur_func, tu);
     }
 
     if (expr->lhs) {
-        lhs_reg = expr_gen_ir(expr->lhs, tu, cur_block, NULL, NULL,
+        lhs_reg = expr_gen_ir(expr->lhs, tu, cur_block, cur_func, NULL, NULL,
                 expr->expr_type == ExprType_EQUAL ||
                 expr->expr_type == ExprType_REFERENCE);
     }
 
     if (expr->rhs) {
-        rhs_reg = expr_gen_ir(expr->rhs, tu, cur_block, NULL, NULL, false);
+        rhs_reg =
+            expr_gen_ir(expr->rhs, tu, cur_block, cur_func, NULL, NULL, false);
     }
 
     if (!result_reg)
-        self_reg = create_new_reg();
+        self_reg = create_new_reg(cur_func);
     else
-        self_reg = make_str_copy(result_reg);
+        self_reg = result_reg;
 
     /* the operands go in this order:
      * self, lhs, rhs
@@ -214,20 +229,20 @@ static char* expr_gen_ir(const struct Expr *expr,
 
     IRInstrArgList_push_back(&instr.args,
             IRInstrArg_create_from_expr(
-                expr, tu->structs, make_str_copy(self_reg)
+                expr, tu->structs, self_reg
                 ));
 
     if (expr->lhs) {
         IRInstrArgList_push_back(&instr.args,
                 IRInstrArg_create_from_expr(
-                    expr->lhs, tu->structs, make_str_copy(lhs_reg)
+                    expr->lhs, tu->structs, lhs_reg
                     ));
     }
 
     if (expr->rhs) {
         IRInstrArgList_push_back(&instr.args,
                 IRInstrArg_create_from_expr(
-                    expr->rhs, tu->structs, make_str_copy(rhs_reg)
+                    expr->rhs, tu->structs, rhs_reg
                     ));
     }
 
@@ -260,9 +275,9 @@ static char* expr_gen_ir(const struct Expr *expr,
         }
 
         instr = IRInstr_create_mov(
-                make_str_copy(self_reg), expr_d_type,
+                self_reg, expr_d_type,
                 IRInstrArg_create_from_expr(
-                    expr->rhs, tu->structs, make_str_copy(rhs_reg))
+                    expr->rhs, tu->structs, rhs_reg)
                 );
     }
     else if (expr->expr_type == ExprType_REFERENCE) {
@@ -274,9 +289,6 @@ static char* expr_gen_ir(const struct Expr *expr,
     }
 
     IRInstrList_push_back(&cur_block->instrs, instr);
-
-    m_free(lhs_reg);
-    m_free(rhs_reg);
 
     return self_reg;
 
@@ -292,7 +304,7 @@ static void alloca_gen_ir(const char *result_reg,
 
     IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
                 IRInstrArg_REG, result_type,
-                IRInstrArgValue_reg_name(make_str_copy(result_reg))
+                IRInstrArgValue_reg_name(result_reg)
                 ));
 
     IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
@@ -312,17 +324,21 @@ static void alloca_gen_ir(const char *result_reg,
 }
 
 static void ret_stmt_gen_ir(const struct RetNode *ret,
-        struct IRBasicBlock *cur_block, const struct TranslUnit *tu) {
+        struct IRBasicBlock *cur_block, struct IRFunc *cur_func,
+        const struct TranslUnit *tu) {
 
-    struct IRInstr instr = IRInstr_create(IRInstr_RET, IRInstrArgList_init());
-    char *ret_reg = NULL;
+    struct IRInstr instr = IRInstr_create(
+            IRInstr_RET, IRInstrArgList_init()
+            );
+    const char *ret_reg = NULL;
 
     if (ret->value) {
-        ret_reg = expr_gen_ir(ret->value, tu, cur_block, NULL, NULL, false);
+        ret_reg = expr_gen_ir(ret->value, tu, cur_block, cur_func, NULL, NULL,
+                false);
 
         IRInstrArgList_push_back(&instr.args,
                 IRInstrArg_create_from_expr(
-                    ret->value, tu->structs, make_str_copy(ret_reg)
+                    ret->value, tu->structs, ret_reg
                     ));
     }
     else {
@@ -334,36 +350,36 @@ static void ret_stmt_gen_ir(const struct RetNode *ret,
 
     IRInstrList_push_back(&cur_block->instrs, instr);
 
-    m_free(ret_reg);
-
 }
 
 static void if_stmt_gen_ir(const struct IfNode *node,
-        struct IRBasicBlockList *basic_blocks, const struct TranslUnit *tu) {
+        struct IRFunc *cur_func, const struct TranslUnit *tu) {
 
-    struct IRBasicBlock *cur_block = IRBasicBlockList_back_ptr(basic_blocks);
+    struct IRBasicBlock *cur_block =
+        IRBasicBlockList_back_ptr(&cur_func->blocks);
 
     struct IRBasicBlock if_true = IRBasicBlock_create(
-            cur_block->parent, make_str_copy("if_true"), IRInstrList_init()
+            make_str_copy("if_true"), IRInstrList_init()
             );
 
     struct IRBasicBlock if_false = IRBasicBlock_create(
-            cur_block->parent, make_str_copy("if_false"), IRInstrList_init()
+            make_str_copy("if_false"), IRInstrList_init()
             );
 
     struct IRBasicBlock if_end = IRBasicBlock_create(
-            cur_block->parent, make_str_copy("if_end"), IRInstrList_init()
+            make_str_copy("if_end"), IRInstrList_init()
             );
 
-    char *cond_reg = NULL;
+    const char *cond_reg = NULL;
 
-    cond_reg = expr_gen_ir(node->expr, tu, cur_block, NULL, NULL, false);
+    cond_reg =
+        expr_gen_ir(node->expr, tu, cur_block, cur_func, NULL, NULL, false);
 
     /* jmp to the false node if the condition resulted in a 0, and to the
      * true node otherwise */
     {
         struct IRInstrArg comp_lhs = IRInstrArg_create_from_expr(
-                    node->expr, tu->structs, make_str_copy(cond_reg)
+                    node->expr, tu->structs, cond_reg
                 );
 
         struct IRInstrArg comp_rhs = IRInstrArg_create(
@@ -379,35 +395,36 @@ static void if_stmt_gen_ir(const struct IfNode *node,
                 IRInstr_create_cond_jmp_instr(IRInstr_JE,
                     comp_lhs,
                     comp_rhs,
-                    make_str_copy(if_false.label))
+                    if_false.label)
                 );
     }
     IRInstrList_push_back(&cur_block->instrs,
-            IRInstr_create_str_instr(IRInstr_JMP, make_str_copy(if_true.label))
+            IRInstr_create_str_instr(IRInstr_JMP, if_true.label)
             );
 
-    IRBasicBlockList_push_back(basic_blocks, if_true);
+    IRBasicBlockList_push_back(&cur_func->blocks, if_true);
     if (node->body)
-        block_node_gen_ir(node->body, basic_blocks, tu);
-    IRInstrList_push_back(&IRBasicBlockList_back_ptr(basic_blocks)->instrs,
-            IRInstr_create_str_instr(IRInstr_JMP, make_str_copy(if_end.label))
+        block_node_gen_ir(node->body, cur_func, tu);
+    IRInstrList_push_back(
+            &IRBasicBlockList_back_ptr(&cur_func->blocks)->instrs,
+            IRInstr_create_str_instr(IRInstr_JMP, if_end.label)
             );
 
-    IRBasicBlockList_push_back(basic_blocks, if_false);
+    IRBasicBlockList_push_back(&cur_func->blocks, if_false);
     if (node->else_body)
-        block_node_gen_ir(node->else_body, basic_blocks, tu);
-    IRInstrList_push_back(&IRBasicBlockList_back_ptr(basic_blocks)->instrs,
-            IRInstr_create_str_instr(IRInstr_JMP, make_str_copy(if_end.label))
+        block_node_gen_ir(node->else_body, cur_func, tu);
+    IRInstrList_push_back(
+            &IRBasicBlockList_back_ptr(&cur_func->blocks)->instrs,
+            IRInstr_create_str_instr(IRInstr_JMP, if_end.label)
             );
 
-    IRBasicBlockList_push_back(basic_blocks, if_end);
-
-    m_free(cond_reg);
+    IRBasicBlockList_push_back(&cur_func->blocks, if_end);
 
 }
 
 static void var_decl_gen_ir(const struct VarDeclNode *node,
-        struct IRBasicBlock *cur_block, const struct TranslUnit *tu) {
+        struct IRBasicBlock *cur_block, struct IRFunc *cur_func,
+        const struct TranslUnit *tu) {
 
     u32 i;
 
@@ -435,20 +452,20 @@ static void var_decl_gen_ir(const struct VarDeclNode *node,
         DynamicStr_append_printf(&init_reg, "%s.init",
                 node->decls.elems[i].ident);
 
-        free(expr_gen_ir(node->decls.elems[i].value, tu, cur_block,
-                init_reg.str, &var_type, false));
+        StringList_push_back(&cur_func->vregs, init_reg.str);
+
+        expr_gen_ir(node->decls.elems[i].value, tu, cur_block, cur_func,
+                init_reg.str, &var_type, false);
 
         store_gen_ir(init_reg.str, node->decls.elems[i].ident, 0, var_type,
                 cur_block);
-
-        DynamicStr_free(init_reg);
 
     }
 
 }
 
 static void ast_node_gen_ir(const struct ASTNode *node,
-        struct IRBasicBlock *cur_block, struct IRBasicBlockList *basic_blocks,
+        struct IRBasicBlock *cur_block, struct IRFunc *cur_func,
         const struct TranslUnit *tu) {
 
     if (node->type == ASTType_EXPR) {
@@ -456,19 +473,19 @@ static void ast_node_gen_ir(const struct ASTNode *node,
 
         expr = ((struct ExprNode*)node->node_struct)->expr;
 
-        free(expr_gen_ir(expr, tu, cur_block, NULL, NULL, false));
+        expr_gen_ir(expr, tu, cur_block, cur_func, NULL, NULL, false);
     }
     else if (node->type == ASTType_RETURN) {
-        ret_stmt_gen_ir(node->node_struct, cur_block, tu);
+        ret_stmt_gen_ir(node->node_struct, cur_block, cur_func, tu);
     }
     else if (node->type == ASTType_IF_STMT) {
-        if_stmt_gen_ir(node->node_struct, basic_blocks, tu);
+        if_stmt_gen_ir(node->node_struct, cur_func, tu);
     }
     else if (node->type == ASTType_VAR_DECL) {
-        var_decl_gen_ir(node->node_struct, cur_block, tu);
+        var_decl_gen_ir(node->node_struct, cur_block, cur_func, tu);
     }
     else if (node->type == ASTType_BLOCK) {
-        block_node_gen_ir(node->node_struct, basic_blocks, tu);
+        block_node_gen_ir(node->node_struct, cur_func, tu);
     }
     else {
         printf("unsupported node at %u,%u\n",
@@ -479,16 +496,17 @@ static void ast_node_gen_ir(const struct ASTNode *node,
 }
 
 static void block_node_gen_ir(const struct BlockNode *block,
-        struct IRBasicBlockList *basic_blocks, const struct TranslUnit *tu) {
+        struct IRFunc *cur_func, const struct TranslUnit *tu) {
 
     u32 i;
 
-    struct IRBasicBlock *cur_block = IRBasicBlockList_back_ptr(basic_blocks);
+    struct IRBasicBlock *cur_block =
+        IRBasicBlockList_back_ptr(&cur_func->blocks);
 
     for (i = 0; i < block->nodes.size; i++) {
 
-        ast_node_gen_ir(&block->nodes.elems[i], cur_block, basic_blocks, tu);
-        cur_block = IRBasicBlockList_back_ptr(basic_blocks);
+        ast_node_gen_ir(&block->nodes.elems[i], cur_block, cur_func, tu);
+        cur_block = IRBasicBlockList_back_ptr(&cur_func->blocks);
 
     }
 
@@ -535,16 +553,17 @@ static struct IRFunc func_node_gen_ir(const struct FuncDeclNode *func,
                 tu->structs
                 ),
             func_node_get_args(func, tu),
-            IRBasicBlockList_init()
+            IRBasicBlockList_init(),
+            StringList_init()
             );
 
     IRBasicBlockList_push_back(&ir_func.blocks,
             IRBasicBlock_create(
-                &ir_func, make_str_copy("start"), IRInstrList_init()
+                make_str_copy("start"), IRInstrList_init()
                 )
             );
 
-    block_node_gen_ir(func->body, &ir_func.blocks, tu);
+    block_node_gen_ir(func->body, &ir_func, tu);
 
     return ir_func;
 

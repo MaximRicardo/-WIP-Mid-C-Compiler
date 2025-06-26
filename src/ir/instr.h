@@ -50,15 +50,15 @@ union IRInstrArgValue {
 
     u32 imm_u32;
     i32 imm_i32;
-    char *reg_name;
-    char *generic_str;
+    const char *reg_name;
+    const char *generic_str;
 
 };
 
 union IRInstrArgValue IRInstrArgValue_imm_u32(u32 imm32);
 union IRInstrArgValue IRInstrArgValue_imm_i32(i32 imm32);
-union IRInstrArgValue IRInstrArgValue_reg_name(char *reg_name);
-union IRInstrArgValue IRInstrArgValue_generic_str(char *str);
+union IRInstrArgValue IRInstrArgValue_reg_name(const char *reg_name);
+union IRInstrArgValue IRInstrArgValue_generic_str(const char *str);
 
 struct IRInstrArg {
 
@@ -71,14 +71,12 @@ struct IRInstrArg {
 struct IRInstrArg IRInstrArg_init(void);
 struct IRInstrArg IRInstrArg_create(enum IRInstrArgType type,
         struct IRDataType data_type, union IRInstrArgValue value);
-void IRInstrArg_free(struct IRInstrArg arg);
 /*
  * reg                - if the instr arg ends up using a register, this is the
- *                      name of the reg it should use. automatically gets freed
- *                      if it doesn't get used.
+ *                      name of the reg it should use.
  */
 struct IRInstrArg IRInstrArg_create_from_expr(const struct Expr *expr,
-        const struct StructList *structs, char *reg);
+        const struct StructList *structs, const char *reg);
 
 struct IRInstrArgList {
 
@@ -103,12 +101,14 @@ struct IRInstr IRInstr_create(enum IRInstrType type,
 void IRInstr_free(struct IRInstr instr);
 struct IRDataType IRInstr_data_type(const struct IRInstr *self);
 
-struct IRInstr IRInstr_create_mov(char *dest, struct IRDataType dest_d_type,
-        struct IRInstrArg arg);
+struct IRInstr IRInstr_create_mov(const char *dest,
+        struct IRDataType dest_d_type, struct IRInstrArg arg);
 
-struct IRInstr IRInstr_create_str_instr(enum IRInstrType type, char *dest);
+struct IRInstr IRInstr_create_str_instr(enum IRInstrType type,
+        const char *dest);
 struct IRInstr IRInstr_create_cond_jmp_instr(enum IRInstrType type,
-        struct IRInstrArg cond_lhs, struct IRInstrArg cond_rhs, char *dest);
+        struct IRInstrArg cond_lhs, struct IRInstrArg cond_rhs,
+        const char *dest);
 
 struct IRInstrList {
 

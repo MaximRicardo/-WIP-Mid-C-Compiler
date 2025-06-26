@@ -13,7 +13,7 @@ struct IRRegLT IRRegLT_init(void) {
 
 }
 
-struct IRRegLT IRRegLT_create(char *reg_name, u32 creation_idx,
+struct IRRegLT IRRegLT_create(const char *reg_name, u32 creation_idx,
         u32 death_idx) {
 
     struct IRRegLT lifetime;
@@ -21,12 +21,6 @@ struct IRRegLT IRRegLT_create(char *reg_name, u32 creation_idx,
     lifetime.creation_idx = creation_idx;
     lifetime.death_idx = death_idx;
     return lifetime;
-
-}
-
-void IRRegLT_free(struct IRRegLT reg_lt) {
-
-    m_free(reg_lt.reg_name);
 
 }
 
@@ -68,7 +62,7 @@ static void get_instr_reg_lts(const struct IRInstr *instr, u32 *n_instrs,
         }
         else {
             IRRegLTList_push_back(lts, IRRegLT_create(
-                        make_str_copy(reg_name), *n_instrs, *n_instrs
+                        reg_name, *n_instrs, *n_instrs
                         ));
         }
 

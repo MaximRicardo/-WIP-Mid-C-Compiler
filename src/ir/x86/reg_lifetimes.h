@@ -7,7 +7,7 @@
 /* LT is short for lifetime */
 struct IRRegLT {
 
-    char *reg_name;
+    const char *reg_name;
     /* the index of the instr (relative to the start of the function the instr
      * is in) where the virtual register was first created */
     u32 creation_idx;
@@ -17,8 +17,8 @@ struct IRRegLT {
 };
 
 struct IRRegLT IRRegLT_init(void);
-struct IRRegLT IRRegLT_create(char *reg_name, u32 creation_idx, u32 death_idx);
-void IRRegLT_free(struct IRRegLT reg_lt);
+struct IRRegLT IRRegLT_create(const char *reg_name, u32 creation_idx,
+        u32 death_idx);
 
 /* i'll turn this into a hashmap as soon as i get around to implementing
  * them */

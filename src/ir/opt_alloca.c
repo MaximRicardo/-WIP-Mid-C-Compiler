@@ -1,7 +1,6 @@
 #include "opt_alloca.h"
 #include "basic_block.h"
 #include "instr.h"
-#include "../utils/make_str_cpy.h"
 #include "../utils/dyn_str.h"
 #include <stddef.h>
 #include <assert.h>
@@ -12,8 +11,8 @@
  * regular virtual reg */
 struct RegToConv {
 
-    char *old_name;
-    char *new_name;
+    const char *old_name;
+    const char *new_name;
     bool initialized;
 
     u32 n_names_generated;
@@ -31,7 +30,7 @@ struct RegToConv RegToConv_init(void) {
 
 }
 
-struct RegToConv RegToConv_create(char *old_name, char *new_name,
+struct RegToConv RegToConv_create(const char *old_name, const char *new_name,
         bool initialized) {
 
     struct RegToConv x;
@@ -43,21 +42,14 @@ struct RegToConv RegToConv_create(char *old_name, char *new_name,
 
 }
 
-void RegToConv_free(struct RegToConv x) {
-
-    m_free(x.old_name);
-    m_free(x.new_name);
-
-}
-
-void RegToConv_gen_new_name(struct RegToConv *self) {
+void RegToConv_gen_new_name(struct RegToConv *self, struct IRFunc *parent) {
 
     struct DynamicStr new_new_name = DynamicStr_init();
 
     DynamicStr_append_printf(&new_new_name, "%s.%u", self->old_name,
             self->n_names_generated++);
 
-    m_free(self->new_name);
+    StringList_push_back(&parent->vregs, new_new_name.str);
     self->new_name = new_new_name.str;
 
 }
@@ -161,8 +153,8 @@ static void create_new_reg_to_conv_from_alloca(const struct IRInstr *instr,
      * new_name get set to the same string.
      */
     RegToConvList_push_back(regs_to_conv, RegToConv_create(
-                make_str_copy(instr->args.elems[0].value.reg_name),
-                make_str_copy(instr->args.elems[0].value.reg_name),
+                instr->args.elems[0].value.reg_name,
+                instr->args.elems[0].value.reg_name,
                 false
                 ));
 
@@ -187,8 +179,7 @@ static void store_to_mov_instr(struct IRInstr *instr,
     --new_instr.args.elems[0].data_type.lvls_of_indir;
 
     if (new_dest_name) {
-        m_free(new_instr.args.elems[0].value.reg_name);
-        new_instr.args.elems[0].value.reg_name = make_str_copy(new_dest_name);
+        new_instr.args.elems[0].value.reg_name = new_dest_name;
     }
 
     m_free(instr->args.elems);
@@ -215,8 +206,7 @@ static void load_to_mov_instr(struct IRInstr *instr,
     --new_instr.args.elems[1].data_type.lvls_of_indir;
 
     if (new_src_name) {
-        m_free(new_instr.args.elems[1].value.reg_name);
-        new_instr.args.elems[1].value.reg_name = make_str_copy(new_src_name);
+        new_instr.args.elems[1].value.reg_name = new_src_name;
     }
 
     m_free(instr->args.elems);
@@ -225,7 +215,7 @@ static void load_to_mov_instr(struct IRInstr *instr,
 }
 
 static void convert_store_to_init(struct IRInstr *instr,
-        struct RegToConvList *regs_to_conv) {
+        struct IRFunc *cur_func, struct RegToConvList *regs_to_conv) {
 
     const char *store_dest = instr->args.elems[1].value.reg_name;
     u32 r2c_idx;
@@ -243,7 +233,7 @@ static void convert_store_to_init(struct IRInstr *instr,
     }
 
     if (regs_to_conv->elems[r2c_idx].initialized) {
-        RegToConv_gen_new_name(&regs_to_conv->elems[r2c_idx]);
+        RegToConv_gen_new_name(&regs_to_conv->elems[r2c_idx], cur_func);
     }
     else {
         regs_to_conv->elems[r2c_idx].initialized = true;
@@ -287,7 +277,7 @@ static void opt_alloca_instr(struct IRInstr *instr,
                 );
     }
     else if (instr->type == IRInstr_STORE) {
-        convert_store_to_init(instr, regs_to_conv);
+        convert_store_to_init(instr, cur_func, regs_to_conv);
     }
     else if (instr->type == IRInstr_LOAD) {
         convert_load_to_mov(instr, regs_to_conv);
@@ -318,7 +308,7 @@ static void opt_alloca_func(struct IRFunc *func) {
     }
 
     while (regs_to_conv.size > 0) {
-        RegToConvList_pop_back(&regs_to_conv, RegToConv_free);
+        RegToConvList_pop_back(&regs_to_conv, NULL);
     }
     RegToConvList_free(&regs_to_conv);
 

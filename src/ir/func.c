@@ -33,18 +33,21 @@ struct IRFunc IRFunc_init(void) {
     func.ret_type = IRDataType_init();
     func.args = IRFuncArgList_init();
     func.blocks = IRBasicBlockList_init();
+    func.vregs = StringList_init();
     return func;
 
 }
 
 struct IRFunc IRFunc_create(char *name, struct IRDataType ret_type,
-        struct IRFuncArgList args, struct IRBasicBlockList blocks) {
+        struct IRFuncArgList args, struct IRBasicBlockList blocks,
+        struct StringList vregs) {
 
     struct IRFunc func;
     func.name = name;
     func.ret_type = ret_type;
     func.args = args;
     func.blocks = blocks;
+    func.vregs = vregs;
     return func;
 
 }
@@ -62,6 +65,11 @@ void IRFunc_free(struct IRFunc func) {
         IRFuncArgList_pop_back(&func.args, IRFuncArg_free);
     }
     IRFuncArgList_free(&func.args);
+
+    while (func.vregs.size > 0) {
+        StringList_pop_back(&func.vregs, String_free);
+    }
+    StringList_free(&func.vregs);
 
 }
 

@@ -1,7 +1,6 @@
 #include "code_gen.h"
 #include "../../utils/dyn_str.h"
 #include "../../macros.h"
-#include "../../utils/make_str_cpy.h"
 #include "instrs.h"
 #include "reg_lifetimes.h"
 #include "phys_reg_val.h"
@@ -61,16 +60,6 @@ static void init_cpu_reg_vals(void) {
 
     for (i = 0; i < m_arr_size(cpu_reg_vals); i++) {
         cpu_reg_vals[i] = PhysRegVal_init();
-    }
-
-}
-
-static void free_cpu_reg_vals(void) {
-
-    u32 i;
-
-    for (i = 0; i < m_arr_size(cpu_reg_vals); i++) {
-        PhysRegVal_free(cpu_reg_vals[i]);
     }
 
 }
@@ -142,8 +131,7 @@ static u32 virt_reg_to_cpu_reg(const char *virt_reg,
         assert(false);
     }
 
-    PhysRegVal_free(cpu_reg_vals[i]);
-    cpu_reg_vals[i] = PhysRegVal_create(make_str_copy(virt_reg));
+    cpu_reg_vals[i] = PhysRegVal_create(virt_reg);
 
     assert(i != CPUReg_DX);
 
@@ -162,12 +150,6 @@ static void load_operand_to_reg(struct DynamicStr *output, u32 reg_idx,
         if(operand_phys_reg != reg_idx) {
             DynamicStr_append_printf(output, "mov %s, %s\n",
                     cpu_regs[reg_idx], cpu_regs[operand_phys_reg]);
-        }
-        else {
-            /* idk whether i should let this slide or not, but so far letting
-             * it slide has been a bad idea, so i'ma just put an assert(false)
-             * here */
-            /*assert(false);*/
         }
     }
     else if (operand->type == IRInstrArg_IMM32 &&
@@ -567,14 +549,12 @@ static void gen_from_func(struct DynamicStr *output,
 
     }
 
-    free_cpu_reg_vals();
-
     /* in case there was no explicit return */
     DynamicStr_append_printf(output, "sub esp, %d\nret\n", sp);
     sp = 0;
 
     while (vreg_lts.size > 0) {
-        IRRegLTList_pop_back(&vreg_lts, IRRegLT_free);
+        IRRegLTList_pop_back(&vreg_lts, NULL);
     }
     IRRegLTList_free(&vreg_lts);
 

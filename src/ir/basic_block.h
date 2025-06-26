@@ -8,7 +8,6 @@ struct IRFunc;
 
 struct IRBasicBlock {
 
-    const struct IRFunc *parent;
     /* the label goes at the very beginning of the block */
     char *label;
     struct IRInstrList instrs;
@@ -16,8 +15,8 @@ struct IRBasicBlock {
 };
 
 struct IRBasicBlock IRBasicBlock_init(void);
-struct IRBasicBlock IRBasicBlock_create(const struct IRFunc *parent,
-        char *label, struct IRInstrList instrs);
+struct IRBasicBlock IRBasicBlock_create(char *label,
+        struct IRInstrList instrs);
 void IRBasicBlock_free(struct IRBasicBlock block);
 
 struct IRBasicBlockList {
