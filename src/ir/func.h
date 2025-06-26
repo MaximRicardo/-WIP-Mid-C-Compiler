@@ -43,6 +43,15 @@ struct IRFunc IRFunc_create(char *name, struct IRDataType ret_type,
         struct IRFuncArgList args, struct IRBasicBlockList blocks,
         struct StringList vregs);
 void IRFunc_free(struct IRFunc func);
+/* returns NULL if n is out of bounds */
+struct IRInstr* IRFunc_get_nth_instr(const struct IRFunc *self, u32 n);
+/* same as IRFunc_get_nth_instr except returns the block the instr is in */
+struct IRBasicBlock* IRFunc_get_nth_instr_block(const struct IRFunc *self,
+        u32 n);
+/* returns false if there is no vreg in self with old_name, and returns true if
+ * there is. */
+bool IRFunc_rename_vreg(struct IRFunc *self, const char *old_name,
+        char *new_name);
 
 struct IRFuncList {
 

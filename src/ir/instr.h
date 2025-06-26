@@ -29,6 +29,9 @@ enum IRInstrType {
 
     IRInstr_PHI,
 
+    /* instructions for the backend */
+    IRInstr_ALLOC_REG,
+
     IRInstr_COMMENT
 
 };
@@ -112,6 +115,9 @@ struct IRInstr IRInstr_create_str_instr(enum IRInstrType type,
 struct IRInstr IRInstr_create_cond_jmp_instr(enum IRInstrType type,
         struct IRInstrArg cond_lhs, struct IRInstrArg cond_rhs,
         const char *true_dest, const char *false_dest);
+
+struct IRInstr IRInstr_create_alloc_reg(const char *reg_name,
+        struct IRDataType d_type);
 
 struct IRInstrList {
 

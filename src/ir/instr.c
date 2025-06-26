@@ -2,6 +2,7 @@
 #include "data_types.h"
 #include <stddef.h>
 #include <assert.h>
+#include <string.h>
 
 bool IRInstrType_is_branch(enum IRInstrType type) {
 
@@ -190,8 +191,19 @@ struct IRInstr IRInstr_create_cond_jmp_instr(enum IRInstrType type,
 
 }
 
-struct IRInstr IRInstr_create_je(struct IRInstrArg cmp_lhs,
-        struct IRInstrArg cmp_rhs, const char *dest);
+struct IRInstr IRInstr_create_alloc_reg(const char *reg_name,
+        struct IRDataType d_type) {
+
+    struct IRInstr instr = IRInstr_init();
+    instr.type = IRInstr_ALLOC_REG;
+
+    IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
+                IRInstrArg_REG, d_type, IRInstrArgValue_reg_name(reg_name)
+                ));
+
+    return instr;
+
+}
 
 m_define_VectorImpl_funcs(IRInstrArgList, struct IRInstrArg)
 m_define_VectorImpl_funcs(IRInstrList, struct IRInstr)

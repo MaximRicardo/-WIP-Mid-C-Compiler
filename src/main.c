@@ -19,6 +19,7 @@
 #include "ir/ir_gen.h"
 #include "ir/ir_to_str.h"
 #include "ir/opt_alloca.h"
+#include "ir/ssa_to_tac.h"
 
 #define m_gen_ir
 
@@ -97,6 +98,7 @@ static void compile(char *src, FILE *output, FILE *mccir_output,
         if (CompArgs_args.optimize) {
             IROpt_alloca(&ir_tu);
         }
+        IR_ssa_to_tac(&ir_tu);
 
         if (mccir_output) {
             char *ir_output_str = IRToStr_gen(&ir_tu);

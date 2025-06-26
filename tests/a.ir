@@ -4,24 +4,31 @@ start:
     mov i32 %x, i32 %x.init
     mov i32 %y.init, i32 42
     mov i32 %y, i32 %y.init
-    je i32 1, i32 0, if_false, if_true
+    je i32 0, i32 0, if_false, if_true
+    alloc_reg i32 %y.2
+    alloc_reg i32 %x.2
 if_true:
     mov i32 %0, i32 %y
     mov i32 %1, i32 %x
     add i32 %2, i32 %0, i32 %1
-    mov i32 %y.0, i32 %2
+    mov i32 %y.2, i32 %2
     mov i32 %3, i32 %2
+    mov i32 %x.2, i32 1
+    mov i32 %4, i32 1
     jmp if_end
 if_false:
-    mov i32 %4, i32 %y
-    mov i32 %5, i32 %x
-    sub i32 %6, i32 %4, i32 %5
-    mov i32 %y.1, i32 %6
-    mov i32 %7, i32 %6
+    mov i32 %5, i32 %y
+    mov i32 %6, i32 %x
+    sub i32 %7, i32 %5, i32 %6
+    mov i32 %y.2, i32 %7
+    mov i32 %8, i32 %7
+    mov i32 %x.2, i32 2
+    mov i32 %9, i32 2
     jmp if_end
 if_end:
-    phi i32 %y.2, i32 %y.0, i32 %y.1
-    mov i32 %8, i32 %y.2
-    ret i32 %8
+    mov i32 %10, i32 %y.2
+    mov i32 %11, i32 %x.2
+    add i32 %12, i32 %10, i32 %11
+    ret i32 %12
 }
 

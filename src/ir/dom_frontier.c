@@ -13,20 +13,29 @@ static bool does_block_goto_to_block(const struct IRBasicBlock *block,
     for (i = 0; i < block->instrs.size; i++) {
 
         struct IRInstr *instr = &block->instrs.elems[i];
-        const char *branch_dest = NULL;
 
         if (!IRInstrType_is_branch(instr->type))
             continue;
 
         assert(instr->args.elems[0].type == IRInstrArg_STR ||
-                instr->args.elems[2].type == IRInstrArg_STR);
+                (instr->args.elems[2].type == IRInstrArg_STR &&
+                 instr->args.elems[3].type == IRInstrArg_STR));
 
-        branch_dest = IRInstrType_is_cond_branch(instr->type) ?
-            instr->args.elems[2].value.generic_str :
-            instr->args.elems[0].value.generic_str;
+        if (IRInstrType_is_cond_branch(instr->type)) {
+            if (strcmp(instr->args.elems[2].value.generic_str, dest->label)
+                    == 0 ||
+                strcmp(instr->args.elems[3].value.generic_str, dest->label)
+                    == 0) {
 
-        if (strcmp(branch_dest, dest->label) == 0)
-            return true;
+                return true;
+
+            }
+        }
+        else {
+            if (strcmp(instr->args.elems[0].value.generic_str, dest->label)
+                    == 0)
+                return true;
+        }
 
     }
 

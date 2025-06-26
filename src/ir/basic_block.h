@@ -21,6 +21,9 @@ struct IRBasicBlock IRBasicBlock_init(void);
 struct IRBasicBlock IRBasicBlock_create(char *label,
         struct IRInstrList instrs, struct U32List dom_frontiers);
 void IRBasicBlock_free(struct IRBasicBlock block);
+/* returns m_u32_max if self has no dominators */
+u32 IRBasicBlock_find_common_dom(const struct IRBasicBlock *self,
+        const struct IRFunc *parent);
 
 struct IRBasicBlockList {
 

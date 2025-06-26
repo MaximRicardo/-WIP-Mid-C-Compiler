@@ -40,6 +40,9 @@ const char* X86_get_instr(enum IRInstrType type, struct IRDataType d_type) {
     case IRInstr_PHI:
         assert(false);
 
+    case IRInstr_ALLOC_REG:
+        assert(false);
+
     case IRInstr_COMMENT:
         assert(false);
 
