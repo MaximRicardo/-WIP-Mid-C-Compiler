@@ -307,8 +307,21 @@ static void gen_cmp_instr(struct DynamicStr *output,
         const struct IRInstrArg *cmp_lhs, const struct IRInstrArg *cmp_rhs,
         const struct IRRegLTList *vreg_lts, u32 cur_instr_idx) {
 
+    if (cmp_lhs->type != IRInstrArg_REG) {
+        DynamicStr_append(output, "mov edx, ");
+        emit_instr_operand(output, cmp_lhs, vreg_lts, cur_instr_idx);
+        DynamicStr_append(output, "\n");
+    }
+
     DynamicStr_append(output, "cmp ");
-    emit_instr_operand(output, cmp_lhs, vreg_lts, cur_instr_idx);
+
+    if (cmp_lhs->type == IRInstrArg_REG) {
+        emit_instr_operand(output, cmp_lhs, vreg_lts, cur_instr_idx);
+    }
+    else {
+        DynamicStr_append(output, "edx");
+    }
+
     DynamicStr_append(output, ", ");
     emit_instr_operand(output, cmp_rhs, vreg_lts, cur_instr_idx);
     DynamicStr_append(output, "\n");
