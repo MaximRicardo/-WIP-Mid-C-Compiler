@@ -6,11 +6,13 @@
 
 #include <stddef.h>
 #include "safe_mem.h"
+#include "comp_dependent/ints.h"
 
 #define m_define_VectorImpl_funcs(VecStruct, ElemType) \
     m_define_VectorImpl_init(VecStruct) \
     m_define_VectorImpl_free(VecStruct) \
     m_define_VectorImpl_push_back(VecStruct, ElemType) \
+    m_define_VectorImpl_push_front(VecStruct, ElemType) \
     m_define_VectorImpl_pop_back(VecStruct, ElemType) \
     m_define_VectorImpl_back(VecStruct, ElemType) \
     m_define_VectorImpl_back_ptr(VecStruct, ElemType) \
@@ -20,6 +22,7 @@
     struct VecStruct VecStruct##_init(void); \
     void VecStruct##_free(struct VecStruct *self); \
     void VecStruct##_push_back(struct VecStruct *self, ElemType value); \
+    void VecStruct##_push_front(struct VecStruct *self, ElemType value); \
     void VecStruct##_pop_back(struct VecStruct *self, \
             void free_func(ElemType)); \
     ElemType VecStruct##_back(struct VecStruct *self); \
@@ -52,6 +55,22 @@
                     self->capacity*sizeof(*self->elems)); \
         } \
         self->elems[self->size++] = value; \
+    }
+
+#define m_define_VectorImpl_push_front(VecStruct, ElemType) \
+    void VecStruct##_push_front(struct VecStruct *self, ElemType value) { \
+        u32 i; \
+        while (self->size+1 >= self->capacity) { \
+            self->capacity = self->capacity >= 2 ? \
+                self->capacity*self->capacity : self->capacity+1; \
+            self->elems = safe_realloc(self->elems, \
+                    self->capacity*sizeof(*self->elems)); \
+        } \
+        ++self->size; \
+        for (i = self->size-1; i > 0; i--) { \
+            self->elems[i] = self->elems[i-1]; \
+        } \
+        self->elems[0] = value; \
     }
 
 /* optionally, free_func can be NULL, in which case no freeing is done */

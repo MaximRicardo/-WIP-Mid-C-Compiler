@@ -104,8 +104,9 @@ static void compile(char *src, FILE *output, FILE *mccir_output,
             m_free(ir_output_str);
         }
 
+        /*
         asm_output = gen_x86_from_ir(&ir_tu, &tu);
-        fputs(asm_output, output);
+        fputs(asm_output, output);*/
 
         m_free(asm_output);
         IRModule_free(ir_tu);

@@ -6,6 +6,7 @@
 #include "module.h"
 #include "../utils/dyn_str.h"
 #include "../utils/make_str_cpy.h"
+#include "dom_frontier.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,7 +14,7 @@
 
 u32 reg_counter = 0;
 
-static void block_node_gen_ir(const struct BlockNode *block,
+static void block_node_gen_ir(struct BlockNode *block,
         struct IRFunc *cur_func, const struct TranslUnit *tu);
 
 static char* create_new_reg(struct IRFunc *func) {
@@ -273,6 +274,8 @@ static const char* expr_gen_ir(const struct Expr *expr,
             store_imm_gen_ir(expr->rhs->int_value, lhs_reg, 0, expr_d_type,
                     cur_block);
         }
+        else
+            assert(false);
 
         instr = IRInstr_create_mov(
                 self_reg, expr_d_type,
@@ -359,15 +362,15 @@ static void if_stmt_gen_ir(const struct IfNode *node,
         IRBasicBlockList_back_ptr(&cur_func->blocks);
 
     struct IRBasicBlock if_true = IRBasicBlock_create(
-            make_str_copy("if_true"), IRInstrList_init()
+            make_str_copy("if_true"), IRInstrList_init(), U32List_init()
             );
 
     struct IRBasicBlock if_false = IRBasicBlock_create(
-            make_str_copy("if_false"), IRInstrList_init()
+            make_str_copy("if_false"), IRInstrList_init(), U32List_init()
             );
 
     struct IRBasicBlock if_end = IRBasicBlock_create(
-            make_str_copy("if_end"), IRInstrList_init()
+            make_str_copy("if_end"), IRInstrList_init(), U32List_init()
             );
 
     const char *cond_reg = NULL;
@@ -495,7 +498,7 @@ static void ast_node_gen_ir(const struct ASTNode *node,
 
 }
 
-static void block_node_gen_ir(const struct BlockNode *block,
+static void block_node_gen_ir(struct BlockNode *block,
         struct IRFunc *cur_func, const struct TranslUnit *tu) {
 
     u32 i;
@@ -559,11 +562,15 @@ static struct IRFunc func_node_gen_ir(const struct FuncDeclNode *func,
 
     IRBasicBlockList_push_back(&ir_func.blocks,
             IRBasicBlock_create(
-                make_str_copy("start"), IRInstrList_init()
+                make_str_copy("start"), IRInstrList_init(), U32List_init()
                 )
             );
 
+    reg_counter = 0;
+
     block_node_gen_ir(func->body, &ir_func, tu);
+
+    IRFunc_get_dom_frontiers(&ir_func);
 
     return ir_func;
 

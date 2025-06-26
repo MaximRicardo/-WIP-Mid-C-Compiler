@@ -11,6 +11,7 @@ enum IRInstrType {
 
     IRInstr_MOV,
 
+    /* binary operations */
     IRInstr_ADD,
     IRInstr_SUB,
     IRInstr_MUL,
@@ -25,6 +26,8 @@ enum IRInstrType {
     IRInstr_ALLOCA,
     IRInstr_STORE,
     IRInstr_LOAD,
+
+    IRInstr_PHI,
 
     IRInstr_COMMENT
 

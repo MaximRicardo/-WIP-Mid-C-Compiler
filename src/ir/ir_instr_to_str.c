@@ -41,6 +41,9 @@ const char *IR_instr_t_to_str(enum IRInstrType type) {
     case IRInstr_LOAD:
         return "load";
 
+    case IRInstr_PHI:
+        return "phi";
+
     case IRInstr_COMMENT:
         return "COMMENT INSTRUCTION!";
 

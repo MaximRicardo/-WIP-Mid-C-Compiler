@@ -21,7 +21,8 @@ if_false:
     mov i32 %7, i32 %6
     jmp if_end
 if_end:
-    mov i32 %8, i32 %y.1
+    phi i32 %y.2, i32 %y.0, i32 %y.1
+    mov i32 %8, i32 %y.2
     ret i32 %8
 }
 

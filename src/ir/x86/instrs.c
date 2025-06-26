@@ -32,12 +32,15 @@ const char* X86_get_instr(enum IRInstrType type, struct IRDataType d_type) {
     case IRInstr_JE:
         return "je";
 
-    case IRInstr_COMMENT:
-        assert(false);
-
     case IRInstr_ALLOCA:
     case IRInstr_STORE:
     case IRInstr_LOAD:
+        assert(false);
+
+    case IRInstr_PHI:
+        assert(false);
+
+    case IRInstr_COMMENT:
         assert(false);
 
     };

@@ -18,3 +18,15 @@ struct StringList {
 m_declare_VectorImpl_funcs(StringList, char*)
 
 u32 StringList_find(const struct StringList *self, const char *str);
+
+struct ConstStringList {
+
+    const char **elems;
+    u32 size;
+    u32 capacity;
+
+};
+
+m_declare_VectorImpl_funcs(ConstStringList, const char*)
+
+u32 ConstStringList_find(const struct ConstStringList *self, const char *str);
