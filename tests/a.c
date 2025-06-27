@@ -4,7 +4,7 @@ int main(int argc, char **argv) {
     int y = 42;
 
     if (1) {
-        y = y + x;
+        y = y / x;
         x = 1;
     }
     else if (0) {

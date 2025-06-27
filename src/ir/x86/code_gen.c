@@ -179,6 +179,16 @@ static void init_cpu_reg_vals(const struct IRBasicBlock *cur_block,
 
 }
 
+static bool cpu_reg_free(u32 reg, const struct IRBasicBlock *cur_block,
+        const struct IRFunc *cur_func) {
+
+    struct RegStates *cpu_reg_vals =
+        RegStates_block_preg_states(cur_block, cur_func);
+
+    return !cpu_reg_vals->preg_vals[reg].virt_reg;
+
+}
+
 /* returns m_u32_max if every register has already been alloced */
 static u32 get_reg_to_alloc(const struct IRRegLTList *vreg_lts,
         u32 cur_instr_idx, const struct IRBasicBlock *cur_block,
@@ -186,9 +196,8 @@ static u32 get_reg_to_alloc(const struct IRRegLTList *vreg_lts,
 
     u32 i;
 
-    struct RegStates *cpu_reg_vals = NULL;
-
-    cpu_reg_vals = RegStates_block_preg_states(cur_block, cur_func);
+    struct RegStates *cpu_reg_vals =
+        RegStates_block_preg_states(cur_block, cur_func);
 
     for (i = 0; i < m_n_gp_regs; i++) {
         u32 reg_idx = gp_regs[i];
@@ -248,9 +257,6 @@ static u32 virt_reg_to_cpu_reg(const char *virt_reg,
     }
 
     cpu_reg_vals->preg_vals[i] = PhysRegVal_create(virt_reg);
-
-    m_warning("REMEMBER TO STOP USING DX FOR SHI")
-    /*assert(i != CPUReg_DX);*/
 
     return i;
 
@@ -353,24 +359,31 @@ static void gen_from_div_instr(struct DynamicStr *output,
 
     u32 self_reg;
     u32 rhs_reg;
+    bool pushed_di = false;
 
     assert(instr->args.size == 3);
     assert(instr->args.elems[Arg_SELF].type == IRInstrArg_REG);
 
-    /* get the rhs first, in case moving self into ax requires messing with
-     * the stack, with would make all the stack offsets off by 4 bytes */
     if (instr->args.elems[Arg_RHS].type == IRInstrArg_REG) {
         rhs_reg = virt_reg_to_cpu_reg(instr->args.elems[2].value.reg_name,
                 vreg_lts, cur_instr_idx, cur_block, cur_func);
     }
     else if (instr->args.elems[Arg_RHS].type == IRInstrArg_IMM32 &&
             instr->args.elems[Arg_RHS].data_type.is_signed) {
+        pushed_di = !cpu_reg_free(CPUReg_DI, cur_block, cur_func);
+        if (pushed_di)
+            DynamicStr_append(output, "push edi\n");
+
         rhs_reg = CPUReg_DI;
         DynamicStr_append_printf(output, "mov edi, %d\n",
                 instr->args.elems[Arg_RHS].value.imm_i32);
     }
     else if (instr->args.elems[Arg_RHS].type == IRInstrArg_IMM32 &&
             instr->args.elems[Arg_RHS].data_type.is_signed) {
+        pushed_di = !cpu_reg_free(CPUReg_DI, cur_block, cur_func);
+        if (pushed_di)
+            DynamicStr_append(output, "push edi\n");
+
         rhs_reg = CPUReg_DI;
         DynamicStr_append_printf(output, "mov edi, %u\n",
                 instr->args.elems[Arg_RHS].value.imm_u32);
@@ -388,6 +401,8 @@ static void gen_from_div_instr(struct DynamicStr *output,
             vreg_lts, cur_instr_idx, cur_block, cur_func);
 
     /* very important to zero/sign extend into edx before dividing. */
+    if (!cpu_reg_free(CPUReg_DX, cur_block, cur_func))
+        DynamicStr_append(output, "push edx\n");
     if (IRInstr_data_type(instr).is_signed)
         DynamicStr_append(output, "cdq\n");
     else
@@ -398,10 +413,17 @@ static void gen_from_div_instr(struct DynamicStr *output,
             X86_get_instr(instr->type, IRInstr_data_type(instr)),
             cpu_regs[rhs_reg]);
 
+    if (!cpu_reg_free(CPUReg_DX, cur_block, cur_func))
+        DynamicStr_append(output, "pop edx\n");
+
     if (self_reg != CPUReg_AX) {
         DynamicStr_append_printf(output, "mov %s, eax\n"
                                          "pop eax\n",
                                          cpu_regs[self_reg]);
+    }
+
+    if (pushed_di) {
+        DynamicStr_append(output, "pop edi\n");
     }
 
 }
