@@ -1,46 +1,42 @@
 define i32 @main(i32 %arg.0, u32** %arg.1) {
 start:
-    mov i32 %x.init, i32 5
-    mov i32 %x, i32 %x.init
-    mov i32 %y.init, i32 42
-    mov i32 %y, i32 %y.init
+    mov i32 %__eax, i32 5
+    mov i32 %__ebx, i32 %__eax
+    mov i32 %__eax, i32 42
+    mov i32 %__ecx, i32 %__eax
     je i32 1, i32 0, if_false_0, if_true_0
-    alloc_reg i32 %y.4
-    alloc_reg i32 %x.4
-    alloc_reg i32 %y.4
-    alloc_reg i32 %x.4
 if_true_0:
-    mov i32 %0, i32 %y
-    mov i32 %1, i32 %x
-    div i32 %2, i32 %0, i32 %1
-    mov i32 %y.4, i32 %2
-    mov i32 %3, i32 %2
-    mov i32 %x.4, i32 1
-    mov i32 %4, i32 1
+    mov i32 %__ebp, i32 %__ecx
+    mov i32 %__esi, i32 %__ebx
+    div i32 %__edi, i32 %__ebp, i32 %__esi
+    mov i32 %__eax, i32 %__edi
+    mov i32 %__ebp, i32 %__edi
+    mov i32 %__edx, i32 1
+    mov i32 %__ebp, i32 1
     jmp if_end_0
 if_false_0:
     je i32 0, i32 0, if_false_1, if_true_1
 if_true_1:
-    mov i32 %5, i32 %y
-    mov i32 %6, i32 %x
-    sub i32 %7, i32 %5, i32 %6
-    mov i32 %y.4, i32 %7
-    mov i32 %8, i32 %7
-    mov i32 %x.4, i32 2
-    mov i32 %9, i32 2
+    mov i32 %__ebp, i32 %__ecx
+    mov i32 %__ecx, i32 %__ebx
+    sub i32 %__ebx, i32 %__ebp, i32 %__ecx
+    mov i32 %__eax, i32 %__ebx
+    mov i32 %__ecx, i32 %__ebx
+    mov i32 %__edx, i32 2
+    mov i32 %__ebx, i32 2
     jmp if_end_1
 if_false_1:
-    mov i32 %y.4, i32 10
-    mov i32 %10, i32 10
-    mov i32 %x.4, i32 5
-    mov i32 %11, i32 5
+    mov i32 %__eax, i32 10
+    mov i32 %__ebx, i32 10
+    mov i32 %__edx, i32 5
+    mov i32 %__ebx, i32 5
     jmp if_end_1
 if_end_1:
     jmp if_end_0
 if_end_0:
-    mov i32 %12, i32 %y.4
-    mov i32 %13, i32 %x.4
-    add i32 %14, i32 %12, i32 %13
-    ret i32 %14
+    mov i32 %__ebx, i32 %__eax
+    mov i32 %__eax, i32 %__edx
+    add i32 %__ecx, i32 %__ebx, i32 %__eax
+    ret i32 %__ecx
 }
 

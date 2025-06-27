@@ -5,6 +5,14 @@
 #include "data_types.h"
 #include "../ast.h"
 
+enum IRInstrArgIndices {
+
+    Arg_SELF = 0,
+    Arg_LHS = 1,
+    Arg_RHS = 2
+
+};
+
 enum IRInstrType {
 
     IRInstr_INVALID,

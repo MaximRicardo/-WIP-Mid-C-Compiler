@@ -20,6 +20,7 @@
 #include "ir/ir_to_str.h"
 #include "ir/opt_alloca.h"
 #include "ir/ssa_to_tac.h"
+#include "ir/x86/virt_to_phys.h"
 
 #define m_gen_ir
 
@@ -100,6 +101,8 @@ static void compile(char *src, FILE *output, FILE *mccir_output,
         }
         IR_ssa_to_tac(&ir_tu);
 
+        X86_virt_to_phys(&ir_tu);
+
         if (mccir_output) {
             char *ir_output_str = IRToStr_gen(&ir_tu);
             fputs(ir_output_str, mccir_output);
@@ -107,8 +110,10 @@ static void compile(char *src, FILE *output, FILE *mccir_output,
             m_free(ir_output_str);
         }
 
+        /*
         asm_output = gen_x86_from_ir(&ir_tu, &tu);
         fputs(asm_output, output);
+        */
 
         m_free(asm_output);
         IRModule_free(ir_tu);

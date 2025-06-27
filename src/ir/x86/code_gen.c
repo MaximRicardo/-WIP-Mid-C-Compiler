@@ -4,19 +4,12 @@
 #include "instrs.h"
 #include "reg_lifetimes.h"
 #include "phys_reg_val.h"
+#include "reg_states.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
 
 u32 sp;
-
-enum IRInstrArgIndices {
-
-    Arg_SELF = 0,
-    Arg_LHS = 1,
-    Arg_RHS = 2
-
-};
 
 enum CPURegs {
 
@@ -36,7 +29,7 @@ enum CPURegs {
 #define m_n_pregs CPUReg_N_CPU_REGS
 
 /* must be in the same order as enum CPURegs. */
-char *cpu_regs[] = {
+static const char *cpu_regs[] = {
 
     "eax",
     "ebx",
@@ -49,74 +42,9 @@ char *cpu_regs[] = {
 
 };
 
-struct RegStates {
-
-    struct PhysRegVal preg_vals[m_n_pregs];
-
-};
-
-struct RegStates RegStates_init(void) {
-
-    u32 i;
-    struct RegStates x;
-
-    for (i = 0; i < m_n_pregs; i++) {
-        x.preg_vals[i] = PhysRegVal_init();
-    }
-
-    return x;
-
-}
-
-void RegStates_merge(struct RegStates *self, const struct RegStates *other,
-        const struct IRRegLTList *vreg_lts) {
-
-    u32 i;
-
-    for (i = 0; i < m_n_pregs; i++) {
-
-        if (!self->preg_vals[i].virt_reg) {
-            self->preg_vals[i].virt_reg = other->preg_vals[i].virt_reg;
-        }
-        else if (other->preg_vals[i].virt_reg) {
-            u32 self_vreg = IRRegLTList_find_reg(
-                    vreg_lts, self->preg_vals[i].virt_reg
-                    );
-            u32 other_vreg = IRRegLTList_find_reg(
-                    vreg_lts, other->preg_vals[i].virt_reg
-                    );
-
-            if (vreg_lts->elems[other_vreg].death_idx >
-                    vreg_lts->elems[self_vreg].death_idx) {
-                self->preg_vals[i].virt_reg = other->preg_vals[i].virt_reg;
-            }
-        }
-
-    }
-
-}
-
-struct RegStates RegStates_copy(const struct RegStates self) {
-
-    /* works cur preg_vals is a regular array, meaning a regular copy
-     * duplicates all of it's contents. */
-    return self;
-
-}
-
-struct RegStatesList {
-
-    struct RegStates *elems;
-    u32 size;
-    u32 capacity;
-
-};
-
-m_define_VectorImpl_funcs(RegStatesList, struct RegStates)
-
 /* the reg states for every block in the current IRFunc that has been processed
  * thus far */
-struct RegStatesList block_reg_states;
+static struct RegStatesList block_reg_states;
 
 /* if a virtual reg maps to a cpu reg, it's index must be one of these.
  * edx isn't used as a gp reg due to the generational fuck-up that is the div
@@ -757,8 +685,7 @@ static void gen_from_module(struct DynamicStr *output,
 
 }
 
-char* gen_x86_from_ir(const struct IRModule *module,
-        const struct TranslUnit *tu) {
+char* gen_x86_from_ir(struct IRModule *module, const struct TranslUnit *tu) {
 
     struct DynamicStr output = DynamicStr_init();
 

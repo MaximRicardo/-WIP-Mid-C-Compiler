@@ -1,5 +1,4 @@
 #include "reg_lifetimes.h"
-#include "../../utils/make_str_cpy.h"
 #include <stdio.h>
 #include <string.h>
 
