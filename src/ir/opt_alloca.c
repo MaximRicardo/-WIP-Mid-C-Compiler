@@ -138,8 +138,7 @@ static bool alloca_required_instr(const char *reg,
 
     u32 i;
 
-    if (instr->type == IRInstr_ALLOCA || instr->type == IRInstr_STORE ||
-            instr->type == IRInstr_LOAD)
+    if (IRInstrType_is_mem_instr(instr->type))
         return false;
 
     for (i = 0; i < instr->args.size; i++) {
