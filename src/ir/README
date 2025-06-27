@@ -25,3 +25,8 @@ argument (in bytes).
 
 Loads the value at the second argument offset by the third argument (in bytes),
 into the first argument.
+
+    alloc_reg REG_0
+
+Tells the backend to allocate space for a virtual register. The allocated space
+could be either a CPU register or a location on the stack.
