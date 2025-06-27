@@ -249,8 +249,8 @@ static u32 virt_reg_to_cpu_reg(const char *virt_reg,
 
     cpu_reg_vals->preg_vals[i] = PhysRegVal_create(virt_reg);
 
-    /* c++ style comment so i get a warning about this every time i compile */
-    //assert(i != CPUReg_DX);
+    m_warning("REMEMBER TO STOP USING DX FOR SHI")
+    /*assert(i != CPUReg_DX);*/
 
     return i;
 
