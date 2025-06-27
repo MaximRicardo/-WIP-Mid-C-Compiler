@@ -4,7 +4,6 @@
 #include "instr.h"
 #include "../utils/make_str_cpy.h"
 #include <assert.h>
-#include <stdio.h>
 
 /* returns whether or not it erased instr from cur_block->instrs */
 static bool instr_ssa_to_tac(struct IRInstr *instr,
@@ -24,13 +23,17 @@ static bool instr_ssa_to_tac(struct IRInstr *instr,
     }
 
     block_common_dom = IRBasicBlock_find_common_dom(cur_block, cur_func);
-    IRInstrList_push_back(
-            &cur_func->blocks.elems[block_common_dom].instrs,
-            IRInstr_create_alloc_reg(
-                instr->args.elems[0].value.reg_name,
-                instr->args.elems[0].data_type
-                )
-            );
+    printf("%s common_dom = %u.\n", cur_block->label, block_common_dom);
+    /* GET RID OF THIS IF STATEMENT LATER */
+    if (block_common_dom != m_u32_max) {
+        IRInstrList_push_back(
+                &cur_func->blocks.elems[block_common_dom].instrs,
+                IRInstr_create_alloc_reg(
+                    instr->args.elems[0].value.reg_name,
+                    instr->args.elems[0].data_type
+                    )
+                );
+    }
 
     IRInstrList_erase(
             &cur_block->instrs, instr-cur_block->instrs.elems, IRInstr_free
@@ -47,8 +50,6 @@ static void block_ssa_to_tac(struct IRBasicBlock *block,
 
     for (i = 0; i < block->instrs.size; i++) {
 
-        printf("block name = %s, instr %u/%u\n", block->label,
-                i, block->instrs.size-1);
         if (instr_ssa_to_tac(&block->instrs.elems[i], block, cur_func))
             --i;
 

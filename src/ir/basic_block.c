@@ -1,8 +1,9 @@
 #include "basic_block.h"
 #include "instr.h"
+#include "func.h"
 #include "../attrib.h"
-
-/* TODO: IMPLEMENT FINDING A COMMON DOMINATOR */
+#include <assert.h>
+#include <stdio.h>
 
 struct IRBasicBlock IRBasicBlock_init(void) {
 
@@ -41,14 +42,105 @@ void IRBasicBlock_free(struct IRBasicBlock block) {
 
 }
 
+ATTRIBUTE((unused))
+static struct U32List find_first_doms(const struct IRBasicBlock *block,
+        const struct IRFunc *parent) {
+
+    const struct IRBasicBlock *cur_block = block;
+    struct U32List first_doms = U32List_init();
+
+    while (cur_block->imm_doms.size > 0) {
+
+        U32List_push_back(&first_doms, cur_block->imm_doms.elems[0]);
+
+        cur_block = &parent->blocks.elems[cur_block->imm_doms.elems[0]];
+
+    }
+
+    return first_doms;
+
+}
+
+/* if there are multiple biggest elems with the same size, this returns the idx
+ * of the first one */
+ATTRIBUTE((unused))
+static u32 biggest_elem_in_u32_arr_idx(const u32 *array, u32 size) {
+
+    u32 i;
+
+    u32 max_value = 0;
+    u32 max_value_i = 0;
+
+    for (i = 0; i < size; i++) {
+
+        if (array[i] >= max_value) {
+            max_value = array[i];
+            max_value_i = i;
+        }
+
+    }
+
+    return max_value_i;
+
+}
+
 u32 IRBasicBlock_find_common_dom(const struct IRBasicBlock *self,
         ATTRIBUTE((unused)) const struct IRFunc *parent) {
 
-    /* i'll implement this later, for now just return the start node */
     if (self->imm_doms.size == 0)
         return m_u32_max;
-    else
-        return 0;
+    return 0;
+
+#ifdef _COMMENT
+    u32 i;
+    u32 common_dom = m_u32_max;
+
+    /* list of every 0th domintor */
+    struct U32List first_doms = find_first_doms(self, parent);
+    u32 *n_occurences = NULL;
+
+    struct U32List block_stack;
+
+    if (first_doms.size == 0)
+        return m_u32_max;
+
+    n_occurences = safe_calloc(first_doms.size, sizeof(*n_occurences));
+
+    block_stack = U32List_init();
+    for (i = 0; i < self->imm_doms.size; i++) {
+        U32List_push_back(&block_stack, self->imm_doms.elems[i]);
+    }
+
+    while (block_stack.size > 0) {
+
+        const struct IRBasicBlock *cur_block =
+            &parent->blocks.elems[U32List_back(&block_stack)];
+
+        U32List_pop_back(&block_stack, NULL);
+
+        for (i = 0; i < first_doms.size; i++) {
+            if (first_doms.elems[i] == cur_block-parent->blocks.elems)
+                ++n_occurences[i];
+        }
+
+        for (i = 0; i < cur_block->imm_doms.size; i++) {
+            U32List_push_back(&block_stack, cur_block->imm_doms.elems[i]);
+        }
+
+    }
+
+    /* find whichever element in isnt_common_dom which didn't get set to
+     * true */
+    common_dom = first_doms.elems[
+        biggest_elem_in_u32_arr_idx(n_occurences, first_doms.size)
+        ];
+
+    U32List_free(&first_doms);
+    m_free(n_occurences);
+    U32List_free(&block_stack);
+
+    return common_dom;
+#endif
 
 }
 
