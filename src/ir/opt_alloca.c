@@ -361,8 +361,8 @@ static bool create_phi_node(u32 r2c_idx,
                 IRInstrArgValue_reg_name(NULL)
                 ));
 
-    for (i = 0; i < cur_block->dom_frontiers.size; i++) {
-        u32 block = cur_block->dom_frontiers.elems[i];
+    for (i = 0; i < cur_block->imm_doms.size; i++) {
+        u32 block = cur_block->imm_doms.elems[i];
         const struct IRBasicBlock *other = &func->blocks.elems[block];
 
         u32 store_idx = StoreInfoList_find_block(
@@ -392,9 +392,23 @@ static bool create_phi_node(u32 r2c_idx,
         /* only set the phi node dest if it's actually gonna be used, cuz
          * RegToConv_gen_new_name updates the state of the RegToConv instance.
          */
+
         RegToConv_gen_new_name(&regs_to_conv->elems[r2c_idx], func);
         instr.args.elems[0].value.reg_name =
             regs_to_conv->elems[r2c_idx].new_name;
+
+        /* we gotta update the store info so that dependent blocks can chain
+         * phi nodes together */
+
+        assert(StoreInfoList_find_block(
+                &regs_to_conv->elems[r2c_idx].last_store, cur_block
+                ) == m_u32_max);
+
+        StoreInfoList_push_back(
+                &regs_to_conv->elems[r2c_idx].last_store, StoreInfo_create(
+                    regs_to_conv->elems[r2c_idx].old_name,
+                    regs_to_conv->elems[r2c_idx].new_name, cur_block
+                    ));
 
         IRInstrList_push_front(&cur_block->instrs, instr);
         return true;
@@ -434,11 +448,11 @@ static void opt_alloca_block(struct IRBasicBlock *block,
 
     for (i = 0; i < regs_to_conv->size; i++) {
         if (!create_phi_node(i, block, cur_func, regs_to_conv) &&
-                block->dom_frontiers.size > 0) {
+                block->imm_doms.size > 0) {
             /* make sure to use the same virt reg as this block's dominator(s)
              */
             const struct IRBasicBlock *dom =
-                &cur_func->blocks.elems[block->dom_frontiers.elems[0]];
+                &cur_func->blocks.elems[block->imm_doms.elems[0]];
 
             u32 store_idx = StoreInfoList_find_block(
                     &regs_to_conv->elems[i].last_store, dom

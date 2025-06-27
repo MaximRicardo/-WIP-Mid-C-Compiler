@@ -6,13 +6,14 @@
 #include "module.h"
 #include "../utils/dyn_str.h"
 #include "../utils/make_str_cpy.h"
-#include "dom_frontier.h"
+#include "block_dom.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 u32 reg_counter = 0;
+u32 if_else_counter = 0;
 
 static void block_node_gen_ir(struct BlockNode *block,
         struct IRFunc *cur_func, const struct TranslUnit *tu);
@@ -26,6 +27,16 @@ static char* create_new_reg(struct IRFunc *func) {
     StringList_push_back(&func->vregs, name.str);
 
     return name.str;
+
+}
+
+static char* create_string_with_num_appended(const char *str, u32 num) {
+
+    struct DynamicStr new_str = DynamicStr_init();
+
+    DynamicStr_append_printf(&new_str, "%s%u", str, num);
+
+    return new_str.str;
 
 }
 
@@ -362,18 +373,23 @@ static void if_stmt_gen_ir(const struct IfNode *node,
         IRBasicBlockList_back_ptr(&cur_func->blocks);
 
     struct IRBasicBlock if_true = IRBasicBlock_create(
-            make_str_copy("if_true"), IRInstrList_init(), U32List_init()
+            create_string_with_num_appended("if_true_", if_else_counter),
+            IRInstrList_init(), U32List_init()
             );
 
     struct IRBasicBlock if_false = IRBasicBlock_create(
-            make_str_copy("if_false"), IRInstrList_init(), U32List_init()
+            create_string_with_num_appended("if_false_", if_else_counter),
+            IRInstrList_init(), U32List_init()
             );
 
     struct IRBasicBlock if_end = IRBasicBlock_create(
-            make_str_copy("if_end"), IRInstrList_init(), U32List_init()
+            create_string_with_num_appended("if_end_", if_else_counter),
+            IRInstrList_init(), U32List_init()
             );
 
     const char *cond_reg = NULL;
+
+    ++if_else_counter;
 
     cond_reg =
         expr_gen_ir(node->expr, tu, cur_block, cur_func, NULL, NULL, false);
@@ -565,10 +581,11 @@ static struct IRFunc func_node_gen_ir(const struct FuncDeclNode *func,
             );
 
     reg_counter = 0;
+    if_else_counter = 0;
 
     block_node_gen_ir(func->body, &ir_func, tu);
 
-    IRFunc_get_dom_frontiers(&ir_func);
+    IRFunc_get_blocks_imm_doms(&ir_func);
 
     return ir_func;
 

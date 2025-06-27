@@ -13,7 +13,7 @@ struct IRBasicBlock {
     char *label;
     struct IRInstrList instrs;
     /* contains block indices in the IRFunc */
-    struct U32List dom_frontiers;
+    struct U32List imm_doms;
 
 };
 

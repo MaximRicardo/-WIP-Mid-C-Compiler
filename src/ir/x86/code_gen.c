@@ -162,9 +162,9 @@ static void init_cpu_reg_vals(const struct IRBasicBlock *cur_block,
         cpu_reg_vals->preg_vals[i] = PhysRegVal_init();
     }
 
-    for (i = 0; i < cur_block->dom_frontiers.size; i++) {
+    for (i = 0; i < cur_block->imm_doms.size; i++) {
         const struct IRBasicBlock *other =
-            &cur_func->blocks.elems[cur_block->dom_frontiers.elems[i]];
+            &cur_func->blocks.elems[cur_block->imm_doms.elems[i]];
 
         RegStates_merge(cpu_reg_vals,
                 RegStates_block_preg_states(other, cur_func),
@@ -172,8 +172,10 @@ static void init_cpu_reg_vals(const struct IRBasicBlock *cur_block,
                 );
     }
 
-    printf("init regs result on block %lu\n", cur_block-cur_func->blocks.elems);
-    print_cpu_reg_vals(cur_block, cur_func);
+    /*
+    printf("init regs result on block %lu\n",
+            cur_block-cur_func->blocks.elems);
+    print_cpu_reg_vals(cur_block, cur_func);*/
 
 }
 
@@ -679,8 +681,9 @@ static void gen_from_basic_block(struct DynamicStr *output,
 
     }
 
-    printf("block nr. %lu final state:\n", block-cur_func->blocks.elems);
+    /* printf("block nr. %lu final state:\n", block-cur_func->blocks.elems);
     print_cpu_reg_vals(block, cur_func);
+    */
 
 }
 
