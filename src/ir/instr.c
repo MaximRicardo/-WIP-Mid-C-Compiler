@@ -23,6 +23,13 @@ bool IRInstrType_is_bin_op(enum IRInstrType type) {
 
 }
 
+bool IRInstrType_is_mem_instr(enum IRInstrType type) {
+
+    return type == IRInstr_ALLOCA || type == IRInstr_STORE ||
+        type == IRInstr_LOAD;
+
+}
+
 union IRInstrArgValue IRInstrArgValue_imm_u32(u32 imm32) {
 
     union IRInstrArgValue value;

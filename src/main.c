@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "code_gen.h"
+#include "ir/x86/alloca_to_esp.h"
 #include "ir/x86/code_gen.h"
 #include "comp_args.h"
 #include "file_io.h"
@@ -101,6 +102,7 @@ static void compile(char *src, FILE *output, FILE *mccir_output,
         }
         IR_ssa_to_tac(&ir_tu);
 
+        X86_alloca_to_esp(&ir_tu);
         X86_virt_to_phys(&ir_tu);
 
         if (mccir_output) {

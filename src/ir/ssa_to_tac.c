@@ -4,6 +4,7 @@
 #include "instr.h"
 #include "../utils/make_str_cpy.h"
 #include <assert.h>
+#include <stdio.h>
 
 /* returns whether or not it erased instr from cur_block->instrs */
 static bool instr_ssa_to_tac(struct IRInstr *instr,

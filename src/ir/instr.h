@@ -48,6 +48,7 @@ bool IRInstrType_is_branch(enum IRInstrType type);
 bool IRInstrType_is_cond_branch(enum IRInstrType type);
 /* not counting the result register */
 bool IRInstrType_is_bin_op(enum IRInstrType type);
+bool IRInstrType_is_mem_instr(enum IRInstrType type);
 
 enum IRInstrArgType {
 

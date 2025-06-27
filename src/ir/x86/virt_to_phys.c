@@ -90,6 +90,7 @@ static void init_cpu_reg_vals(const struct IRBasicBlock *cur_block,
 
 }
 
+ATTRIBUTE((unused))
 static bool is_cpu_reg_free(u32 reg, const struct IRBasicBlock *cur_block,
         const struct IRFunc *cur_func) {
 

@@ -54,6 +54,10 @@ static void get_instr_reg_lts(const struct IRInstr *instr, u32 *n_instrs,
 
         reg_name = instr->args.elems[i].value.reg_name;
 
+        /* ignore any vregs whose name starts with '__' */
+        if (strncmp(reg_name, "__", 2) == 0)
+            continue;
+
         reg_idx = IRRegLTList_find_reg(lts, reg_name);
 
         if (reg_idx != m_u32_max) {
