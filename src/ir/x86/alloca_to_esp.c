@@ -17,42 +17,6 @@ static u32 round_up(u32 num, u32 multiple) {
 
 }
 
-static void get_func_stack_size_block(const struct IRBasicBlock *block,
-        u32 *stack_size) {
-
-    u32 i;
-
-    for (i = 0; i < block->instrs.size; i++) {
-
-        struct IRInstr *instr = &block->instrs.elems[i];
-
-        if (instr->type != IRInstr_ALLOCA)
-            continue;
-
-        *stack_size =
-            round_up(*stack_size, instr->args.elems[Arg_RHS].value.imm_u32);
-
-        *stack_size += instr->args.elems[Arg_LHS].value.imm_u32;
-
-    }
-
-}
-
-static u32 get_func_stack_size(const struct IRFunc *func) {
-
-    u32 i;
-    u32 stack_size = 0;
-
-    for (i = 0; i < func->blocks.size; i++) {
-
-        get_func_stack_size_block(&func->blocks.elems[i], &stack_size);
-
-    }
-
-    return stack_size;
-
-}
-
 static void alloca_to_esp_instr(struct IRInstr *instr, u32 func_stack_size,
         u32 *n_allocd_bytes, struct IRFunc *parent) {
 
@@ -108,7 +72,7 @@ static void alloca_to_esp_func(struct IRFunc *func) {
 
     u32 i;
 
-    u32 stack_size = get_func_stack_size(func);
+    u32 stack_size = IRFunc_get_stack_size(func);
     u32 n_allocd_bytes = 0;
 
     for (i = 0; i < func->blocks.size; i++) {

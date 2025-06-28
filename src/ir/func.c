@@ -5,6 +5,21 @@
 #include <stdio.h>
 #include <string.h>
 
+static u32 round_up(u32 num, u32 multiple) {
+
+    u32 remainder;
+
+    if (multiple == 0)
+        return num;
+
+    remainder = num % multiple;
+    if (remainder == 0)
+        return num;
+
+    return num+multiple-remainder;
+
+}
+
 struct IRFuncArg IRFuncArg_init(void) {
 
     struct IRFuncArg arg;
@@ -177,6 +192,42 @@ bool IRFunc_rename_vreg(struct IRFunc *self, const char *old_name,
     self->vregs.elems[vreg_idx] = new_name;
 
     return true;
+
+}
+
+static void get_func_stack_size_block(const struct IRBasicBlock *block,
+        u32 *stack_size) {
+
+    u32 i;
+
+    for (i = 0; i < block->instrs.size; i++) {
+
+        struct IRInstr *instr = &block->instrs.elems[i];
+
+        if (instr->type != IRInstr_ALLOCA)
+            continue;
+
+        *stack_size =
+            round_up(*stack_size, instr->args.elems[Arg_RHS].value.imm_u32);
+
+        *stack_size += instr->args.elems[Arg_LHS].value.imm_u32;
+
+    }
+
+}
+
+u32 IRFunc_get_stack_size(const struct IRFunc *func) {
+
+    u32 i;
+    u32 stack_size = 0;
+
+    for (i = 0; i < func->blocks.size; i++) {
+
+        get_func_stack_size_block(&func->blocks.elems[i], &stack_size);
+
+    }
+
+    return stack_size;
 
 }
 

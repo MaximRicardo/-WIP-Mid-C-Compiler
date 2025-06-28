@@ -52,6 +52,7 @@ struct IRBasicBlock* IRFunc_get_nth_instr_block(const struct IRFunc *self,
  * there is. */
 bool IRFunc_rename_vreg(struct IRFunc *self, const char *old_name,
         char *new_name);
+u32 IRFunc_get_stack_size(const struct IRFunc *self);
 
 struct IRFuncList {
 
