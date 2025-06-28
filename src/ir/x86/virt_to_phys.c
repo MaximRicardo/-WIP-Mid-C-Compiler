@@ -316,6 +316,7 @@ static void virt_to_phys_instr_arg(struct IRInstrArg *arg,
 
     u32 reg_idx;
     bool on_reg_stack;
+    u32 vreg_name_idx;
 
     struct DynamicStr new_vreg_name;
 
@@ -343,8 +344,17 @@ static void virt_to_phys_instr_arg(struct IRInstrArg *arg,
         DynamicStr_append_printf(&new_vreg_name, "__%s", cpu_regs[reg_idx]);
     }
 
-    StringList_push_back(&cur_func->vregs, new_vreg_name.str);
-    arg->value.reg_name = new_vreg_name.str;
+    vreg_name_idx = StringList_find(&cur_func->vregs, new_vreg_name.str);
+    /* prevent a million billion morbillion bajillion copies of the same vreg
+     * name */
+    if (vreg_name_idx == m_u32_max) {
+        StringList_push_back(&cur_func->vregs, new_vreg_name.str);
+        vreg_name_idx = cur_func->vregs.size-1;
+    }
+    else {
+        DynamicStr_free(new_vreg_name);
+    }
+    arg->value.reg_name = cur_func->vregs.elems[vreg_name_idx];
 
 }
 

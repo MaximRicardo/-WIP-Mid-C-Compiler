@@ -14,7 +14,7 @@ int main(int argc, char **argv) {
         y = y / x;
         x = 1;
     }
-    else if (1) {
+    else if (0) {
         y = y - x;
         x = 2;
     }
