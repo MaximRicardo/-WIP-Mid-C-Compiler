@@ -97,6 +97,16 @@ static void compile(char *src, FILE *output, FILE *mccir_output,
         struct IRModule ir_tu = IRGen_generate(&tu);
         char *asm_output = NULL;
 
+        if (mccir_output) {
+            char *ir_output_str = IRToStr_gen(&ir_tu);
+            fprintf(mccir_output, ";--------------------------------------\n");
+            fprintf(mccir_output, ";Pre-Optimizations\n");
+            fprintf(mccir_output, ";--------------------------------------\n");
+            fputs(ir_output_str, mccir_output);
+            fflush(mccir_output);
+            m_free(ir_output_str);
+        }
+
         if (CompArgs_args.optimize) {
             IROpt_alloca(&ir_tu);
         }
@@ -104,17 +114,13 @@ static void compile(char *src, FILE *output, FILE *mccir_output,
 
         X86_alloca_to_esp(&ir_tu);
 
-        if (mccir_output) {
-            char *ir_output_str = IRToStr_gen(&ir_tu);
-            fputs(ir_output_str, mccir_output);
-            fflush(mccir_output);
-            m_free(ir_output_str);
-        }
-
         X86_virt_to_phys(&ir_tu);
 
         if (mccir_output) {
             char *ir_output_str = IRToStr_gen(&ir_tu);
+            fprintf(mccir_output, ";--------------------------------------\n");
+            fprintf(mccir_output, ";Final IR\n");
+            fprintf(mccir_output, ";--------------------------------------\n");
             fputs(ir_output_str, mccir_output);
             fflush(mccir_output);
             m_free(ir_output_str);
