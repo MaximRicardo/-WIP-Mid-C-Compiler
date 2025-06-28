@@ -3,6 +3,8 @@ int main(int argc, char **argv) {
     int x = 5;
     int y = 42;
 
+    (1+2*3+4)/2;
+
     if (0) {
         y = y / x;
         x = 1;

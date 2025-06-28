@@ -187,21 +187,18 @@ static void gen_from_div_op(struct DynamicStr *output,
         DynamicStr_append(output, "\n");
     }
 
-    if (instr->args.elems[Arg_RHS].type == IRInstrArg_REG) {
+    if (instr->args.elems[Arg_RHS].type == IRInstrArg_REG &&
+            strcmp(vreg_to_preg(instr->args.elems[Arg_RHS].value.reg_name),
+                "edx") != 0) {
         rhs_reg = vreg_to_preg(instr->args.elems[Arg_RHS].value.reg_name);
     }
-    else if (instr->args.elems[Arg_RHS].type == IRInstrArg_IMM32) {
+    else {
         pushed_reg = true;
-        rhs_reg = strcmp(self_reg, "eax") == 0 ? "ebx" : "eax";
+        rhs_reg = strcmp(self_reg, "ebx") == 0 ? "ebx" : "ecx";
         DynamicStr_append_printf(output, "push %s\n", rhs_reg);
-        if (instr->args.elems[Arg_RHS].data_type.is_signed) {
-            DynamicStr_append_printf(output, "mov %s, %d\n", rhs_reg,
-                    instr->args.elems[Arg_RHS].value.imm_i32);
-        }
-        else {
-            DynamicStr_append_printf(output, "mov %s, %u\n", rhs_reg,
-                    instr->args.elems[Arg_RHS].value.imm_u32);
-        }
+        DynamicStr_append_printf(output, "mov %s, ", rhs_reg);
+        emit_instr_arg(output, &instr->args.elems[Arg_RHS]);
+        DynamicStr_append(output, "\n");
     }
 
     DynamicStr_append(output, "push edx\n");
