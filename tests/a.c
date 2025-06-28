@@ -6,6 +6,7 @@ int main(int argc, char **argv) {
     int fill_up_regs_1 = 0;
     int fill_up_regs_2 = 0;
     int fill_up_regs_3 = 0;
+    int test_var = 123;
 
     (1+2)*(3+4)*(4+5);
 
@@ -26,6 +27,7 @@ int main(int argc, char **argv) {
     fill_up_regs_1 + 0;
     fill_up_regs_2 + 0;
     fill_up_regs_3 + 0;
+    &test_var;
     return y+x;
 
 }

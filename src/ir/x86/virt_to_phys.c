@@ -6,7 +6,6 @@
 #include "../../utils/make_str_cpy.h"
 #include "reg_states.h"
 #include "remove_alloc_reg.h"
-#include "../../macros.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -274,8 +273,6 @@ static u32 alloc_vreg(const char *vreg, struct IRBasicBlock *cur_block,
 
     for (i = 0; i < reg_stack.size; i++) {
         if (phys_reg_val_is_free(&reg_stack.elems[i], instr_idx, vreg_lts)) {
-            printf("vreg %%%s replacing %%%s at %u.\n", vreg,
-                    reg_stack.elems[i].virt_reg, i);
             alloc_dest = i;
             break;
         }
@@ -336,7 +333,11 @@ static void virt_to_phys_instr_arg(struct IRInstrArg *arg,
     /* the reg names are prefixed with '__' to ensure there won't be any
      * clashing with other vreg names */
     if (on_reg_stack) {
-        DynamicStr_append_printf(&new_vreg_name, "__esp(%u)", reg_idx*4);
+        /* it's important that __new_esp is used instead of __esp, cuz
+         * later we'll need to add an offset to every esp offset from before
+         * this pass, and this makes it possible to distinguish the old ones
+         * from the new ones. */
+        DynamicStr_append_printf(&new_vreg_name, "__new_esp(%u)", reg_idx*4);
     }
     else {
         DynamicStr_append_printf(&new_vreg_name, "__%s", cpu_regs[reg_idx]);
@@ -369,8 +370,6 @@ static void virt_to_phys_block(struct IRBasicBlock *block,
         u32 *instr_idx) {
 
     u32 i;
-    u32 start_n_end_block_instrs =
-        IRBasicBlockList_back_ptr(&cur_func->blocks)->instrs.size;
 
     RegStatesList_push_back(&block_reg_states, RegStates_init());
     init_cpu_reg_vals(block, cur_func, vreg_lts);
@@ -381,18 +380,14 @@ static void virt_to_phys_block(struct IRBasicBlock *block,
         ++*instr_idx;
     }
 
-    /* each appended alloca instruction will be 4 bytes long, and require a 4
-     * byte alignment which esp already has. */
-    /*
-    incr_func_stack_size(cur_func,
-            (IRBasicBlockList_back_ptr(&cur_func->blocks)->instrs.size -
-                start_n_end_block_instrs)*4);*/
-
 }
 
 static void virt_to_phys_func(struct IRFunc *func) {
 
     u32 i;
+
+    u32 start_last_block_n_instrs =
+        IRBasicBlockList_back_ptr(&func->blocks)->instrs.size;
 
     struct IRRegLTList vreg_lts = IRRegLTList_get_func_lts(func);
     u32 instr_idx = 0;
@@ -402,6 +397,24 @@ static void virt_to_phys_func(struct IRFunc *func) {
     for (i = 0; i < func->blocks.size; i++) {
         virt_to_phys_block(&func->blocks.elems[i], func, &vreg_lts,
                 &instr_idx);
+    }
+
+    /* each appended alloca instruction will be 4 bytes long, and require a 4
+     * byte alignment which esp already has. */
+    incr_func_stack_size(func,
+            (IRBasicBlockList_back_ptr(&func->blocks)->instrs.size -
+                start_last_block_n_instrs)*4);
+
+    for (i = 0; i < func->vregs.size; i++) {
+        struct DynamicStr str;
+
+        if (strncmp(func->vregs.elems[i], "__new_esp", 9) != 0)
+            continue;
+
+        str = DynamicStr_init();
+        DynamicStr_append_printf(&str, "__esp%s", &func->vregs.elems[i][9]);
+
+        IRFunc_rename_vreg(func, func->vregs.elems[i], str.str);
     }
 
     PhysRegValList_free(&reg_stack);
