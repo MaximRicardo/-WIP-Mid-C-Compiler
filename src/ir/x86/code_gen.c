@@ -123,43 +123,141 @@ static void emit_mem_instr_address(struct DynamicStr *output,
 static void gen_from_mov_instr(struct DynamicStr *output,
         const struct IRInstr *instr) {
 
+    bool self_on_stack;
+    bool lhs_on_stack;
+    const char *lhs_temp_reg = NULL;
+
     assert(instr->args.size == 2);
+    assert(instr->args.elems[Arg_SELF].type == IRInstrArg_REG);
+
+    self_on_stack =
+        reg_is_stack_offset(instr->args.elems[Arg_SELF].value.reg_name);
+
+    lhs_on_stack = instr->args.elems[Arg_LHS].type == IRInstrArg_REG &&
+        reg_is_stack_offset(instr->args.elems[Arg_LHS].value.reg_name);
+
+    if (lhs_on_stack) {
+
+        lhs_temp_reg = strcmp(
+                vreg_to_preg(instr->args.elems[Arg_SELF].value.reg_name), "eax"
+                ) == 0 ? "ebx" : "eax";
+
+        DynamicStr_append_printf(output, "push %s\n", lhs_temp_reg);
+        DynamicStr_append_printf(output, "mov %s, ", lhs_temp_reg);
+        emit_stack_offset_to_nasm(output,
+                vreg_to_preg(instr->args.elems[Arg_LHS].value.reg_name), NULL,
+                4,1, true);
+        DynamicStr_append(output, "\n");
+
+    }
 
     DynamicStr_append_printf(output, "mov ");
-    emit_instr_arg(output, &instr->args.elems[Arg_SELF]);
+
+    if (self_on_stack && lhs_on_stack) {
+        emit_stack_offset_to_nasm(output,
+                vreg_to_preg(instr->args.elems[Arg_SELF].value.reg_name), NULL,
+                4,1, true);
+    }
+    else {
+        emit_instr_arg(output, &instr->args.elems[Arg_SELF]);
+    }
+
     DynamicStr_append(output, ", ");
-    emit_instr_arg(output, &instr->args.elems[Arg_LHS]);
+
+    if (lhs_on_stack) {
+        DynamicStr_append(output, lhs_temp_reg);
+    }
+    else {
+        emit_instr_arg(output, &instr->args.elems[Arg_LHS]);
+    }
+
     DynamicStr_append(output, "\n");
+
+    if (lhs_on_stack) {
+        DynamicStr_append_printf(output, "pop %s\n", lhs_temp_reg);
+    }
 
 }
 
 static void gen_from_bin_op(struct DynamicStr *output,
         const struct IRInstr *instr) {
 
+    bool self_on_stack = false;
+
     assert(instr->args.size == 3);
     assert(instr->args.elems[Arg_SELF].type == IRInstrArg_REG);
 
-    /* since x86 is a 2 operand architecture, but MCCIR is a 3 operand IL,
-     * instructions will need to be converted from 3 to 2 operands. The
-     * conversion looks like this:
-     *    add r0 <- r1, r2
-     * becomes:
-     *    mov r0 <- r1
-     *    add r1 <- r2
-     */
-    DynamicStr_append_printf(output, "mov ");
-    emit_instr_arg(output, &instr->args.elems[Arg_SELF]);
-    DynamicStr_append(output, ", ");
-    emit_instr_arg(output, &instr->args.elems[Arg_LHS]);
-    DynamicStr_append(output, "\n");
+    self_on_stack = reg_is_stack_offset(vreg_to_preg(
+                    instr->args.elems[Arg_SELF].value.reg_name
+            ));
 
-    DynamicStr_append_printf(output, "%s ",
-            X86_get_instr(instr->type, IRInstr_data_type(instr)));
-    emit_instr_arg(output, &instr->args.elems[Arg_SELF]);
-    DynamicStr_append(output, ", ");
-    emit_instr_arg(output, &instr->args.elems[Arg_RHS]);
+    if (self_on_stack) {
+        /* blame intel, not me. */
 
-    DynamicStr_append(output, "\n");
+        bool rhs_on_stack =
+            instr->args.elems[Arg_RHS].type == IRInstrArg_REG &&
+            reg_is_stack_offset(vreg_to_preg(
+                    instr->args.elems[Arg_RHS].value.reg_name
+            ));
+
+        /* from here until eax gets popped again, a 4 byte offset will need
+         * to be added to every esp offset */
+        DynamicStr_append(output, "push eax\n");
+
+        if (instr->args.elems[Arg_LHS].type != IRInstrArg_REG || strcmp(
+                    instr->args.elems[Arg_LHS].value.reg_name, "eax"
+                    ) == 0) {
+
+            DynamicStr_append(output, "mov eax, ");
+            emit_instr_arg(output, &instr->args.elems[Arg_LHS]);
+            DynamicStr_append(output, "\n");
+
+        }
+
+        DynamicStr_append_printf(output, "%s eax, ",
+                X86_get_instr(instr->type, IRInstr_data_type(instr)));
+        if (rhs_on_stack) {
+            emit_stack_offset_to_nasm(output,
+                    vreg_to_preg(instr->args.elems[Arg_RHS].value.reg_name),
+                    NULL, 4,1, true);
+        }
+        else {
+            emit_instr_arg(output, &instr->args.elems[Arg_RHS]);
+        }
+        DynamicStr_append(output, "\n");
+
+        /* remember to move the result from pushed_reg to the actual dest
+         * reg */
+        DynamicStr_append(output, "mov ");
+        emit_stack_offset_to_nasm(output,
+                vreg_to_preg(instr->args.elems[Arg_SELF].value.reg_name),
+                NULL, 4,1, true);
+        DynamicStr_append(output, ", eax\n");
+
+        DynamicStr_append_printf(output, "pop eax\n");
+    }
+    else {
+        /* since x86 is a 2 operand architecture, but MCCIR is a 3 operand IL,
+         * instructions will need to be converted from 3 to 2 operands. The
+         * conversion looks like this:
+         *    add r0 <- r1, r2
+         * becomes:
+         *    mov r0 <- r1
+         *    add r1 <- r2
+         */
+        DynamicStr_append_printf(output, "mov ");
+        emit_instr_arg(output, &instr->args.elems[Arg_SELF]);
+        DynamicStr_append(output, ", ");
+        emit_instr_arg(output, &instr->args.elems[Arg_LHS]);
+        DynamicStr_append(output, "\n");
+
+        DynamicStr_append_printf(output, "%s ",
+                X86_get_instr(instr->type, IRInstr_data_type(instr)));
+        emit_instr_arg(output, &instr->args.elems[Arg_SELF]);
+        DynamicStr_append(output, ", ");
+        emit_instr_arg(output, &instr->args.elems[Arg_RHS]);
+        DynamicStr_append(output, "\n");
+    }
 
 }
 
@@ -194,7 +292,10 @@ static void gen_from_div_op(struct DynamicStr *output,
 
     if (instr->args.elems[Arg_RHS].type == IRInstrArg_REG &&
             strcmp(vreg_to_preg(instr->args.elems[Arg_RHS].value.reg_name),
-                "edx") != 0) {
+                "edx") != 0 &&
+            !reg_is_stack_offset(vreg_to_preg(
+                        instr->args.elems[Arg_RHS].value.reg_name
+                        ))) {
         rhs_reg = vreg_to_preg(instr->args.elems[Arg_RHS].value.reg_name);
     }
     else {
@@ -221,8 +322,11 @@ static void gen_from_div_op(struct DynamicStr *output,
         DynamicStr_append_printf(output, "pop %s\n", rhs_reg);
     }
 
-    if (!self_is_eax)
-        DynamicStr_append_printf(output, "mov %s, eax\npop eax\n", self_reg);
+    if (!self_is_eax) {
+        DynamicStr_append(output, "mov ");
+        emit_instr_arg(output, &instr->args.elems[Arg_SELF]);
+        DynamicStr_append(output, ", eax\npop eax\n");
+    }
 
 }
 

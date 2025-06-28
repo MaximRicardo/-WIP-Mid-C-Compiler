@@ -231,5 +231,13 @@ u32 IRFunc_get_stack_size(const struct IRFunc *func) {
 
 }
 
+u32 IRFunc_find_none_reg(const struct IRFunc *self) {
+
+    const char *name = "__none";
+
+    return StringList_find(&self->vregs, name);
+
+}
+
 m_define_VectorImpl_funcs(IRFuncArgList, struct IRFuncArg)
 m_define_VectorImpl_funcs(IRFuncList, struct IRFunc)

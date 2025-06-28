@@ -7,7 +7,6 @@
 #include "reg_states.h"
 #include "remove_alloc_reg.h"
 #include "../../macros.h"
-#include "../ir_to_str.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -41,6 +40,9 @@ static const char *cpu_regs[] = {
 /* the reg states for every block in the current IRFunc that has been processed
  * thus far */
 static struct RegStatesList block_reg_states;
+
+/* keeps track of spilled registers */
+static struct PhysRegValList reg_stack;
 
 static struct RegStates* RegStates_block_preg_states(
         const struct IRBasicBlock *block, const struct IRFunc *func) {
@@ -125,114 +127,20 @@ static u32 preg_holding_vreg(const char *vreg,
 
 }
 
-/* instr_idx is relative to the start of the function */
-static bool preg_is_free(u32 preg_idx,
-        const struct IRBasicBlock *cur_block, const struct IRFunc *cur_func,
-        u32 instr_idx, const struct IRRegLTList *vreg_lts) {
-
-    const struct RegStates *reg_states =
-        RegStates_block_preg_states(cur_block, cur_func);
-
-    const struct PhysRegVal *preg = &reg_states->preg_vals[preg_idx];
-    u32 reg_lt_idx;
-
-    if (!preg->virt_reg)
-        return true;
-
-    if (strncmp(preg->virt_reg, "__", 2) == 0)
-        return false;
-
-    printf("preg virt reg = %%%s\n", preg->virt_reg);
-    reg_lt_idx = IRRegLTList_find_reg(vreg_lts, preg->virt_reg);
-    assert(reg_lt_idx != m_u32_max);
-    if (vreg_lts->elems[reg_lt_idx].death_idx < instr_idx)
-        return true;
-
-    return false;
-
-}
-
-/* instr_idx is relative to the start of the function. returns the idx of
- * the preg holding vreg.
- * ret_if_no_free_regs              - i recommend leaving this false. in
- *                                    normal operation, there should never
- *                                    be a lack of registers */
-static u32 alloc_vreg(const char *vreg, const struct IRBasicBlock *cur_block,
-        const struct IRFunc *cur_func, u32 instr_idx,
-        const struct IRRegLTList *vreg_lts, bool ret_if_no_free_regs) {
-
-    u32 i;
-    u32 alloc_dest = m_u32_max;
-
-    struct RegStates *reg_states =
-        RegStates_block_preg_states(cur_block, cur_func);
-
-    if (preg_holding_vreg(vreg, cur_block, cur_func) != m_u32_max) {
-        return preg_holding_vreg(vreg, cur_block, cur_func);
-    }
-
-    for (i = 0; i < m_n_usable_pregs; i++) {
-
-        if (preg_is_free(i, cur_block, cur_func, instr_idx, vreg_lts)) {
-            alloc_dest = i;
-            break;
-        }
-
-    }
-
-    if (alloc_dest == m_u32_max) {
-        if (ret_if_no_free_regs)
-            return m_u32_max;
-        else
-            assert(false);
-    }
-
-    reg_states->preg_vals[alloc_dest].virt_reg = vreg;
-    return alloc_dest;
-
-}
-
-/* instr_idx is relative to the start of the function */
-static void virt_to_phys_instr_arg(struct IRInstrArg *arg,
-        struct IRBasicBlock *cur_block, struct IRFunc *cur_func,
-        const struct IRRegLTList *vreg_lts, u32 instr_idx) {
-
-    u32 phys_reg;
-
-    struct DynamicStr new_vreg_name;
-
-    if (arg->type != IRInstrArg_REG)
-        return;
-
-    if (strncmp(arg->value.reg_name, "__", 2) == 0)
-        return;
-
-    phys_reg = alloc_vreg(arg->value.reg_name, cur_block, cur_func, instr_idx,
-            vreg_lts, false);
-
-    new_vreg_name = DynamicStr_init();
-    /* the reg names are prefixed with '__' to ensure there won't be any
-     * clashing with other vreg names */
-    DynamicStr_append_printf(&new_vreg_name, "__%s", cpu_regs[phys_reg]);
-
-    StringList_push_back(&cur_func->vregs, new_vreg_name.str);
-    arg->value.reg_name = new_vreg_name.str;
-
-}
-
-/* instr_idx is relative to the start of the function */
-static void virt_to_phys_instr(struct IRInstr *instr,
-        struct IRBasicBlock *cur_block, struct IRFunc *cur_func,
-        const struct IRRegLTList *vreg_lts, u32 instr_idx) {
+/* returns m_u32_max if vreg is not stored on the register stack */
+static u32 reg_stack_holding_vreg(const char *vreg) {
 
     u32 i;
 
-    for (i = 0; i < instr->args.size; i++) {
+    for (i = 0; i < reg_stack.size; i++) {
+        if (!reg_stack.elems[i].virt_reg)
+            return i;
 
-        virt_to_phys_instr_arg(&instr->args.elems[i], cur_block, cur_func,
-                vreg_lts, instr_idx);
-
+        if (strcmp(reg_stack.elems[i].virt_reg, vreg) == 0)
+            return i;
     }
+
+    return m_u32_max;
 
 }
 
@@ -281,119 +189,175 @@ static void incr_func_stack_size(struct IRFunc *func, u32 amount) {
 
 }
 
-static u32 get_n_vregs_to_alloca_in_instr(struct IRInstr *instr, u32 instr_idx,
-        const struct IRRegLTList *vreg_lts,
-        const struct IRBasicBlock *cur_block, const struct IRFunc *cur_func) {
+static bool phys_reg_val_is_free(const struct PhysRegVal *preg,
+        u32 instr_idx, const struct IRRegLTList *vreg_lts) {
+
+    u32 reg_lt_idx;
+
+    if (!preg->virt_reg)
+        return true;
+
+    /* reserved vregs are permanent */
+    if (strncmp(preg->virt_reg, "__", 2) == 0)
+        return false;
+
+    reg_lt_idx = IRRegLTList_find_reg(vreg_lts, preg->virt_reg);
+    assert(reg_lt_idx != m_u32_max);
+    if (vreg_lts->elems[reg_lt_idx].death_idx < instr_idx)
+        return true;
+
+    return false;
+
+}
+
+/* instr_idx is relative to the start of the function */
+static bool preg_is_free(u32 preg_idx,
+        const struct IRBasicBlock *cur_block, const struct IRFunc *cur_func,
+        u32 instr_idx, const struct IRRegLTList *vreg_lts) {
+
+    const struct RegStates *reg_states =
+        RegStates_block_preg_states(cur_block, cur_func);
+
+    const struct PhysRegVal *preg = &reg_states->preg_vals[preg_idx];
+    return phys_reg_val_is_free(preg, instr_idx, vreg_lts);
+
+}
+
+/* instr_idx is relative to the start of the function. returns the idx of
+ * the preg holding vreg, or the idx of the elem in the reg stack holding vreg.
+ * if the returned idx is an index into the reg stack, *idx_in_reg_stack will
+ * be set to true. */
+static u32 alloc_vreg(const char *vreg, struct IRBasicBlock *cur_block,
+        struct IRFunc *cur_func, u32 instr_idx,
+        const struct IRRegLTList *vreg_lts, bool *idx_in_reg_stack) {
 
     u32 i;
-    u32 n_vregs_to_alloca = 0;
+    u32 alloc_dest = m_u32_max;
+
+    struct RegStates *reg_states =
+        RegStates_block_preg_states(cur_block, cur_func);
+
+    if (idx_in_reg_stack)
+        *idx_in_reg_stack = false;
+
+    i = preg_holding_vreg(vreg, cur_block, cur_func);
+    if (i != m_u32_max) {
+        return i;
+    }
+
+    i = reg_stack_holding_vreg(vreg);
+    if (i != m_u32_max) {
+        if (idx_in_reg_stack)
+            *idx_in_reg_stack = true;
+
+        return i;
+    }
+
+    for (i = 0; i < m_n_usable_pregs; i++) {
+        if (preg_is_free(i, cur_block, cur_func, instr_idx, vreg_lts)) {
+            alloc_dest = i;
+            break;
+        }
+    }
+
+    if (alloc_dest != m_u32_max) {
+        reg_states->preg_vals[alloc_dest].virt_reg = vreg;
+        return alloc_dest;
+    }
+
+    /* past this point, any alloc dest would be in the stack. */
+    if (idx_in_reg_stack)
+        *idx_in_reg_stack = true;
+
+    for (i = 0; i < reg_stack.size; i++) {
+        if (phys_reg_val_is_free(&reg_stack.elems[i], instr_idx, vreg_lts)) {
+            alloc_dest = i;
+            break;
+        }
+    }
+
+    if (alloc_dest != m_u32_max) {
+        reg_stack.elems[alloc_dest].virt_reg = vreg;
+        return alloc_dest;
+    }
+
+    /* if the vreg can't be allocated anywhere, it has to be spilt onto
+     * the stack */
+    PhysRegValList_push_back(&reg_stack, PhysRegVal_create(vreg));
+
+    incr_func_stack_size(cur_func, 4);
+
+    /* add a new alloca instr to store the fact that the func's stack size has
+     * been increased */
+    {
+        u32 none_idx = IRFunc_find_none_reg(cur_func);
+        if (none_idx == m_u32_max) {
+            StringList_push_back(&cur_func->vregs, make_str_copy("__none"));
+            none_idx = cur_func->vregs.size-1;
+        }
+
+        /* the alloca instruction should in the first block of the func, cuz
+         * that makes it more apparent that the alloca instructions are global
+         * to the whole func. */
+        IRInstrList_push_back(&cur_func->blocks.elems[0].instrs,
+                IRInstr_create_alloca(
+                    cur_func->vregs.elems[none_idx],
+                    IRDataType_create(false, 0, 0), 4, 4
+                ));
+    }
+
+    return reg_stack.size-1;
+
+}
+
+/* instr_idx is relative to the start of the function */
+static void virt_to_phys_instr_arg(struct IRInstrArg *arg,
+        struct IRBasicBlock *cur_block, struct IRFunc *cur_func,
+        const struct IRRegLTList *vreg_lts, u32 instr_idx) {
+
+    u32 reg_idx;
+    bool on_reg_stack;
+
+    struct DynamicStr new_vreg_name;
+
+    if (arg->type != IRInstrArg_REG)
+        return;
+
+    if (strncmp(arg->value.reg_name, "__", 2) == 0)
+        return;
+
+    reg_idx = alloc_vreg(arg->value.reg_name, cur_block, cur_func, instr_idx,
+            vreg_lts, &on_reg_stack);
+
+    new_vreg_name = DynamicStr_init();
+
+    /* the reg names are prefixed with '__' to ensure there won't be any
+     * clashing with other vreg names */
+    if (on_reg_stack) {
+        DynamicStr_append_printf(&new_vreg_name, "__esp(%u)", reg_idx*4);
+    }
+    else {
+        DynamicStr_append_printf(&new_vreg_name, "__%s", cpu_regs[reg_idx]);
+    }
+
+    StringList_push_back(&cur_func->vregs, new_vreg_name.str);
+    arg->value.reg_name = new_vreg_name.str;
+
+}
+
+/* instr_idx is relative to the start of the function */
+static void virt_to_phys_instr(struct IRInstr *instr,
+        struct IRBasicBlock *cur_block, struct IRFunc *cur_func,
+        const struct IRRegLTList *vreg_lts, u32 instr_idx) {
+
+    u32 i;
 
     for (i = 0; i < instr->args.size; i++) {
 
-        if (instr->args.elems[i].type != IRInstrArg_REG)
-            continue;
-
-        n_vregs_to_alloca +=
-            alloc_vreg(instr->args.elems[i].value.reg_name, cur_block,
-                    cur_func, instr_idx, vreg_lts, true) == m_u32_max;
+        virt_to_phys_instr_arg(&instr->args.elems[i], cur_block, cur_func,
+                vreg_lts, instr_idx);
 
     }
-
-    return n_vregs_to_alloca;
-
-}
-
-/* DOESN'T PRESERVE THE CPU REGISTER STATES */
-static u32 get_n_vregs_to_alloca_in_block(struct IRBasicBlock *block,
-        u32 start_instr_idx, const struct IRRegLTList *vreg_lts,
-        const struct IRFunc *cur_func) {
-
-    u32 i;
-    u32 n_vregs_to_alloca = 0;
-    u32 instr_idx = start_instr_idx;
-
-    for (i = 0; i < block->instrs.size; i++) {
-
-        n_vregs_to_alloca += get_n_vregs_to_alloca_in_instr(
-                &block->instrs.elems[i], instr_idx, vreg_lts, block, cur_func
-                );
-
-        ++instr_idx;
-
-    }
-
-    return n_vregs_to_alloca;
-
-}
-
-/* selects n vregs in block to put on the stack. */
-static void alloca_vregs_in_block(struct IRBasicBlock *block, u32 n,
-        struct IRFunc *parent, struct IRRegLTList *vreg_lts) {
-
-    u32 i;
-    struct ConstStringList vregs = IRBasicblock_get_vregs(block, true);
-
-    u32 none_reg_idx = StringList_find(&parent->vregs, "__none");
-    if (none_reg_idx == m_u32_max) {
-        StringList_push_back(&parent->vregs, make_str_copy("__none"));
-        none_reg_idx = parent->vregs.size-1;
-    }
-
-    n *= 2;
-
-    assert(vregs.size >= n);
-
-    printf("none = %p\n", (void*)parent->vregs.elems[n]);
-    printf("n = %u\n", n);
-
-    for (i = 0; i < parent->vregs.size; i++) {
-        printf("func vreg %%%s at %p\n", parent->vregs.elems[i],
-                (void*)parent->vregs.elems[i]);
-    }
-
-    /* make sure to properly allocate the new stack space */
-    incr_func_stack_size(parent, n*4);
-
-    /* for now just alloca the first n of them */
-    for (i = 0; i < m_min(vregs.size, n); i++) {
-
-        u32 j;
-        u32 reg_lt_idx;
-
-        /* start from the top of the newly allocated stack space */
-        char *sp_offset = create_stack_offset_str((n-i - 1)*4);
-        printf("i = %u, sp_offset = %p\n", i, (void*)sp_offset);
-
-        /* we don't wanna allocate accidentally a register on the stack */
-        if (strncmp(vregs.elems[i], "__", 2) == 0)
-            continue;
-
-        printf("sp offset = %%%s\n", sp_offset);
-        for (j = i; j < vregs.size; j++) {
-            fprintf(stderr, "vreg %%%s, %p\n", vregs.elems[j],
-                    (void*)vregs.elems[j]);
-        }
-
-        IRInstrList_push_back(&block->instrs, IRInstr_create_alloca(
-                    parent->vregs.elems[none_reg_idx],
-                    IRDataType_create(false, 32, 1), 4, 4
-                    ));
-
-        for (j = 0; j < parent->vregs.size; j++) {
-            printf("func vreg %%%s at %p\n", parent->vregs.elems[j],
-                    (void*)parent->vregs.elems[j]);
-        }
-
-        /* the vreg entry has to be removed from the vreg lts list */
-        reg_lt_idx = IRRegLTList_find_reg(vreg_lts, vregs.elems[i]);
-        assert(reg_lt_idx != m_u32_max);
-        IRRegLTList_erase(vreg_lts, reg_lt_idx, NULL);
-
-        IRFunc_rename_vreg(parent, vregs.elems[i], sp_offset);
-
-    }
-
-    ConstStringList_free(&vregs);
 
 }
 
@@ -403,21 +367,9 @@ static void virt_to_phys_block(struct IRBasicBlock *block,
         u32 *instr_idx) {
 
     u32 i;
-    u32 n_vregs_to_alloca;
 
     RegStatesList_push_back(&block_reg_states, RegStates_init());
     init_cpu_reg_vals(block, cur_func, vreg_lts);
-
-    n_vregs_to_alloca =
-        get_n_vregs_to_alloca_in_block(block, *instr_idx, vreg_lts, cur_func);
-    init_cpu_reg_vals(block, cur_func, vreg_lts);
-
-    alloca_vregs_in_block(block, n_vregs_to_alloca, cur_func, vreg_lts);
-
-    /*
-    if (n_vregs_to_alloca > 0)
-        *vreg_lts = IRRegLTList_get_func_lts(cur_func);
-    */
 
     for (i = 0; i < block->instrs.size; i++) {
         virt_to_phys_instr(&block->instrs.elems[i], block, cur_func, vreg_lts,
@@ -427,22 +379,21 @@ static void virt_to_phys_block(struct IRBasicBlock *block,
 
 }
 
-static void virt_to_phys_func(struct IRFunc *func, struct IRModule *parent) {
+static void virt_to_phys_func(struct IRFunc *func) {
 
     u32 i;
 
     struct IRRegLTList vreg_lts = IRRegLTList_get_func_lts(func);
     u32 instr_idx = 0;
 
+    reg_stack = PhysRegValList_init();
+
     for (i = 0; i < func->blocks.size; i++) {
         virt_to_phys_block(&func->blocks.elems[i], func, &vreg_lts,
                 &instr_idx);
-        /*
-        printf("after block %s\n", func->blocks.elems[i].label);
-        printf("ir =\n%s\n", IRToStr_gen(parent));
-        */
     }
 
+    PhysRegValList_free(&reg_stack);
     RegStatesList_free(&block_reg_states);
 
     IRRegLTList_free(&vreg_lts);
@@ -454,7 +405,7 @@ void X86_virt_to_phys(struct IRModule *module) {
     u32 i;
 
     for (i = 0; i < module->funcs.size; i++) {
-        virt_to_phys_func(&module->funcs.elems[i], module);
+        virt_to_phys_func(&module->funcs.elems[i]);
     }
 
     X86_remove_alloc_reg(module);
