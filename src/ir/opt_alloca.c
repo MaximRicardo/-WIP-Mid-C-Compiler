@@ -192,7 +192,7 @@ static void create_new_reg_to_conv_from_alloca(const struct IRInstr *instr,
         struct RegToConvList *regs_to_conv) {
 
     /* anything bigger than 4 bytes can't be held in a virtual register.
-     * for now just crash if anything bigger than 4 bytes in alloca'd. */
+     * for now just crash if anything bigger than 4 bytes is alloca'd. */
     if (instr->args.elems[1].value.imm_u32 > 4)
         assert(false);
 
@@ -418,7 +418,8 @@ static bool create_phi_node(u32 r2c_idx,
 
 }
 
-static void opt_alloca_instr(struct IRInstr *instr,
+/* returns whether or not instr got erased from cur_block->instrs */
+static bool opt_alloca_instr(struct IRInstr *instr,
         struct IRBasicBlock *cur_block, struct IRFunc *cur_func,
         struct RegToConvList *regs_to_conv) {
 
@@ -429,13 +430,18 @@ static void opt_alloca_instr(struct IRInstr *instr,
                 &cur_block->instrs, instr - cur_block->instrs.elems,
                 IRInstr_free
                 );
+        return true;
     }
     else if (instr->type == IRInstr_STORE) {
         convert_store_to_init(instr, cur_block, cur_func, regs_to_conv);
+        return false;
     }
     else if (instr->type == IRInstr_LOAD) {
         convert_load_to_mov(instr, regs_to_conv);
+        return false;
     }
+
+    return false;
 
 }
 
@@ -464,7 +470,7 @@ static void opt_alloca_block(struct IRBasicBlock *block,
     }
 
     for (i = 0; i < block->instrs.size; i++) {
-        opt_alloca_instr(&block->instrs.elems[i], block, cur_func,
+        i -= opt_alloca_instr(&block->instrs.elems[i], block, cur_func,
                 regs_to_conv);
     }
 
