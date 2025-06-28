@@ -1,7 +1,6 @@
 #include "code_gen.h"
 #include "../../utils/dyn_str.h"
 #include "instrs.h"
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>

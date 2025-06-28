@@ -2,7 +2,6 @@
 #include "basic_block.h"
 #include "data_types.h"
 #include "instr.h"
-#include <stdio.h>
 #include <string.h>
 
 static u32 round_up(u32 num, u32 multiple) {

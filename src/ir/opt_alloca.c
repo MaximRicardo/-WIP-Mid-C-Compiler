@@ -5,7 +5,6 @@
 #include "../utils/dyn_str.h"
 #include <stddef.h>
 #include <assert.h>
-#include <stdio.h>
 #include <string.h>
 
 struct StoreInfo {
@@ -477,11 +476,6 @@ static void opt_alloca_block(struct IRBasicBlock *block,
 
         if (j == m_u32_max)
             continue;
-
-        printf("block %s, last %%%s version is %%%s\n",
-                block->label,
-                regs_to_conv->elems[i].last_store.elems[j].old_name,
-                regs_to_conv->elems[i].last_store.elems[j].new_name);
     }
 
 }

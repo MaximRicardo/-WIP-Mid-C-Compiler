@@ -3,7 +3,6 @@
 #include "func.h"
 #include "../attrib.h"
 #include <assert.h>
-#include <stdio.h>
 #include <string.h>
 
 struct IRBasicBlock IRBasicBlock_init(void) {

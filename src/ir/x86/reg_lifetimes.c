@@ -101,14 +101,6 @@ struct IRRegLTList IRRegLTList_get_func_lts(const struct IRFunc *func) {
 
     }
 
-    for (i = 0; i < lts.size; i++) {
-
-        printf("reg '%s' created at %u, dies at %u.\n",
-                lts.elems[i].reg_name, lts.elems[i].creation_idx,
-                lts.elems[i].death_idx);
-
-    }
-
     return lts;
 
 }

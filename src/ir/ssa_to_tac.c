@@ -4,7 +4,6 @@
 #include "instr.h"
 #include "../utils/make_str_cpy.h"
 #include <assert.h>
-#include <stdio.h>
 
 /* returns whether or not it erased instr from cur_block->instrs */
 static bool instr_ssa_to_tac(struct IRInstr *instr,
@@ -24,8 +23,9 @@ static bool instr_ssa_to_tac(struct IRInstr *instr,
     }
 
     block_common_dom = IRBasicBlock_find_common_dom(cur_block, cur_func);
-    printf("%s common_dom = %u.\n", cur_block->label, block_common_dom);
+
     /* GET RID OF THIS IF STATEMENT LATER */
+
     if (block_common_dom != m_u32_max) {
         IRInstrList_push_back(
                 &cur_func->blocks.elems[block_common_dom].instrs,

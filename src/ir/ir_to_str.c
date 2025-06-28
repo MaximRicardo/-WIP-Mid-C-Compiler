@@ -8,8 +8,6 @@
 
 #define m_tab "    "
 
-bool show_basic_block_boundaries = false;
-
 static void instr_arg_to_str(struct DynamicStr *output,
         const struct IRInstrArg *arg) {
 
@@ -116,17 +114,7 @@ static void func_to_str(struct DynamicStr *output, const struct IRFunc *func) {
             func_type_str, func->name, func_args_str);
 
     for (i = 0; i < func->blocks.size; i++) {
-        if (show_basic_block_boundaries) {
-            DynamicStr_append_printf(output,
-                    "; start of block %u.\n", i);
-        }
-
         basic_block_to_str(output, &func->blocks.elems[i]);
-
-        if (show_basic_block_boundaries) {
-            DynamicStr_append_printf(output,
-                    "; end of block %u.\n", i);
-        }
     }
 
     DynamicStr_append(output, "}\n");

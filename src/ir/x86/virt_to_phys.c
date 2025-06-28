@@ -205,8 +205,6 @@ static bool phys_reg_val_is_free(const struct PhysRegVal *preg,
     reg_lt_idx = IRRegLTList_find_reg(vreg_lts, preg->virt_reg);
     assert(reg_lt_idx != m_u32_max);
     if (vreg_lts->elems[reg_lt_idx].death_idx < instr_idx) {
-        printf("%%%s dies at %u %u\n", vreg_lts->elems[reg_lt_idx].reg_name,
-                vreg_lts->elems[reg_lt_idx].death_idx, instr_idx);
         return true;
     }
 
@@ -306,7 +304,6 @@ static u32 alloc_vreg(const char *vreg, struct IRBasicBlock *cur_block,
                 ));
     }
 
-    printf("reg_stack_size = %u, allocated %%%s\n", reg_stack.size, vreg);
     return reg_stack.size-1;
 
 }

@@ -1,6 +1,5 @@
 #include "block_dom.h"
 #include "instr.h"
-#include <stdio.h>
 #include <string.h>
 #include <assert.h>
 
@@ -48,19 +47,14 @@ static void get_block_imm_doms(struct IRBasicBlock *block,
 
     u32 i;
 
-    printf("block %s imm doms: ", block->label);
-
     for (i = 0; i < func->blocks.size; i++) {
 
         if (!does_block_goto_to_block(&func->blocks.elems[i], block))
             continue;
 
-        printf("%s ", func->blocks.elems[i].label);
         U32List_push_back(&block->imm_doms, i);
 
     }
-
-    printf("\n");
 
 }
 
