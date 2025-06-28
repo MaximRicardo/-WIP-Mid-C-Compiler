@@ -1458,7 +1458,7 @@ static struct BlockNode* parse(const struct Lexer *lexer,
             prev_end_idx = start_idx;
             break;
         }
-        else if (strcmp(token_src, "return") == 0) {
+        else if (lexer->token_tbl.elems[start_idx].type == TokenType_RETURN) {
             prev_end_idx =
                 parse_ret_stmt(lexer, block, bp, start_idx, parent_func,
                         n_blocks_deep);

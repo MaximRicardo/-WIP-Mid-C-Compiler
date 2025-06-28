@@ -73,6 +73,12 @@ bool Token_is_literal(enum TokenType type) {
 
 }
 
+bool Token_is_keyword(enum TokenType type) {
+
+    return type > TokenType_KEYWORDS_START && type < TokenType_KEYWORDS_END;
+
+}
+
 bool Token_convert_to_unary(enum TokenType type) {
 
     switch (type) {

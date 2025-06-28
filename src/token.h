@@ -71,6 +71,7 @@ enum TokenType {
     /* keywords
      * type specifiers aren't included here cuz they're detected during parsing
      * instead of during lexing */
+    TokenType_KEYWORDS_START,
     TokenType_IF_STMT,
     TokenType_ELSE,
     TokenType_WHILE_STMT,
@@ -80,6 +81,8 @@ enum TokenType {
     TokenType_SIGNED,
     TokenType_UNSIGNED,
     TokenType_STRUCT,
+    TokenType_RETURN,
+    TokenType_KEYWORDS_END,
 
     TokenType_VARIADIC,
 
@@ -131,6 +134,7 @@ bool Token_is_bin_operator(enum TokenType type);
 bool Token_is_operator(enum TokenType type);
 bool Token_is_cmp_operator(enum TokenType type);
 bool Token_is_literal(enum TokenType type);
+bool Token_is_keyword(enum TokenType type);
 /* only works on token types that have a unary equivalent, such as
  * TokenType_MINUS->TokenType_NEGATIVE */
 bool Token_convert_to_unary(enum TokenType type);
