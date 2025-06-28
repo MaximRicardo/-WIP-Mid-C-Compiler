@@ -20,10 +20,12 @@ enum IRInstrType {
     IRInstr_MOV,
 
     /* binary operations */
+    IRInstr_BINARY_OPS_START,
     IRInstr_ADD,
     IRInstr_SUB,
     IRInstr_MUL,
     IRInstr_DIV,
+    IRInstr_BINARY_OPS_END,
 
     /* control flow instructions */
     IRInstr_JMP,
@@ -31,9 +33,11 @@ enum IRInstrType {
     IRInstr_RET,
 
     /* mem instructions */
+    IRInstr_MEM_INSTRS_START,
     IRInstr_ALLOCA,
     IRInstr_STORE,
     IRInstr_LOAD,
+    IRInstr_MEM_INSTRS_END,
 
     IRInstr_PHI,
 
@@ -49,6 +53,9 @@ bool IRInstrType_is_cond_branch(enum IRInstrType type);
 /* not counting the result register */
 bool IRInstrType_is_bin_op(enum IRInstrType type);
 bool IRInstrType_is_mem_instr(enum IRInstrType type);
+/* instructions like mov, add, div, load, etc. have destinations, but other
+ * instructions like jmp, ret, etc. don't have destination registers. */
+bool IRInstrType_has_dest_reg(enum IRInstrType type);
 
 enum IRInstrArgType {
 

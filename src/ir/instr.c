@@ -18,15 +18,20 @@ bool IRInstrType_is_cond_branch(enum IRInstrType type) {
 
 bool IRInstrType_is_bin_op(enum IRInstrType type) {
 
-    return type == IRInstr_ADD || type == IRInstr_SUB ||
-        type == IRInstr_MUL || type == IRInstr_DIV;
+    return type > IRInstr_BINARY_OPS_START && type < IRInstr_BINARY_OPS_END;
 
 }
 
 bool IRInstrType_is_mem_instr(enum IRInstrType type) {
 
-    return type == IRInstr_ALLOCA || type == IRInstr_STORE ||
-        type == IRInstr_LOAD;
+    return type > IRInstr_MEM_INSTRS_START && type < IRInstr_MEM_INSTRS_END;
+}
+
+bool IRInstrType_has_dest_reg(enum IRInstrType type) {
+
+    return IRInstrType_is_bin_op(type) || type == IRInstr_LOAD ||
+        type == IRInstr_ALLOCA || type == IRInstr_PHI ||
+        type == IRInstr_MOV;
 
 }
 

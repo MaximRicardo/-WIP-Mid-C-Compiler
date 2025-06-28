@@ -1,15 +1,19 @@
 #include "ir_instr_to_str.h"
 #include "instr.h"
+#include <assert.h>
 
 const char *IR_instr_t_to_str(enum IRInstrType type) {
 
     switch (type) {
 
     case IRInstr_INVALID:
-        return "INVALID INSTRUCTION!";
+        assert(false);
 
     case IRInstr_MOV:
         return "mov";
+
+    case IRInstr_BINARY_OPS_START:
+        assert(false);
 
     case IRInstr_ADD:
         return "add";
@@ -23,6 +27,9 @@ const char *IR_instr_t_to_str(enum IRInstrType type) {
     case IRInstr_DIV:
         return "div";
 
+    case IRInstr_BINARY_OPS_END:
+        assert(false);
+
     case IRInstr_JMP:
         return "jmp";
 
@@ -31,6 +38,9 @@ const char *IR_instr_t_to_str(enum IRInstrType type) {
 
     case IRInstr_RET:
         return "ret";
+
+    case IRInstr_MEM_INSTRS_START:
+        assert(false);
 
     case IRInstr_ALLOCA:
         return "alloca";
@@ -41,6 +51,9 @@ const char *IR_instr_t_to_str(enum IRInstrType type) {
     case IRInstr_LOAD:
         return "load";
 
+    case IRInstr_MEM_INSTRS_END:
+        assert(false);
+
     case IRInstr_PHI:
         return "phi";
 
@@ -48,7 +61,7 @@ const char *IR_instr_t_to_str(enum IRInstrType type) {
         return "alloc_reg";
 
     case IRInstr_COMMENT:
-        return "COMMENT INSTRUCTION!";
+        assert(false);
 
     }
 

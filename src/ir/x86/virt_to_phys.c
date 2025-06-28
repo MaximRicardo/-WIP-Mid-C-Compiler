@@ -1,5 +1,5 @@
 #include "virt_to_phys.h"
-#include "reg_lifetimes.h"
+#include "../reg_lifetimes.h"
 #include "phys_reg_val.h"
 #include "../../attrib.h"
 #include "../../utils/dyn_str.h"

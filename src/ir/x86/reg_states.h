@@ -1,7 +1,7 @@
 #pragma once
 
 #include "phys_reg_val.h"
-#include "reg_lifetimes.h"
+#include "../reg_lifetimes.h"
 
 /* not counting sp:
  * ax, bx, cx, dx, bp, si, di */

@@ -7,11 +7,11 @@ int main(int argc, char **argv) {
     int asdfsadf2;
     int asdfsadf3;
 
-    if (1) {
+    if (0) {
         y = y / x;
         x = 1;
     }
-    else if (0) {
+    else if (1) {
         y = y - x;
         x = 2;
     }
@@ -19,6 +19,11 @@ int main(int argc, char **argv) {
         y = 10;
         x = 5;
     }
+
+    asdfsadf = 5;
+    asdfsadf = 5;
+    asdfsadf = 5;
+    asdfsadf = 5;
 
     return x+y;
 

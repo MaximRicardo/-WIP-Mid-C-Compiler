@@ -21,6 +21,7 @@
 #include "ir/ir_to_str.h"
 #include "ir/opt_alloca.h"
 #include "ir/opt_copy_prop.h"
+#include "ir/opt_unused_vregs.h"
 #include "ir/ssa_to_tac.h"
 #include "ir/x86/virt_to_phys.h"
 
@@ -110,12 +111,23 @@ static void compile(char *src, FILE *output, FILE *mccir_output,
 
         if (CompArgs_args.optimize) {
             IROpt_alloca(&ir_tu);
+            IROpt_unused_vregs(&ir_tu);
             IROpt_copy_prop(&ir_tu);
         }
+
+        if (mccir_output) {
+            char *ir_output_str = IRToStr_gen(&ir_tu);
+            fprintf(mccir_output, ";--------------------------------------\n");
+            fprintf(mccir_output, ";Post-Optimizations IR\n");
+            fprintf(mccir_output, ";--------------------------------------\n");
+            fputs(ir_output_str, mccir_output);
+            fflush(mccir_output);
+            m_free(ir_output_str);
+        }
+
         IR_ssa_to_tac(&ir_tu);
 
         X86_alloca_to_esp(&ir_tu);
-
         X86_virt_to_phys(&ir_tu);
 
         if (mccir_output) {
