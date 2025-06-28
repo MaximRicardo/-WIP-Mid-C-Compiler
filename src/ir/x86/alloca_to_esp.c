@@ -43,6 +43,11 @@ static void alloca_to_esp_instr(struct IRInstr *instr, u32 func_stack_size,
     IRFunc_rename_vreg(parent, instr->args.elems[Arg_SELF].value.reg_name,
             sp_name.str);
 
+    /* if sp_name didn't get used anywhere in the parent func, we still have
+     * ownership over it and thus need to free it. */
+    if (StringList_find(&parent->vregs, sp_name.str) == m_u32_max)
+        DynamicStr_free(sp_name);
+
     none_reg_idx = StringList_find(&parent->vregs, "__none");
     if (none_reg_idx == m_u32_max) {
         StringList_push_back(&parent->vregs, make_str_copy("__none"));

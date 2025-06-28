@@ -9,6 +9,10 @@ start:
     alloca i32* %y, u32 4, u32 4
     mov i32 %y.init, i32 42
     store i32 %y.init, i32* %y, u32 0
+    alloca i32* %asdfsadf, u32 4, u32 4
+    alloca i32* %asdfsadf1, u32 4, u32 4
+    alloca i32* %asdfsadf2, u32 4, u32 4
+    alloca i32* %asdfsadf3, u32 4, u32 4
     je i32 1, i32 0, if_false_0, if_true_0
 if_true_0:
     load i32 %0, i32* %y, u32 0
@@ -50,6 +54,8 @@ if_end_0:
 ;--------------------------------------
 define i32 @main(i32 %arg.0, u32** %arg.1) {
 start:
+    alloca i32* %__none, u32 4, u32 4
+    alloca i32* %__none, u32 4, u32 4
     je i32 1, i32 0, if_false_0, if_true_0
 if_true_0:
     mov i32 %__eax, i32 8
