@@ -1,4 +1,5 @@
 #include "reg_states.h"
+#include "phys_reg_val.h"
 
 struct RegStates RegStates_init(void) {
 
@@ -13,6 +14,30 @@ struct RegStates RegStates_init(void) {
 
 }
 
+static const char* reg_states_merge_vregs(const char *self_vreg,
+        const char *other_vreg, const struct IRRegLTList *vreg_lts) {
+
+    if (!self_vreg) {
+        return other_vreg;
+    }
+    else if (other_vreg) {
+        u32 self_vreg_i = IRRegLTList_find_reg(
+                vreg_lts, self_vreg
+                );
+        u32 other_vreg_i = IRRegLTList_find_reg(
+                vreg_lts, other_vreg 
+                );
+
+        if (vreg_lts->elems[other_vreg_i].death_idx >
+                vreg_lts->elems[self_vreg_i].death_idx) {
+            return self_vreg;
+        }
+    }
+
+    return self_vreg;
+
+}
+
 void RegStates_merge(struct RegStates *self, const struct RegStates *other,
         const struct IRRegLTList *vreg_lts) {
 
@@ -20,32 +45,12 @@ void RegStates_merge(struct RegStates *self, const struct RegStates *other,
 
     for (i = 0; i < m_n_usable_pregs; i++) {
 
-        if (!self->preg_vals[i].virt_reg) {
-            self->preg_vals[i].virt_reg = other->preg_vals[i].virt_reg;
-        }
-        else if (other->preg_vals[i].virt_reg) {
-            u32 self_vreg = IRRegLTList_find_reg(
-                    vreg_lts, self->preg_vals[i].virt_reg
-                    );
-            u32 other_vreg = IRRegLTList_find_reg(
-                    vreg_lts, other->preg_vals[i].virt_reg
-                    );
-
-            if (vreg_lts->elems[other_vreg].death_idx >
-                    vreg_lts->elems[self_vreg].death_idx) {
-                self->preg_vals[i].virt_reg = other->preg_vals[i].virt_reg;
-            }
-        }
+        self->preg_vals[i].virt_reg = reg_states_merge_vregs(
+                self->preg_vals[i].virt_reg, other->preg_vals[i].virt_reg,
+                vreg_lts
+                );
 
     }
-
-}
-
-struct RegStates RegStates_copy(const struct RegStates self) {
-
-    /* works cur preg_vals is a regular array, meaning a regular copy
-     * duplicates all of it's contents. */
-    return self;
 
 }
 

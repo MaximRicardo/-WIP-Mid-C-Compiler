@@ -16,3 +16,5 @@ struct PhysRegVal PhysRegVal_create(const char *virt_reg) {
     return reg;
 
 }
+
+m_define_VectorImpl_funcs(PhysRegValList, struct PhysRegVal)

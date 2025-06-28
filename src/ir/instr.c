@@ -212,5 +212,29 @@ struct IRInstr IRInstr_create_alloc_reg(const char *reg_name,
 
 }
 
+struct IRInstr IRInstr_create_alloca(const char *dest_vreg,
+        struct IRDataType d_type, u32 size, u32 alignment) {
+
+    struct IRDataType u32_d_type = IRDataType_create(false, 32, 0);
+
+    struct IRInstr instr = IRInstr_init();
+    instr.type = IRInstr_ALLOCA;
+
+    IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
+                IRInstrArg_REG, d_type, IRInstrArgValue_reg_name(dest_vreg)
+                ));
+
+    IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
+                IRInstrArg_IMM32, u32_d_type, IRInstrArgValue_imm_u32(size)
+                ));
+
+    IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
+                IRInstrArg_IMM32, u32_d_type, IRInstrArgValue_imm_u32(alignment)
+                ));
+
+    return instr;
+
+}
+
 m_define_VectorImpl_funcs(IRInstrArgList, struct IRInstrArg)
 m_define_VectorImpl_funcs(IRInstrList, struct IRInstr)

@@ -2,8 +2,12 @@ int main(int argc, char **argv) {
 
     int x = 5;
     int y = 42;
+    int fill_up_regs_0 = 0;
+    int fill_up_regs_1 = 0;
+    int fill_up_regs_2 = 0;
+    int fill_up_regs_3 = 0;
 
-    (1+2*3+4)/2;
+    (1+2)*(3+4)*(4+5);
 
     if (0) {
         y = y / x;
@@ -18,6 +22,10 @@ int main(int argc, char **argv) {
         x = 5;
     }
 
+    fill_up_regs_0 + 0;
+    fill_up_regs_1 + 0;
+    fill_up_regs_2 + 0;
+    fill_up_regs_3 + 0;
     return y+x;
 
 }

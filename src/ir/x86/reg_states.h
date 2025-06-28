@@ -16,7 +16,6 @@ struct RegStates {
 struct RegStates RegStates_init(void);
 void RegStates_merge(struct RegStates *self, const struct RegStates *other,
         const struct IRRegLTList *vreg_lts);
-struct RegStates RegStates_copy(const struct RegStates self);
 
 struct RegStatesList {
 

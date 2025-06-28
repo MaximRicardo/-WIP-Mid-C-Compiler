@@ -4,6 +4,7 @@
 
 #include "instr.h"
 #include "../utils/u32_list.h"
+#include "../utils/string_list.h"
 
 struct IRFunc;
 
@@ -24,6 +25,8 @@ void IRBasicBlock_free(struct IRBasicBlock block);
 /* returns m_u32_max if self has no dominators */
 u32 IRBasicBlock_find_common_dom(const struct IRBasicBlock *self,
         const struct IRFunc *parent);
+struct ConstStringList IRBasicblock_get_vregs(const struct IRBasicBlock *self,
+        bool skip_reserved_regs);
 
 struct IRBasicBlockList {
 

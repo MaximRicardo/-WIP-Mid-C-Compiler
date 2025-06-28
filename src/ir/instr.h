@@ -128,6 +128,9 @@ struct IRInstr IRInstr_create_cond_jmp_instr(enum IRInstrType type,
 struct IRInstr IRInstr_create_alloc_reg(const char *reg_name,
         struct IRDataType d_type);
 
+struct IRInstr IRInstr_create_alloca(const char *dest_vreg,
+        struct IRDataType d_type, u32 size, u32 alignment);
+
 struct IRInstrList {
 
     struct IRInstr *elems;

@@ -4,6 +4,7 @@
 #include "../attrib.h"
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 
 struct IRBasicBlock IRBasicBlock_init(void) {
 
@@ -141,6 +142,37 @@ u32 IRBasicBlock_find_common_dom(const struct IRBasicBlock *self,
 
     return common_dom;
 #endif
+
+}
+
+struct ConstStringList IRBasicblock_get_vregs(
+        const struct IRBasicBlock *self, bool skip_reserved_regs) {
+
+    u32 i;
+    struct ConstStringList vregs = ConstStringList_init();
+
+    for (i = 0; i < self->instrs.size; i++) {
+
+        u32 j;
+        struct IRInstr *instr = &self->instrs.elems[i];
+
+        for (j = 0; j < instr->args.size; j++) {
+            struct IRInstrArg *arg = &instr->args.elems[j];
+
+            if (arg->type != IRInstrArg_REG)
+                continue;
+
+            if (strncmp(arg->value.reg_name, "__", 2) == 0 &&
+                    skip_reserved_regs)
+                continue;
+
+            if (ConstStringList_find(&vregs, arg->value.reg_name) == m_u32_max)
+                ConstStringList_push_back(&vregs, arg->value.reg_name);
+        }
+
+    }
+
+    return vregs;
 
 }
 

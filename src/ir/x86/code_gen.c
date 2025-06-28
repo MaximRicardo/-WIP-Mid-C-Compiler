@@ -1,6 +1,7 @@
 #include "code_gen.h"
 #include "../../utils/dyn_str.h"
 #include "instrs.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
@@ -22,29 +23,6 @@ static const char* vreg_to_preg(const char *vreg) {
     assert(strncmp(vreg, "__", 2) == 0);
 
     return &vreg[2];
-
-}
-
-static void emit_instr_arg(struct DynamicStr *output,
-        const struct IRInstrArg *arg) {
-
-    if (arg->type == IRInstrArg_REG) {
-        DynamicStr_append(output, vreg_to_preg(arg->value.reg_name));
-    }
-    else if (arg->type == IRInstrArg_IMM32 && arg->data_type.is_signed) {
-        DynamicStr_append_printf(output, "%s %d",
-                size_specs[arg->data_type.width/8], arg->value.imm_i32);
-    }
-    else if (arg->type == IRInstrArg_IMM32 && !arg->data_type.is_signed) {
-        DynamicStr_append_printf(output, "%s %u",
-                size_specs[arg->data_type.width/8], arg->value.imm_u32);
-    }
-    else if (arg->type == IRInstrArg_STR) {
-        DynamicStr_append(output, arg->value.generic_str);
-    }
-    else {
-        assert(false);
-    }
 
 }
 
@@ -87,6 +65,35 @@ static void emit_stack_offset_to_nasm(struct DynamicStr *output,
 
 }
 
+static void emit_instr_arg(struct DynamicStr *output,
+        const struct IRInstrArg *arg) {
+
+    if (arg->type == IRInstrArg_REG) {
+        if (reg_is_stack_offset(arg->value.reg_name)) {
+            emit_stack_offset_to_nasm(output,
+                    vreg_to_preg(arg->value.reg_name), NULL, 0, 1, true);
+        }
+        else {
+            DynamicStr_append(output, vreg_to_preg(arg->value.reg_name));
+        }
+    }
+    else if (arg->type == IRInstrArg_IMM32 && arg->data_type.is_signed) {
+        DynamicStr_append_printf(output, "%s %d",
+                size_specs[arg->data_type.width/8], arg->value.imm_i32);
+    }
+    else if (arg->type == IRInstrArg_IMM32 && !arg->data_type.is_signed) {
+        DynamicStr_append_printf(output, "%s %u",
+                size_specs[arg->data_type.width/8], arg->value.imm_u32);
+    }
+    else if (arg->type == IRInstrArg_STR) {
+        DynamicStr_append(output, arg->value.generic_str);
+    }
+    else {
+        assert(false);
+    }
+
+}
+
 static void emit_mem_instr_address(struct DynamicStr *output,
         const struct IRInstr *instr) {
 
@@ -116,13 +123,11 @@ static void emit_mem_instr_address(struct DynamicStr *output,
 static void gen_from_mov_instr(struct DynamicStr *output,
         const struct IRInstr *instr) {
 
-    const char *self_reg;
-
     assert(instr->args.size == 2);
 
-    self_reg = vreg_to_preg(instr->args.elems[Arg_SELF].value.generic_str);
-
-    DynamicStr_append_printf(output, "mov %s, ", self_reg);
+    DynamicStr_append_printf(output, "mov ");
+    emit_instr_arg(output, &instr->args.elems[Arg_SELF]);
+    DynamicStr_append(output, ", ");
     emit_instr_arg(output, &instr->args.elems[Arg_LHS]);
     DynamicStr_append(output, "\n");
 
@@ -131,12 +136,8 @@ static void gen_from_mov_instr(struct DynamicStr *output,
 static void gen_from_bin_op(struct DynamicStr *output,
         const struct IRInstr *instr) {
 
-    const char *self_reg;
-
     assert(instr->args.size == 3);
     assert(instr->args.elems[Arg_SELF].type == IRInstrArg_REG);
-
-    self_reg = vreg_to_preg(instr->args.elems[Arg_SELF].value.generic_str);
 
     /* since x86 is a 2 operand architecture, but MCCIR is a 3 operand IL,
      * instructions will need to be converted from 3 to 2 operands. The
@@ -146,12 +147,16 @@ static void gen_from_bin_op(struct DynamicStr *output,
      *    mov r0 <- r1
      *    add r1 <- r2
      */
-    DynamicStr_append_printf(output, "mov %s, ", self_reg);
+    DynamicStr_append_printf(output, "mov ");
+    emit_instr_arg(output, &instr->args.elems[Arg_SELF]);
+    DynamicStr_append(output, ", ");
     emit_instr_arg(output, &instr->args.elems[Arg_LHS]);
     DynamicStr_append(output, "\n");
 
-    DynamicStr_append_printf(output, "%s %s, ",
-            X86_get_instr(instr->type, IRInstr_data_type(instr)), self_reg);
+    DynamicStr_append_printf(output, "%s ",
+            X86_get_instr(instr->type, IRInstr_data_type(instr)));
+    emit_instr_arg(output, &instr->args.elems[Arg_SELF]);
+    DynamicStr_append(output, ", ");
     emit_instr_arg(output, &instr->args.elems[Arg_RHS]);
 
     DynamicStr_append(output, "\n");
