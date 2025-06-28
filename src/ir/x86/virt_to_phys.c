@@ -203,8 +203,11 @@ static bool phys_reg_val_is_free(const struct PhysRegVal *preg,
 
     reg_lt_idx = IRRegLTList_find_reg(vreg_lts, preg->virt_reg);
     assert(reg_lt_idx != m_u32_max);
-    if (vreg_lts->elems[reg_lt_idx].death_idx < instr_idx)
+    if (vreg_lts->elems[reg_lt_idx].death_idx < instr_idx) {
+        printf("%%%s dies at %u %u\n", vreg_lts->elems[reg_lt_idx].reg_name,
+                vreg_lts->elems[reg_lt_idx].death_idx, instr_idx);
         return true;
+    }
 
     return false;
 
@@ -271,6 +274,8 @@ static u32 alloc_vreg(const char *vreg, struct IRBasicBlock *cur_block,
 
     for (i = 0; i < reg_stack.size; i++) {
         if (phys_reg_val_is_free(&reg_stack.elems[i], instr_idx, vreg_lts)) {
+            printf("vreg %%%s replacing %%%s at %u.\n", vreg,
+                    reg_stack.elems[i].virt_reg, i);
             alloc_dest = i;
             break;
         }
@@ -285,8 +290,6 @@ static u32 alloc_vreg(const char *vreg, struct IRBasicBlock *cur_block,
      * the stack */
     PhysRegValList_push_back(&reg_stack, PhysRegVal_create(vreg));
 
-    incr_func_stack_size(cur_func, 4);
-
     /* add a new alloca instr to store the fact that the func's stack size has
      * been increased */
     {
@@ -296,16 +299,15 @@ static u32 alloc_vreg(const char *vreg, struct IRBasicBlock *cur_block,
             none_idx = cur_func->vregs.size-1;
         }
 
-        /* the alloca instruction should in the first block of the func, cuz
-         * that makes it more apparent that the alloca instructions are global
-         * to the whole func. */
-        IRInstrList_push_back(&cur_func->blocks.elems[0].instrs,
+        IRInstrList_push_back(
+                &IRBasicBlockList_back_ptr(&cur_func->blocks)->instrs,
                 IRInstr_create_alloca(
                     cur_func->vregs.elems[none_idx],
-                    IRDataType_create(false, 0, 0), 4, 4
+                    IRDataType_create(false, 0, 1), 4, 4
                 ));
     }
 
+    printf("reg_stack_size = %u, allocated %%%s\n", reg_stack.size, vreg);
     return reg_stack.size-1;
 
 }
@@ -367,6 +369,8 @@ static void virt_to_phys_block(struct IRBasicBlock *block,
         u32 *instr_idx) {
 
     u32 i;
+    u32 start_n_end_block_instrs =
+        IRBasicBlockList_back_ptr(&cur_func->blocks)->instrs.size;
 
     RegStatesList_push_back(&block_reg_states, RegStates_init());
     init_cpu_reg_vals(block, cur_func, vreg_lts);
@@ -376,6 +380,13 @@ static void virt_to_phys_block(struct IRBasicBlock *block,
                 *instr_idx);
         ++*instr_idx;
     }
+
+    /* each appended alloca instruction will be 4 bytes long, and require a 4
+     * byte alignment which esp already has. */
+    /*
+    incr_func_stack_size(cur_func,
+            (IRBasicBlockList_back_ptr(&cur_func->blocks)->instrs.size -
+                start_n_end_block_instrs)*4);*/
 
 }
 

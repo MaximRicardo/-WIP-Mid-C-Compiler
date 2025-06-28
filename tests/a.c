@@ -9,7 +9,7 @@ int main(int argc, char **argv) {
 
     (1+2)*(3+4)*(4+5);
 
-    if (1) {
+    if (0) {
         y = y / x;
         x = 1;
     }

@@ -103,6 +103,14 @@ static void compile(char *src, FILE *output, FILE *mccir_output,
         IR_ssa_to_tac(&ir_tu);
 
         X86_alloca_to_esp(&ir_tu);
+
+        if (mccir_output) {
+            char *ir_output_str = IRToStr_gen(&ir_tu);
+            fputs(ir_output_str, mccir_output);
+            fflush(mccir_output);
+            m_free(ir_output_str);
+        }
+
         X86_virt_to_phys(&ir_tu);
 
         if (mccir_output) {
