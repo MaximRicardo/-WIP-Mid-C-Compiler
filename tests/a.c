@@ -28,6 +28,6 @@ int main(int argc, char **argv) {
     fill_up_regs_2 + 0;
     fill_up_regs_3 + 0;
     &test_var;
-    return y+x;
+    return test_var;
 
 }

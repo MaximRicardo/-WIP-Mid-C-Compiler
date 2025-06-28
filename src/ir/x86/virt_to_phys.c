@@ -36,6 +36,16 @@ static const char *cpu_regs[] = {
 
 };
 
+static char str_last_c(const char *str) {
+
+    u32 i = 0;
+    while (str[i++] != '\0');
+
+    assert(str[i-1] == '\0');
+    return str[i-2];
+
+}
+
 /* the reg states for every block in the current IRFunc that has been processed
  * thus far */
 static struct RegStatesList block_reg_states;
@@ -143,16 +153,6 @@ static u32 reg_stack_holding_vreg(const char *vreg) {
 
 }
 
-static char* create_stack_offset_str(u32 offset) {
-
-    struct DynamicStr str = DynamicStr_init();
-
-    DynamicStr_append_printf(&str, "__esp(%u)", offset);
-
-    return str.str;
-
-}
-
 /* __esp(x) -> __esp(x+amount) */
 static char* incr_stack_offset(const char *stack_offset, u32 amount) {
 
@@ -164,6 +164,8 @@ static char* incr_stack_offset(const char *stack_offset, u32 amount) {
     old_offset = strtoul(&stack_offset[6], NULL, 0);
 
     DynamicStr_append_printf(&str, "__esp(%u)", old_offset+amount);
+    if (str_last_c(stack_offset) == '&')
+        DynamicStr_append(&str, "&");
 
     return str.str;
 

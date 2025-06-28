@@ -28,6 +28,16 @@ static const char *size_specs[] = {
     "dword",            /* 4 bytes */
 };
 
+static char str_last_c(const char *str) {
+
+    u32 i = 0;
+    while (str[i++] != '\0');
+
+    assert(str[i-1] == '\0');
+    return str[i-2];
+
+}
+
 static const char* vreg_to_preg(const char *vreg) {
 
     /* vregs will be in this format '__eax', '__ebx', etc. */
@@ -44,15 +54,22 @@ static bool reg_is_stack_offset(const char *reg) {
 
 }
 
+static bool reg_is_stack_offset_ref(const char *reg) {
+
+    return reg_is_stack_offset(reg) && str_last_c(reg) == '&';
+
+}
+
 /* converts stack offset access to NASM style syntax. offset is the preg.
  *    esp(x) -> [esp+index*index_width+x]
+ *
  * index_reg, index             - if index_reg is NULL, index will be used as
  *                                the index to the mem access.
  * offset                       - the 'esp(x)' string, NOT just the 'x' part.
  */
 static void emit_stack_offset_to_nasm(struct DynamicStr *output,
         const char *offset, const char *index_reg, u32 index,
-        u32 index_width, bool add_brackets) {
+        u32 index_width) {
 
     u32 offset_val;
 
@@ -60,20 +77,14 @@ static void emit_stack_offset_to_nasm(struct DynamicStr *output,
 
     offset_val = strtoul(&offset[4], NULL, 0);
 
-    if (add_brackets)
-        DynamicStr_append(output, "[");
-
     if (index_reg) {
-        DynamicStr_append_printf(output, "esp+%s*%u+%u",
+        DynamicStr_append_printf(output, "[esp+%s*%u+%u]",
                 index_reg, index_width, offset_val);
     }
     else {
-        DynamicStr_append_printf(output, "esp+%u*%u+%u",
+        DynamicStr_append_printf(output, "[esp+%u*%u+%u]",
                 index, index_width, offset_val);
     }
-
-    if (add_brackets)
-        DynamicStr_append(output, "]");
 
 }
 
@@ -84,7 +95,7 @@ static void emit_instr_arg(struct DynamicStr *output,
         if (reg_is_stack_offset(arg->value.reg_name)) {
             emit_stack_offset_to_nasm(output,
                     vreg_to_preg(arg->value.reg_name), NULL, n_pushed_bytes,
-                    1, true);
+                    1);
         }
         else {
             DynamicStr_append(output, vreg_to_preg(arg->value.reg_name));
@@ -121,7 +132,7 @@ static void emit_mem_instr_address(struct DynamicStr *output,
         emit_stack_offset_to_nasm(output, offset,
                 instr->args.elems[Arg_RHS].type == IRInstrArg_REG ?
                 instr->args.elems[Arg_RHS].value.reg_name : NULL,
-                instr->args.elems[Arg_RHS].value.imm_u32, 1, true);
+                instr->args.elems[Arg_RHS].value.imm_u32, 1);
     }
     else {
         DynamicStr_append(output, "[");
@@ -137,6 +148,7 @@ static void gen_from_mov_instr(struct DynamicStr *output,
         const struct IRInstr *instr) {
 
     bool lhs_on_stack;
+    bool use_lea;
     const char *lhs_temp_reg = NULL;
 
     assert(instr->args.size == 2);
@@ -145,37 +157,64 @@ static void gen_from_mov_instr(struct DynamicStr *output,
     lhs_on_stack = instr->args.elems[Arg_LHS].type == IRInstrArg_REG &&
         reg_is_stack_offset(instr->args.elems[Arg_LHS].value.reg_name);
 
-    if (lhs_on_stack) {
+    use_lea = lhs_on_stack &&
+        reg_is_stack_offset_ref(instr->args.elems[Arg_LHS].value.reg_name);
 
-        lhs_temp_reg = strcmp(
-                vreg_to_preg(instr->args.elems[Arg_SELF].value.reg_name), "eax"
-                ) == 0 ? "ebx" : "eax";
+    if (use_lea) {
 
-        m_push_reg(lhs_temp_reg);
+        bool pushed_reg = false;
+        if (reg_is_stack_offset(instr->args.elems[Arg_SELF].value.reg_name)) {
+            m_push_reg("eax");
+            pushed_reg = true;
+        }
 
-        DynamicStr_append_printf(output, "mov %s, ", lhs_temp_reg);
+        DynamicStr_append_printf(output, "lea %s, ", pushed_reg ?
+                "eax" :
+                vreg_to_preg(instr->args.elems[Arg_SELF].value.reg_name));
         emit_instr_arg(output, &instr->args.elems[Arg_LHS]);
         DynamicStr_append(output, "\n");
 
-    }
+        if (pushed_reg) {
+            m_pop_reg("eax");
+        }
 
-    DynamicStr_append_printf(output, "mov ");
-
-    emit_instr_arg(output, &instr->args.elems[Arg_SELF]);
-
-    DynamicStr_append(output, ", ");
-
-    if (lhs_on_stack) {
-        DynamicStr_append(output, lhs_temp_reg);
     }
     else {
-        emit_instr_arg(output, &instr->args.elems[Arg_LHS]);
-    }
 
-    DynamicStr_append(output, "\n");
+        if (lhs_on_stack) {
 
-    if (lhs_on_stack) {
-        m_pop_reg(lhs_temp_reg);
+            lhs_temp_reg = strcmp(
+                    vreg_to_preg(instr->args.elems[Arg_SELF].value.reg_name),
+                    "eax"
+                    ) == 0 ? "ebx" : "eax";
+
+            m_push_reg(lhs_temp_reg);
+
+            DynamicStr_append_printf(output, "mov %s, ", lhs_temp_reg);
+            emit_instr_arg(output, &instr->args.elems[Arg_LHS]);
+            DynamicStr_append(output, "\n");
+
+        }
+
+        DynamicStr_append_printf(output, "mov ");
+
+        emit_instr_arg(output, &instr->args.elems[Arg_SELF]);
+
+        DynamicStr_append(output, ", ");
+
+        if (lhs_on_stack) {
+            DynamicStr_append(output, lhs_temp_reg);
+        }
+        else {
+            emit_instr_arg(output, &instr->args.elems[Arg_LHS]);
+        }
+
+        DynamicStr_append(output, "\n");
+
+        if (lhs_on_stack) {
+            m_pop_reg(lhs_temp_reg);
+        }
+
     }
 
 }
@@ -399,9 +438,12 @@ static void gen_from_ret_instr(struct DynamicStr *output,
 
     assert(instr->args.size == 1);
 
-    DynamicStr_append(output, "mov eax, ");
-    emit_instr_arg(output, &instr->args.elems[Arg_SELF]);
-    DynamicStr_append(output, "\n");
+    if (instr->args.elems[Arg_SELF].type != IRInstrArg_REG ||
+            strcmp(instr->args.elems[Arg_SELF].value.reg_name, "__eax") != 0) {
+        DynamicStr_append(output, "mov eax, ");
+        emit_instr_arg(output, &instr->args.elems[Arg_SELF]);
+        DynamicStr_append(output, "\n");
+    }
 
     assert(n_pushed_bytes == 0);
 

@@ -14,7 +14,7 @@ start:
     mov i32 %fill_up_regs_3, i32 %fill_up_regs_3.init
     alloca i32* %__none, u32 4, u32 4
     mov i32 %test_var.init, i32 123
-    store i32 %test_var.init, i32* %__esp(0), u32 0
+    store i32 %test_var.init, i32* %__esp(0)&, u32 0
     add i32 %0, i32 1, i32 2
     add i32 %1, i32 3, i32 4
     mul i32 %2, i32 %0, i32 %1
@@ -62,11 +62,9 @@ if_end_0:
     add i32 %22, i32 %21, i32 0
     mov i32 %23, i32 %fill_up_regs_3
     add i32 %24, i32 %23, i32 0
-    mov u32* %25, i32 %__esp(0)
-    mov i32 %26, i32 %y.4
-    mov i32 %27, i32 %x.4
-    add i32 %28, i32 %26, i32 %27
-    ret i32 %28
+    mov u32* %25, i32 %__esp(0)&
+    load i32 %26, i32* %__esp(0)&, u32 0
+    ret i32 %26
 }
 
 define i32 @main(i32 %arg.0, u32** %arg.1) {
@@ -85,7 +83,7 @@ start:
     mov i32 %__edi, i32 %__eax
     alloca i32* %__none, u32 4, u32 4
     mov i32 %__eax, i32 123
-    store i32 %__eax, i32* %__esp(16), u32 0
+    store i32 %__eax, i32* %__esp(16)&, u32 0
     add i32 %__eax, i32 1, i32 2
     add i32 %__esp(0), i32 3, i32 4
     mul i32 %__esp(4), i32 %__eax, i32 %__esp(0)
@@ -114,26 +112,24 @@ if_true_1:
     jmp if_end_1
 if_false_1:
     mov i32 %__eax, i32 10
-    mov i32 %__ebx, i32 10
+    mov i32 %__eax, i32 10
     mov i32 %__esp(0), i32 5
-    mov i32 %__ebx, i32 5
+    mov i32 %__eax, i32 5
     jmp if_end_1
 if_end_1:
     jmp if_end_0
 if_end_0:
-    mov i32 %__ebx, i32 %__edx
-    add i32 %__ecx, i32 %__ebx, i32 0
-    mov i32 %__ebx, i32 %__ebp
-    add i32 %__ecx, i32 %__ebx, i32 0
-    mov i32 %__ebx, i32 %__esi
-    add i32 %__ecx, i32 %__ebx, i32 0
-    mov i32 %__ebx, i32 %__edi
-    add i32 %__ecx, i32 %__ebx, i32 0
-    mov u32* %__ebx, i32 %__esp(16)
-    mov i32 %__ebx, i32 %__eax
-    mov i32 %__eax, i32 %__esp(0)
-    add i32 %__ecx, i32 %__ebx, i32 %__eax
-    ret i32 %__ecx
+    mov i32 %__eax, i32 %__edx
+    add i32 %__ebx, i32 %__eax, i32 0
+    mov i32 %__eax, i32 %__ebp
+    add i32 %__ebx, i32 %__eax, i32 0
+    mov i32 %__eax, i32 %__esi
+    add i32 %__ebx, i32 %__eax, i32 0
+    mov i32 %__eax, i32 %__edi
+    add i32 %__ebx, i32 %__eax, i32 0
+    mov u32* %__eax, i32 %__esp(16)&
+    load i32 %__eax, i32* %__esp(16)&, u32 0
+    ret i32 %__eax
     alloca u0* %__none, u32 4, u32 4
     alloca u0* %__none, u32 4, u32 4
     alloca u0* %__none, u32 4, u32 4

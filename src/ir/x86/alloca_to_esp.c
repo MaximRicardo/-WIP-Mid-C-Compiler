@@ -37,7 +37,7 @@ static void alloca_to_esp_instr(struct IRInstr *instr, u32 func_stack_size,
 
     sp_offset = func_stack_size-*n_allocd_bytes;
 
-    DynamicStr_append_printf(&sp_name, "__esp(%u)", sp_offset);
+    DynamicStr_append_printf(&sp_name, "__esp(%u)&", sp_offset);
 
     /* NOTE: ownership of sp_name.str gets passed to parent */
     IRFunc_rename_vreg(parent, instr->args.elems[Arg_SELF].value.reg_name,
