@@ -454,8 +454,9 @@ static void gen_from_ret_instr(struct DynamicStr *output,
 
     assert(n_pushed_bytes == 0);
 
-    DynamicStr_append_printf(output, "add esp, %u\nret\n",
-            func_stack_size);
+    if (func_stack_size > 0)
+        DynamicStr_append_printf(output, "add esp, %u\n", func_stack_size);
+    DynamicStr_append(output, "ret\n");
 
 }
 
@@ -521,7 +522,8 @@ static void gen_x86_from_func(struct DynamicStr *output,
 
     DynamicStr_append_printf(output, "%s:\n", func->name);
 
-    DynamicStr_append_printf(output, "sub esp, %u\n", func_stack_size);
+    if (func_stack_size > 0)
+        DynamicStr_append_printf(output, "sub esp, %u\n", func_stack_size);
 
     for (i = 0; i < func->blocks.size; i++) {
 
@@ -532,7 +534,9 @@ static void gen_x86_from_func(struct DynamicStr *output,
     assert(n_pushed_bytes == 0);
 
     /* in case there was no explicit return */
-    DynamicStr_append_printf(output, "add esp, %u\nret\n", func_stack_size);
+    if (func_stack_size > 0)
+        DynamicStr_append_printf(output, "add esp, %u\n", func_stack_size);
+    DynamicStr_append(output, "ret\n");
 
 }
 

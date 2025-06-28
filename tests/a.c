@@ -2,10 +2,6 @@ int main(int argc, char **argv) {
 
     int x = 5;
     int y = 42;
-    int asdfsadf;
-    int asdfsadf1;
-    int asdfsadf2;
-    int asdfsadf3;
 
     if (0) {
         y = y / x;
@@ -19,11 +15,6 @@ int main(int argc, char **argv) {
         y = 10;
         x = 5;
     }
-
-    asdfsadf = 5;
-    asdfsadf = 5;
-    asdfsadf = 5;
-    asdfsadf = 5;
 
     return x+y;
 
