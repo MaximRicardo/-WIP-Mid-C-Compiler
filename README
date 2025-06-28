@@ -3,17 +3,26 @@ MCC/Mid C Compiler
 
     This is a work-in-progress C Compiler written entirely in C89 with no
 non-standard or external libraries or macros.
-    The eventual goal of this project is to port it to a custom ISA, and write
-an OS in it.
-    Currently the compiler uses an x86 backend but that's cuz I haven't
-actually made the ISA yet. Also x86 is easy to use cuz it has a bunch of
-pre-built debuggers and I get to use glibc.
 
 
-FEATURES:
+TARGETS:
 
 
-Thus far the compiler has:
+    This compiler outputs 32-bit x86 NASM Assembly, so compiled programs should
+work on any x86 CPU after-and-including the Intel 80386. So basically, this'll
+run on anything bruh.
+
+
+DEPENDENCIES:
+
+
+    The NASM Assembler is required to convert the outputted ASM code to an
+executable.
+
+
+LANGUAGE FEATURES:
+
+
     variables
     multiple types
         (char, short, int, long, all of their unsigned equivalents, and void)
@@ -35,12 +44,25 @@ Thus far the compiler has:
     signed/unsigned keywords
     structs
 
-Next thing I'ma implement (maybe):
-    global variables
-    static variables
 
-    Also, the compiler has a custom debugging keyword ':', which prints the
-value currently stored in EAX.
+OPTIMIZATION FEATURES:
+
+
+    constant-folding,                         Enabled by default
+    placing variables in registers            Enabled with -O
+
+
+BUILDING THE REPO:
+
+
+    You need to have CMake installed, aswell as any C89 compiler. If you have
+both just run `cmake .` in the project's main directory, and then run the
+generated Makefile.
+
+NOTE:
+
+    While this *should* work on any system with a C89 compiler, I have only
+tested this on Linux.
 
 
 HOW TO USE:
