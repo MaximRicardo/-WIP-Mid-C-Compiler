@@ -3,6 +3,7 @@
 #include "data_types.h"
 #include "instr.h"
 #include <string.h>
+#include <assert.h>
 
 static u32 round_up(u32 num, u32 multiple) {
 
@@ -194,6 +195,57 @@ bool IRFunc_rename_vreg(struct IRFunc *self, const char *old_name,
 
 }
 
+static void instr_replace_vreg_w_instr_arg(struct IRInstr *instr,
+        const char *vreg, const struct IRInstrArg *new_arg) {
+
+    u32 i;
+
+    for (i = 0; i < instr->args.size; i++) {
+
+        if (instr->args.elems[i].type != IRInstrArg_REG)
+            continue;
+
+        if (strcmp(instr->args.elems[i].value.reg_name, vreg) != 0)
+            continue;
+
+        instr->args.elems[i] = *new_arg;
+
+    }
+
+}
+
+static void block_replace_vreg_w_instr_arg(struct IRBasicBlock *block,
+        const char *vreg, const struct IRInstrArg *arg) {
+
+    u32 i;
+
+    for (i = 0; i < block->instrs.size; i++) {
+        instr_replace_vreg_w_instr_arg(&block->instrs.elems[i], vreg, arg);
+    }
+
+}
+
+bool IRFunc_replace_vreg_w_instr_arg(struct IRFunc *self, const char *vreg,
+        const struct IRInstrArg *arg) {
+
+    u32 i;
+    u32 vreg_idx;
+
+    for (i = 0; i < self->blocks.size; i++) {
+        block_replace_vreg_w_instr_arg(&self->blocks.elems[i], vreg, arg);
+    }
+
+    vreg_idx = StringList_find(&self->vregs, vreg);
+    if (vreg_idx != m_u32_max) {
+        StringList_erase(&self->vregs, vreg_idx, String_free);
+        return true;
+    }
+    else {
+        return false;
+    }
+
+}
+
 static void get_func_stack_size_block(const struct IRBasicBlock *block,
         u32 *stack_size) {
 
@@ -235,6 +287,57 @@ u32 IRFunc_find_none_reg(const struct IRFunc *self) {
     const char *name = "__none";
 
     return StringList_find(&self->vregs, name);
+
+}
+
+bool instr_vreg_in_phi_node(const struct IRInstr *instr, const char *vreg) {
+
+    u32 i = 0;
+
+    if (instr->type != IRInstr_PHI)
+        return false;
+
+    for (i = 0; i < instr->args.size; i++) {
+
+        struct IRInstrArg *arg = &instr->args.elems[i];
+
+        assert(arg->type == IRInstrArg_REG);
+
+        if (strcmp(arg->value.reg_name, vreg) != 0)
+            continue;
+
+        return true;
+
+    }
+
+    return false;
+
+}
+
+bool block_vreg_in_phi_node(const struct IRBasicBlock *block,
+        const char *vreg) {
+
+    u32 i = 0;
+
+    for (i = 0; i < block->instrs.size; i++) {
+        if (instr_vreg_in_phi_node(&block->instrs.elems[i], vreg))
+            return true;
+    }
+
+    return false;
+
+}
+
+bool IRFunc_vreg_in_phi_node(const struct IRFunc *self, const char *vreg) {
+
+    u32 i = 0;
+
+    for (i = 0; i < self->blocks.size; i++) {
+        if (block_vreg_in_phi_node(&self->blocks.elems[i], vreg))
+            return true;
+    }
+
+    return false;
 
 }
 

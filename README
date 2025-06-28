@@ -50,6 +50,8 @@ OPTIMIZATION FEATURES:
 
     constant-folding,                         Enabled by default
     placing variables in registers            Enabled with -O
+    constant propagation                      Enabled with -O
+    copy propagation                          Enabled with -O
 
 
 BUILDING THE REPO:

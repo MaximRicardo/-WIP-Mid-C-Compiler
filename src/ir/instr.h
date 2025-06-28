@@ -131,6 +131,9 @@ struct IRInstr IRInstr_create_alloc_reg(const char *reg_name,
 struct IRInstr IRInstr_create_alloca(const char *dest_vreg,
         struct IRDataType d_type, u32 size, u32 alignment);
 
+/* returns whether or not it was possible to const fold self */
+bool IRInstr_const_fold(struct IRInstr *self);
+
 struct IRInstrList {
 
     struct IRInstr *elems;

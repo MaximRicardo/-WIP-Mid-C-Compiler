@@ -20,6 +20,7 @@
 #include "ir/ir_gen.h"
 #include "ir/ir_to_str.h"
 #include "ir/opt_alloca.h"
+#include "ir/opt_copy_prop.h"
 #include "ir/ssa_to_tac.h"
 #include "ir/x86/virt_to_phys.h"
 
@@ -109,6 +110,7 @@ static void compile(char *src, FILE *output, FILE *mccir_output,
 
         if (CompArgs_args.optimize) {
             IROpt_alloca(&ir_tu);
+            IROpt_copy_prop(&ir_tu);
         }
         IR_ssa_to_tac(&ir_tu);
 

@@ -48,12 +48,17 @@ struct IRInstr* IRFunc_get_nth_instr(const struct IRFunc *self, u32 n);
 /* same as IRFunc_get_nth_instr except returns the block the instr is in */
 struct IRBasicBlock* IRFunc_get_nth_instr_block(const struct IRFunc *self,
         u32 n);
-/* returns false if there is no vreg in self with old_name, and returns true if
- * there is. */
+/* returns false if there is no vreg in self named old_name, and returns true
+ * if there is. */
 bool IRFunc_rename_vreg(struct IRFunc *self, const char *old_name,
         char *new_name);
+/* returns false if there is no vreg in self named name, and returns true if
+ * there is. */
+bool IRFunc_replace_vreg_w_instr_arg(struct IRFunc *self, const char *vreg,
+        const struct IRInstrArg *arg);
 u32 IRFunc_get_stack_size(const struct IRFunc *self);
 u32 IRFunc_find_none_reg(const struct IRFunc *self);
+bool IRFunc_vreg_in_phi_node(const struct IRFunc *self, const char *vreg);
 
 struct IRFuncList {
 
