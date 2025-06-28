@@ -306,6 +306,9 @@ static void gen_from_div_op(struct DynamicStr *output,
     if (!self_is_eax)
         m_push_reg("eax");
 
+    /* i honestly don't remember why i put this here, so i'm leaving it here
+     * til i find out why i need it. or until i find out it's completely
+     * useless.
     if ((instr->args.elems[Arg_LHS].type == IRInstrArg_REG &&
             strcmp(vreg_to_preg(instr->args.elems[Arg_LHS].value.reg_name),
                 "eax") != 0) || self_is_eax) {
@@ -313,6 +316,11 @@ static void gen_from_div_op(struct DynamicStr *output,
         emit_instr_arg(output, &instr->args.elems[Arg_LHS]);
         DynamicStr_append(output, "\n");
     }
+    */
+
+    DynamicStr_append(output, "mov eax, ");
+    emit_instr_arg(output, &instr->args.elems[Arg_LHS]);
+    DynamicStr_append(output, "\n");
 
     if (instr->args.elems[Arg_RHS].type == IRInstrArg_REG &&
             strcmp(vreg_to_preg(instr->args.elems[Arg_RHS].value.reg_name),
