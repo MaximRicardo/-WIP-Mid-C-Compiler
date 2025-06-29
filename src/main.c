@@ -3,12 +3,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include "code_gen.h"
-#include "ir/x86/alloca_to_esp.h"
-#include "ir/x86/code_gen.h"
 #include "comp_args.h"
 #include "file_io.h"
 #include "comp_dependent/ints.h"
-#include "ir/module.h"
 #include "safe_mem.h"
 #include "lexer.h"
 #include "parser.h"
@@ -17,13 +14,7 @@
 #include "merge_strings.h"
 #include "pre_proc.h"
 #include "transl_unit.h"
-#include "ir/ir_gen.h"
-#include "ir/ir_to_str.h"
-#include "ir/opt_alloca.h"
-#include "ir/opt_copy_prop.h"
-#include "ir/opt_unused_vregs.h"
-#include "ir/ssa_to_tac.h"
-#include "ir/x86/virt_to_phys.h"
+#include "compile_via_ir.h"
 
 #define m_gen_ir
 
@@ -72,14 +63,13 @@ static void compile(char *src, FILE *output, FILE *mccir_output,
 
     PreProc_process(src, &macros, &macro_insts, CompArgs_args.src_path);
     if (PreProc_error_occurred) {
-        free_macros(&macros, &macro_insts);
+        goto free_macros_ret;
         return;
     }
 
     lexer = Lexer_lex(src, CompArgs_args.src_path, &macro_insts);
     if (Lexer_error_occurred) {
-        Lexer_free(&lexer);
-        free_macros(&macros, &macro_insts);
+        goto free_lexer_ret;
         return;
     }
 
@@ -89,69 +79,22 @@ static void compile(char *src, FILE *output, FILE *mccir_output,
 
     tu = Parser_parse(&lexer);
     if (Parser_error_occurred || !output) {
-        TranslUnit_free(tu);
-        Lexer_free(&lexer);
-        free_macros(&macros, &macro_insts);
+        goto free_tu_ret;
         return;
     }
 
     if (!CompArgs_args.skip_ir) {
-        struct IRModule ir_tu = IRGen_generate(&tu);
-        char *asm_output = NULL;
-
-        if (mccir_output) {
-            char *ir_output_str = IRToStr_gen(&ir_tu);
-            fprintf(mccir_output, ";--------------------------------------\n");
-            fprintf(mccir_output, ";Pre-Optimizations\n");
-            fprintf(mccir_output, ";--------------------------------------\n");
-            fputs(ir_output_str, mccir_output);
-            fflush(mccir_output);
-            m_free(ir_output_str);
-        }
-
-        if (CompArgs_args.optimize) {
-            IROpt_alloca(&ir_tu);
-            /*IROpt_unused_vregs(&ir_tu);
-            IROpt_copy_prop(&ir_tu);*/
-        }
-
-        if (mccir_output) {
-            char *ir_output_str = IRToStr_gen(&ir_tu);
-            fprintf(mccir_output, ";--------------------------------------\n");
-            fprintf(mccir_output, ";Post-Optimizations IR\n");
-            fprintf(mccir_output, ";--------------------------------------\n");
-            fputs(ir_output_str, mccir_output);
-            fflush(mccir_output);
-            m_free(ir_output_str);
-        }
-
-        IR_ssa_to_tac(&ir_tu);
-
-        X86_alloca_to_esp(&ir_tu);
-        X86_virt_to_phys(&ir_tu);
-
-        if (mccir_output) {
-            char *ir_output_str = IRToStr_gen(&ir_tu);
-            fprintf(mccir_output, ";--------------------------------------\n");
-            fprintf(mccir_output, ";Final IR\n");
-            fprintf(mccir_output, ";--------------------------------------\n");
-            fputs(ir_output_str, mccir_output);
-            fflush(mccir_output);
-            m_free(ir_output_str);
-        }
-
-        asm_output = gen_x86_from_ir(&ir_tu);
-        fputs(asm_output, output);
-
-        m_free(asm_output);
-        IRModule_free(ir_tu);
+        TranslUnit_compile_via_mccir(&tu, mccir_output, output);
     }
     else {
         CodeGen_generate(output, tu.ast, tu.structs);
     }
 
+free_tu_ret:
     TranslUnit_free(tu);
+free_lexer_ret:
     Lexer_free(&lexer);
+free_macros_ret:
     free_macros(&macros, &macro_insts);
 
 }
