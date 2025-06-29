@@ -88,7 +88,7 @@ static void emit_stack_offset_to_nasm(struct DynamicStr *output,
 }
 
 static void emit_instr_arg(struct DynamicStr *output,
-        const struct IRInstrArg *arg) {
+        const struct IRInstrArg *arg, bool emit_size_spec) {
 
     if (arg->type == IRInstrArg_REG) {
         if (reg_is_stack_offset(arg->value.reg_name)) {
@@ -100,13 +100,16 @@ static void emit_instr_arg(struct DynamicStr *output,
             DynamicStr_append(output, vreg_to_preg(arg->value.reg_name));
         }
     }
-    else if (arg->type == IRInstrArg_IMM32 && arg->data_type.is_signed) {
-        DynamicStr_append_printf(output, "%s %d",
-                size_specs[arg->data_type.width/8], arg->value.imm_i32);
-    }
-    else if (arg->type == IRInstrArg_IMM32 && !arg->data_type.is_signed) {
-        DynamicStr_append_printf(output, "%s %u",
-                size_specs[arg->data_type.width/8], arg->value.imm_u32);
+    else if (arg->type == IRInstrArg_IMM32) {
+        if (emit_size_spec) {
+            DynamicStr_append_printf(output, "%s ",
+                    size_specs[arg->data_type.width/8]);
+        }
+
+        if (arg->data_type.is_signed)
+            DynamicStr_append_printf(output, "%d", arg->value.imm_i32);
+        else
+            DynamicStr_append_printf(output, "%u", arg->value.imm_u32);
     }
     else if (arg->type == IRInstrArg_STR) {
         DynamicStr_append(output, arg->value.generic_str);
@@ -120,24 +123,28 @@ static void emit_instr_arg(struct DynamicStr *output,
 static void emit_mem_instr_address(struct DynamicStr *output,
         const struct IRInstr *instr) {
 
+    struct IRInstrArg *lhs_arg = NULL;
+    struct IRInstrArg *rhs_arg = NULL;
+
     assert(instr->args.size == 3);
 
-    if (instr->args.elems[Arg_LHS].type == IRInstrArg_REG &&
-            reg_is_stack_offset(instr->args.elems[Arg_LHS].value.reg_name)) {
-        const char *offset = vreg_to_preg(
-                instr->args.elems[Arg_LHS].value.reg_name
-                );
+    lhs_arg = &instr->args.elems[Arg_LHS];
+    rhs_arg = &instr->args.elems[Arg_RHS];
+
+    if (lhs_arg->type == IRInstrArg_REG &&
+            reg_is_stack_offset(lhs_arg->value.reg_name)) {
+        const char *offset = vreg_to_preg(lhs_arg->value.reg_name);
 
         emit_stack_offset_to_nasm(output, offset,
-                instr->args.elems[Arg_RHS].type == IRInstrArg_REG ?
-                instr->args.elems[Arg_RHS].value.reg_name : NULL,
-                instr->args.elems[Arg_RHS].value.imm_u32, 1);
+                rhs_arg->type == IRInstrArg_REG ?
+                    rhs_arg->value.reg_name : NULL,
+                rhs_arg->value.imm_u32, 1);
     }
     else {
         DynamicStr_append(output, "[");
-        emit_instr_arg(output, &instr->args.elems[Arg_LHS]);
+        emit_instr_arg(output, lhs_arg, false);
         DynamicStr_append(output, "+");
-        emit_instr_arg(output, &instr->args.elems[Arg_RHS]);
+        emit_instr_arg(output, rhs_arg, false);
         DynamicStr_append(output, "]");
     }
 
@@ -146,6 +153,9 @@ static void emit_mem_instr_address(struct DynamicStr *output,
 static void gen_from_mov_instr(struct DynamicStr *output,
         const struct IRInstr *instr) {
 
+    struct IRInstrArg *self_arg = NULL;
+    struct IRInstrArg *lhs_arg = NULL;
+
     bool lhs_on_stack;
     bool use_lea;
     const char *lhs_temp_reg = NULL;
@@ -153,24 +163,25 @@ static void gen_from_mov_instr(struct DynamicStr *output,
     assert(instr->args.size == 2);
     assert(instr->args.elems[Arg_SELF].type == IRInstrArg_REG);
 
-    lhs_on_stack = instr->args.elems[Arg_LHS].type == IRInstrArg_REG &&
-        reg_is_stack_offset(instr->args.elems[Arg_LHS].value.reg_name);
+    self_arg = &instr->args.elems[Arg_SELF];
+    lhs_arg = &instr->args.elems[Arg_LHS];
 
-    use_lea = lhs_on_stack &&
-        reg_is_stack_offset_ref(instr->args.elems[Arg_LHS].value.reg_name);
+    lhs_on_stack = lhs_arg->type == IRInstrArg_REG &&
+        reg_is_stack_offset(lhs_arg->value.reg_name);
+
+    use_lea = lhs_on_stack && reg_is_stack_offset_ref(lhs_arg->value.reg_name);
 
     if (use_lea) {
 
         bool pushed_reg = false;
-        if (reg_is_stack_offset(instr->args.elems[Arg_SELF].value.reg_name)) {
+        if (reg_is_stack_offset(self_arg->value.reg_name)) {
             m_push_reg("eax");
             pushed_reg = true;
         }
 
         DynamicStr_append_printf(output, "lea %s, ", pushed_reg ?
-                "eax" :
-                vreg_to_preg(instr->args.elems[Arg_SELF].value.reg_name));
-        emit_instr_arg(output, &instr->args.elems[Arg_LHS]);
+                "eax" : vreg_to_preg(self_arg->value.reg_name));
+        emit_instr_arg(output, lhs_arg, true);
         DynamicStr_append(output, "\n");
 
         if (pushed_reg) {
@@ -183,21 +194,20 @@ static void gen_from_mov_instr(struct DynamicStr *output,
         if (lhs_on_stack) {
 
             lhs_temp_reg = strcmp(
-                    vreg_to_preg(instr->args.elems[Arg_SELF].value.reg_name),
-                    "eax"
+                    vreg_to_preg(self_arg->value.reg_name), "eax"
                     ) == 0 ? "ebx" : "eax";
 
             m_push_reg(lhs_temp_reg);
 
             DynamicStr_append_printf(output, "mov %s, ", lhs_temp_reg);
-            emit_instr_arg(output, &instr->args.elems[Arg_LHS]);
+            emit_instr_arg(output, lhs_arg, true);
             DynamicStr_append(output, "\n");
 
         }
 
         DynamicStr_append_printf(output, "mov ");
 
-        emit_instr_arg(output, &instr->args.elems[Arg_SELF]);
+        emit_instr_arg(output, self_arg, true);
 
         DynamicStr_append(output, ", ");
 
@@ -205,7 +215,7 @@ static void gen_from_mov_instr(struct DynamicStr *output,
             DynamicStr_append(output, lhs_temp_reg);
         }
         else {
-            emit_instr_arg(output, &instr->args.elems[Arg_LHS]);
+            emit_instr_arg(output, lhs_arg, true);
         }
 
         DynamicStr_append(output, "\n");
@@ -221,14 +231,22 @@ static void gen_from_mov_instr(struct DynamicStr *output,
 static void gen_from_bin_op(struct DynamicStr *output,
         const struct IRInstr *instr) {
 
+    struct IRInstrArg *self_arg = NULL;
+    struct IRInstrArg *lhs_arg = NULL;
+    struct IRInstrArg *rhs_arg = NULL;
+
     bool self_on_stack = false;
 
     assert(instr->args.size == 3);
     assert(instr->args.elems[Arg_SELF].type == IRInstrArg_REG);
 
-    self_on_stack = reg_is_stack_offset(vreg_to_preg(
-                    instr->args.elems[Arg_SELF].value.reg_name
-            ));
+    self_arg = &instr->args.elems[Arg_SELF];
+    lhs_arg = &instr->args.elems[Arg_LHS];
+    rhs_arg = &instr->args.elems[Arg_RHS];
+
+    self_on_stack = reg_is_stack_offset(
+            vreg_to_preg(self_arg->value.reg_name)
+            );
 
     if (self_on_stack) {
         /* blame intel, not me. */
@@ -237,25 +255,24 @@ static void gen_from_bin_op(struct DynamicStr *output,
          * to be added to every esp offset */
         m_push_reg("eax");
 
-        if (instr->args.elems[Arg_LHS].type != IRInstrArg_REG || strcmp(
-                    instr->args.elems[Arg_LHS].value.reg_name, "eax"
-                    ) == 0) {
+        if (lhs_arg->type != IRInstrArg_REG ||
+                strcmp(lhs_arg->value.reg_name, "eax") == 0) {
 
             DynamicStr_append(output, "mov eax, ");
-            emit_instr_arg(output, &instr->args.elems[Arg_LHS]);
+            emit_instr_arg(output, lhs_arg, true);
             DynamicStr_append(output, "\n");
 
         }
 
         DynamicStr_append_printf(output, "%s eax, ",
                 X86_get_instr(instr->type, IRInstr_data_type(instr)));
-        emit_instr_arg(output, &instr->args.elems[Arg_RHS]);
+        emit_instr_arg(output, rhs_arg, true);
         DynamicStr_append(output, "\n");
 
         /* remember to move the result from pushed_reg to the actual dest
          * reg */
         DynamicStr_append(output, "mov ");
-        emit_instr_arg(output, &instr->args.elems[Arg_SELF]);
+        emit_instr_arg(output, self_arg, true);
         DynamicStr_append(output, ", eax\n");
 
         m_pop_reg("eax");
@@ -270,16 +287,16 @@ static void gen_from_bin_op(struct DynamicStr *output,
          *    add r1 <- r2
          */
         DynamicStr_append_printf(output, "mov ");
-        emit_instr_arg(output, &instr->args.elems[Arg_SELF]);
+        emit_instr_arg(output, self_arg, true);
         DynamicStr_append(output, ", ");
-        emit_instr_arg(output, &instr->args.elems[Arg_LHS]);
+        emit_instr_arg(output, lhs_arg, true);
         DynamicStr_append(output, "\n");
 
         DynamicStr_append_printf(output, "%s ",
                 X86_get_instr(instr->type, IRInstr_data_type(instr)));
-        emit_instr_arg(output, &instr->args.elems[Arg_SELF]);
+        emit_instr_arg(output, self_arg, true);
         DynamicStr_append(output, ", ");
-        emit_instr_arg(output, &instr->args.elems[Arg_RHS]);
+        emit_instr_arg(output, rhs_arg, true);
         DynamicStr_append(output, "\n");
     }
 
@@ -289,53 +306,47 @@ static void gen_from_bin_op(struct DynamicStr *output,
 static void gen_from_div_op(struct DynamicStr *output,
         const struct IRInstr *instr) {
 
-    const char *self_reg;
-    const char *rhs_reg;
+    const char *self_reg = NULL;
+    const char *rhs_reg = NULL;
+    struct IRInstrArg *self_arg = NULL;
+    struct IRInstrArg *lhs_arg = NULL;
+    struct IRInstrArg *rhs_arg = NULL;
     bool pushed_reg = false;
     bool self_is_eax;
 
     assert(instr->args.size == 3);
     assert(instr->args.elems[Arg_SELF].type == IRInstrArg_REG);
 
-    self_reg = vreg_to_preg(instr->args.elems[Arg_SELF].value.reg_name);
+    self_arg = &instr->args.elems[Arg_SELF];
+    lhs_arg = &instr->args.elems[Arg_LHS];
+    rhs_arg = &instr->args.elems[Arg_RHS];
+
+    self_reg = vreg_to_preg(self_arg->value.reg_name);
 
     self_is_eax =
-        strcmp(vreg_to_preg(instr->args.elems[Arg_SELF].value.reg_name),
-                "eax") == 0;
+        strcmp(vreg_to_preg(self_arg->value.reg_name), "eax") == 0;
 
     if (!self_is_eax)
         m_push_reg("eax");
 
-    /* i honestly don't remember why i put this here, so i'm leaving it here
-     * til i find out why i need it. or until i find out it's completely
-     * useless.
-    if ((instr->args.elems[Arg_LHS].type == IRInstrArg_REG &&
-            strcmp(vreg_to_preg(instr->args.elems[Arg_LHS].value.reg_name),
-                "eax") != 0) || self_is_eax) {
+    if (lhs_arg->type == IRInstrArg_REG &&
+            strcmp(lhs_arg->value.reg_name, "__eax") == 0) {
         DynamicStr_append(output, "mov eax, ");
-        emit_instr_arg(output, &instr->args.elems[Arg_LHS]);
+        emit_instr_arg(output, lhs_arg, true);
         DynamicStr_append(output, "\n");
     }
-    */
 
-    DynamicStr_append(output, "mov eax, ");
-    emit_instr_arg(output, &instr->args.elems[Arg_LHS]);
-    DynamicStr_append(output, "\n");
-
-    if (instr->args.elems[Arg_RHS].type == IRInstrArg_REG &&
-            strcmp(vreg_to_preg(instr->args.elems[Arg_RHS].value.reg_name),
-                "edx") != 0 &&
-            !reg_is_stack_offset(vreg_to_preg(
-                        instr->args.elems[Arg_RHS].value.reg_name
-                        ))) {
-        rhs_reg = vreg_to_preg(instr->args.elems[Arg_RHS].value.reg_name);
+    if (rhs_arg->type == IRInstrArg_REG &&
+            strcmp(vreg_to_preg(rhs_arg->value.reg_name), "edx") != 0 &&
+            !reg_is_stack_offset(vreg_to_preg(rhs_arg->value.reg_name))) {
+        rhs_reg = vreg_to_preg(rhs_arg->value.reg_name);
     }
     else {
         pushed_reg = true;
         rhs_reg = strcmp(self_reg, "ebx") == 0 ? "ebx" : "ecx";
         m_push_reg(rhs_reg);
         DynamicStr_append_printf(output, "mov %s, ", rhs_reg);
-        emit_instr_arg(output, &instr->args.elems[Arg_RHS]);
+        emit_instr_arg(output, rhs_arg, true);
         DynamicStr_append(output, "\n");
     }
 
@@ -356,7 +367,7 @@ static void gen_from_div_op(struct DynamicStr *output,
 
     if (!self_is_eax) {
         DynamicStr_append(output, "mov ");
-        emit_instr_arg(output, &instr->args.elems[Arg_SELF]);
+        emit_instr_arg(output, self_arg, true);
         DynamicStr_append(output, ", eax\n");
         m_pop_reg("eax");
     }
@@ -371,7 +382,7 @@ static void gen_from_store_instr(struct DynamicStr *output,
     DynamicStr_append(output, "mov ");
     emit_mem_instr_address(output, instr);
     DynamicStr_append(output, ", ");
-    emit_instr_arg(output, &instr->args.elems[Arg_SELF]);
+    emit_instr_arg(output, &instr->args.elems[Arg_SELF], true);
     DynamicStr_append(output, "\n");
 
 }
@@ -382,7 +393,7 @@ static void gen_from_load_instr(struct DynamicStr *output,
     assert(instr->args.size == 3);
 
     DynamicStr_append(output, "mov ");
-    emit_instr_arg(output, &instr->args.elems[Arg_SELF]);
+    emit_instr_arg(output, &instr->args.elems[Arg_SELF], true);
     DynamicStr_append(output, ", ");
     emit_mem_instr_address(output, instr);
     DynamicStr_append(output, "\n");
@@ -398,17 +409,17 @@ static void gen_cmp_instr(struct DynamicStr *output,
     if (pushed_eax) {
         m_push_reg("eax");
         DynamicStr_append(output, "mov eax, ");
-        emit_instr_arg(output, cmp_lhs);
+        emit_instr_arg(output, cmp_lhs, true);
         DynamicStr_append(output, "\n");
         DynamicStr_append(output, "cmp eax");
     }
     else {
         DynamicStr_append(output, "cmp ");
-        emit_instr_arg(output, cmp_lhs);
+        emit_instr_arg(output, cmp_lhs, true);
     }
 
     DynamicStr_append(output, ", ");
-    emit_instr_arg(output, cmp_rhs);
+    emit_instr_arg(output, cmp_rhs, true);
     DynamicStr_append(output, "\n");
 
     if (pushed_eax) {
@@ -443,12 +454,16 @@ static void gen_from_uncond_jmp(struct DynamicStr *output,
 static void gen_from_ret_instr(struct DynamicStr *output,
         const struct IRInstr *instr, u32 func_stack_size) {
 
+    struct IRInstrArg *self_arg = NULL;
+
     assert(instr->args.size == 1);
 
-    if (instr->args.elems[Arg_SELF].type != IRInstrArg_REG ||
-            strcmp(instr->args.elems[Arg_SELF].value.reg_name, "__eax") != 0) {
+    self_arg = &instr->args.elems[Arg_SELF];
+
+    if (self_arg->type != IRInstrArg_REG ||
+            strcmp(self_arg->value.reg_name, "__eax") != 0) {
         DynamicStr_append(output, "mov eax, ");
-        emit_instr_arg(output, &instr->args.elems[Arg_SELF]);
+        emit_instr_arg(output, self_arg, true);
         DynamicStr_append(output, "\n");
     }
 

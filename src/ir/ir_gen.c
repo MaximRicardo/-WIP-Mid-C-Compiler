@@ -7,6 +7,7 @@
 #include "../utils/dyn_str.h"
 #include "../utils/make_str_cpy.h"
 #include "block_dom.h"
+#include "name_mangling.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,6 +15,8 @@
 
 u32 reg_counter = 0;
 u32 if_else_counter = 0;
+
+struct IRNameMangleList name_mangles;
 
 static void block_node_gen_ir(struct BlockNode *block,
         struct IRFunc *cur_func, const struct TranslUnit *tu);
@@ -130,6 +133,34 @@ static void load_gen_ir(const char *dest_reg, const char *src_reg, u32 offset,
 
 }
 
+static const char* get_mangled_ident(const char *ident) {
+
+    u32 idx = IRNameMangleList_find(&name_mangles, ident);
+    struct IRNameMangle *p = NULL;
+
+    if (idx == m_u32_max)
+        return NULL;
+
+    p = &name_mangles.elems[idx];
+
+    if (p->new_names.size == 0)
+        return NULL;
+
+    return ConstStringList_back(&p->new_names);
+
+}
+
+static const char* get_mangled_ident_expr(const struct Expr *expr) {
+
+    char *src = Expr_src(expr);
+
+    const char *mangled_ver = get_mangled_ident(src);
+
+    m_free(src);
+    return mangled_ver;
+
+}
+
 /* returns the register holding the loaded value */
 static const char* load_ident_expr_gen_ir(const struct Expr *expr,
         bool load_reference, const char *result_reg,
@@ -137,8 +168,7 @@ static const char* load_ident_expr_gen_ir(const struct Expr *expr,
         const struct TranslUnit *tu) {
 
     struct IRDataType d_type;
-    char *ident_name;
-    u32 ident_reg_idx;
+    const char *mangled_ident;
     const char *reg_name;
 
     d_type = IRDataType_create_from_prim_type(
@@ -146,20 +176,12 @@ static const char* load_ident_expr_gen_ir(const struct Expr *expr,
             tu->structs
             );
 
-    ident_name = Expr_src(expr);
-    ident_reg_idx = StringList_find(&cur_func->vregs, ident_name);
-    if (ident_reg_idx == m_u32_max) {
-        ident_reg_idx = cur_func->vregs.size;
-        StringList_push_back(&cur_func->vregs, ident_name);
-    }
-    else {
-        m_free(ident_name);
-        ident_name = cur_func->vregs.elems[ident_reg_idx];
-    }
+    mangled_ident = get_mangled_ident_expr(expr);
+    assert(mangled_ident);
 
     if (load_reference) {
         /* return a pointer to the variable instead */
-        return ident_name;
+        return mangled_ident;
     }
 
     if (result_reg) {
@@ -169,7 +191,7 @@ static const char* load_ident_expr_gen_ir(const struct Expr *expr,
         reg_name = create_new_reg(cur_func);
     }
 
-    load_gen_ir(reg_name, ident_name, 0, d_type, cur_block);
+    load_gen_ir(reg_name, mangled_ident, 0, d_type, cur_block);
 
     return reg_name;
 
@@ -439,6 +461,38 @@ static void if_stmt_gen_ir(const struct IfNode *node,
 
 }
 
+/* returns the mangled name, and updates cur_func->vregs and the name_mangles
+ * list */
+static const char* var_decl_name_mangle(const struct Declarator *node,
+        struct IRFunc *cur_func) {
+
+    struct DynamicStr new_name = DynamicStr_init();
+    const char *og_name = node->ident;
+
+    u32 idx = IRNameMangleList_find(&name_mangles, og_name);
+    const struct IRNameMangle *name_mangl = NULL;
+
+    if (IRNameMangleList_find(&name_mangles, og_name) == m_u32_max) {
+        IRNameMangleList_push_back(&name_mangles, IRNameMangle_create(
+                    make_str_copy(og_name), ConstStringList_init()
+                    ));
+        idx = name_mangles.size-1;
+    }
+    name_mangl = &name_mangles.elems[idx];
+
+    DynamicStr_append_printf(&new_name, "%s.nr%u",
+            og_name, name_mangl->new_names.size);
+
+    StringList_push_back(&cur_func->vregs, new_name.str);
+
+    ConstStringList_push_back(
+            &IRNameMangleList_back_ptr(&name_mangles)->new_names, new_name.str
+            );
+
+    return new_name.str;
+
+}
+
 static void var_decl_gen_ir(const struct VarDeclNode *node,
         struct IRBasicBlock *cur_block, struct IRFunc *cur_func,
         const struct TranslUnit *tu) {
@@ -450,15 +504,21 @@ static void var_decl_gen_ir(const struct VarDeclNode *node,
         struct IRDataType var_type;
         /* the reg holding the result of alloca */
         struct DynamicStr init_reg = DynamicStr_init();
+        const char* var_reg = NULL;
 
         var_type = IRDataType_create_from_prim_type(
                 node->type, node->type_idx, node->decls.elems[i].lvls_of_indir,
                 tu->structs
                 );
 
-        alloca_gen_ir(node->decls.elems[i].ident, IRDataType_create(
+        var_reg = var_decl_name_mangle(&node->decls.elems[i], cur_func);
+        DynamicStr_append_printf(&init_reg, "%s.init", var_reg);
+
+        alloca_gen_ir(var_reg,
+                IRDataType_create(
                     var_type.is_signed, var_type.width,
-                    var_type.lvls_of_indir+1),
+                    var_type.lvls_of_indir+1
+                    ),
                 cur_block);
 
         if (!node->decls.elems[i].value) {
@@ -466,16 +526,11 @@ static void var_decl_gen_ir(const struct VarDeclNode *node,
             continue;
         }
 
-        DynamicStr_append_printf(&init_reg, "%s.init",
-                node->decls.elems[i].ident);
-
         StringList_push_back(&cur_func->vregs, init_reg.str);
-
         expr_gen_ir(node->decls.elems[i].value, tu, cur_block, cur_func,
                 init_reg.str, &var_type, false);
 
-        store_gen_ir(init_reg.str, node->decls.elems[i].ident, 0, var_type,
-                cur_block);
+        store_gen_ir(init_reg.str, var_reg, 0, var_type, cur_block);
 
     }
 
@@ -583,9 +638,16 @@ static struct IRFunc func_node_gen_ir(const struct FuncDeclNode *func,
     reg_counter = 0;
     if_else_counter = 0;
 
+    name_mangles = IRNameMangleList_init();
+
     block_node_gen_ir(func->body, &ir_func, tu);
 
     IRFunc_get_blocks_imm_doms(&ir_func);
+
+    while (name_mangles.size > 0) {
+        IRNameMangleList_pop_back(&name_mangles, IRNameMangle_free);
+    }
+    IRNameMangleList_free(&name_mangles);
 
     return ir_func;
 

@@ -24,6 +24,10 @@ static void alloca_to_esp_instr(struct IRInstr *instr, u32 func_stack_size,
     struct DynamicStr sp_name;
     u32 none_reg_idx;
 
+    struct IRInstrArg *self_arg = &instr->args.elems[Arg_SELF];
+    struct IRInstrArg *lhs_arg = &instr->args.elems[Arg_LHS];
+    struct IRInstrArg *rhs_arg = &instr->args.elems[Arg_RHS];
+
     if (instr->type != IRInstr_ALLOCA)
         return;
 
@@ -31,22 +35,21 @@ static void alloca_to_esp_instr(struct IRInstr *instr, u32 func_stack_size,
 
     /* the allocation has to be processed first to get the correct esp
      * offset */
-    *n_allocd_bytes = round_up(*n_allocd_bytes,
-            instr->args.elems[Arg_RHS].value.imm_u32);
-    *n_allocd_bytes += instr->args.elems[Arg_LHS].value.imm_u32;
+    *n_allocd_bytes = round_up(*n_allocd_bytes, rhs_arg->value.imm_u32);
+    *n_allocd_bytes += lhs_arg->value.imm_u32;
 
     sp_offset = func_stack_size-*n_allocd_bytes;
 
     DynamicStr_append_printf(&sp_name, "__esp(%u)&", sp_offset);
 
     /* NOTE: ownership of sp_name.str gets passed to parent */
-    IRFunc_rename_vreg(parent, instr->args.elems[Arg_SELF].value.reg_name,
-            sp_name.str);
+    IRFunc_rename_vreg(parent, self_arg->value.reg_name, sp_name.str);
 
     /* if sp_name didn't get used anywhere in the parent func, we still have
      * ownership over it and thus need to free it. */
-    if (StringList_find(&parent->vregs, sp_name.str) == m_u32_max)
+    if (StringList_find(&parent->vregs, sp_name.str) == m_u32_max) {
         DynamicStr_free(sp_name);
+    }
 
     none_reg_idx = StringList_find(&parent->vregs, "__none");
     if (none_reg_idx == m_u32_max) {
@@ -54,8 +57,7 @@ static void alloca_to_esp_instr(struct IRInstr *instr, u32 func_stack_size,
         none_reg_idx = parent->vregs.size-1;
     }
 
-    instr->args.elems[Arg_SELF].value.reg_name =
-        parent->vregs.elems[none_reg_idx];
+    self_arg->value.reg_name = parent->vregs.elems[none_reg_idx];
 
 }
 
