@@ -251,12 +251,10 @@ static void gen_from_bin_op(struct DynamicStr *output,
     if (self_on_stack) {
         /* blame intel, not me. */
 
-        /* from here until eax gets popped again, a 4 byte offset will need
-         * to be added to every esp offset */
         m_push_reg("eax");
 
         if (lhs_arg->type != IRInstrArg_REG ||
-                strcmp(lhs_arg->value.reg_name, "eax") == 0) {
+                strcmp(lhs_arg->value.reg_name, "__eax") != 0) {
 
             DynamicStr_append(output, "mov eax, ");
             emit_instr_arg(output, lhs_arg, true);
@@ -329,8 +327,8 @@ static void gen_from_div_op(struct DynamicStr *output,
     if (!self_is_eax)
         m_push_reg("eax");
 
-    if (lhs_arg->type == IRInstrArg_REG &&
-            strcmp(lhs_arg->value.reg_name, "__eax") == 0) {
+    if (lhs_arg->type != IRInstrArg_REG ||
+            strcmp(lhs_arg->value.reg_name, "__eax") != 0) {
         DynamicStr_append(output, "mov eax, ");
         emit_instr_arg(output, lhs_arg, true);
         DynamicStr_append(output, "\n");

@@ -290,9 +290,10 @@ u32 IRFunc_find_none_reg(const struct IRFunc *self) {
 
 }
 
-bool instr_vreg_in_phi_node(const struct IRInstr *instr, const char *vreg) {
+static bool instr_vreg_in_phi_node(const struct IRInstr *instr,
+        const char *vreg) {
 
-    u32 i = 0;
+    u32 i;
 
     if (instr->type != IRInstr_PHI)
         return false;
@@ -314,10 +315,10 @@ bool instr_vreg_in_phi_node(const struct IRInstr *instr, const char *vreg) {
 
 }
 
-bool block_vreg_in_phi_node(const struct IRBasicBlock *block,
+static bool block_vreg_in_phi_node(const struct IRBasicBlock *block,
         const char *vreg) {
 
-    u32 i = 0;
+    u32 i;
 
     for (i = 0; i < block->instrs.size; i++) {
         if (instr_vreg_in_phi_node(&block->instrs.elems[i], vreg))
@@ -330,7 +331,7 @@ bool block_vreg_in_phi_node(const struct IRBasicBlock *block,
 
 bool IRFunc_vreg_in_phi_node(const struct IRFunc *self, const char *vreg) {
 
-    u32 i = 0;
+    u32 i;
 
     for (i = 0; i < self->blocks.size; i++) {
         if (block_vreg_in_phi_node(&self->blocks.elems[i], vreg))
@@ -338,6 +339,41 @@ bool IRFunc_vreg_in_phi_node(const struct IRFunc *self, const char *vreg) {
     }
 
     return false;
+
+}
+
+static void move_allocas_to_top_block(struct IRBasicBlock *block,
+        struct IRFunc *parent) {
+
+    u32 i;
+
+    for (i = 0; i < block->instrs.size; i++) {
+
+        struct IRInstr *instr = &block->instrs.elems[i];
+        struct IRBasicBlock *top = &parent->blocks.elems[0];
+
+        if (instr->type != IRInstr_ALLOCA)
+            continue;
+
+        IRInstrList_push_front(&top->instrs, *instr);
+        /* if the instr got inserted into the current block, we gotta account
+         * for the instr indices being offset by one */
+        i += top == block;
+
+        IRInstrList_erase(&block->instrs, i, NULL);
+        --i;
+
+    }
+
+}
+
+void IRFunc_move_allocas_to_top(struct IRFunc *self) {
+
+    u32 i;
+
+    for (i = 0; i < self->blocks.size; i++) {
+        move_allocas_to_top_block(&self->blocks.elems[i], self);
+    }
 
 }
 

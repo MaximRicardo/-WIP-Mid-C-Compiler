@@ -641,7 +641,7 @@ static struct IRFunc func_node_gen_ir(const struct FuncDeclNode *func,
     name_mangles = IRNameMangleList_init();
 
     block_node_gen_ir(func->body, &ir_func, tu);
-
+    IRFunc_move_allocas_to_top(&ir_func);
     IRFunc_get_blocks_imm_doms(&ir_func);
 
     while (name_mangles.size > 0) {

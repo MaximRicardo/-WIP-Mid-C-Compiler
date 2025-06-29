@@ -296,6 +296,10 @@ static u32 alloc_vreg(const char *vreg, struct IRBasicBlock *cur_block,
             none_idx = cur_func->vregs.size-1;
         }
 
+        /* it's important the alloca instruction goes at the very end of the
+         * function cuz then it won't mess with register lifetime values. the
+         * alloca instrs can be moved to the top of the function once the pass
+         * is complete. */
         IRInstrList_push_back(
                 &IRBasicBlockList_back_ptr(&cur_func->blocks)->instrs,
                 IRInstr_create_alloca(
@@ -430,6 +434,8 @@ static void virt_to_phys_func(struct IRFunc *func) {
     RegStatesList_free(&block_reg_states);
 
     IRRegLTList_free(&vreg_lts);
+
+    IRFunc_move_allocas_to_top(func);
 
 }
 

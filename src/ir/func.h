@@ -59,6 +59,7 @@ bool IRFunc_replace_vreg_w_instr_arg(struct IRFunc *self, const char *vreg,
 u32 IRFunc_get_stack_size(const struct IRFunc *self);
 u32 IRFunc_find_none_reg(const struct IRFunc *self);
 bool IRFunc_vreg_in_phi_node(const struct IRFunc *self, const char *vreg);
+void IRFunc_move_allocas_to_top(struct IRFunc *self);
 
 struct IRFuncList {
 
