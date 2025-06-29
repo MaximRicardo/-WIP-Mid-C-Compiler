@@ -111,8 +111,8 @@ static void compile(char *src, FILE *output, FILE *mccir_output,
 
         if (CompArgs_args.optimize) {
             IROpt_alloca(&ir_tu);
-            IROpt_unused_vregs(&ir_tu);
-            IROpt_copy_prop(&ir_tu);
+            /*IROpt_unused_vregs(&ir_tu);
+            IROpt_copy_prop(&ir_tu);*/
         }
 
         if (mccir_output) {

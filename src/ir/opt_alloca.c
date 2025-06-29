@@ -3,6 +3,7 @@
 #include "data_types.h"
 #include "instr.h"
 #include "../utils/dyn_str.h"
+#include "../utils/make_str_cpy.h"
 #include <stddef.h>
 #include <assert.h>
 #include <string.h>
@@ -344,6 +345,25 @@ static void convert_load_to_mov(struct IRInstr *instr,
 
 }
 
+/* skips all of block's imm doms that are in ignore_list.
+ * ignore_list CAN be NULL. */
+static void add_imm_doms_to_list(const struct IRBasicBlock *block,
+        struct U32List *list, const struct U32List *ignore_list) {
+
+    u32 i;
+
+    for (i = 0; i < block->imm_doms.size; i++) {
+        u32 new_block = block->imm_doms.elems[i];
+
+        /* prevents infinite looping */
+        if (ignore_list && U32List_find(ignore_list, new_block) != m_u32_max)
+            continue;
+
+        U32List_push_back(list, new_block);
+    }
+
+}
+
 static void create_phi_node_args(u32 r2c_idx, struct IRInstr *instr,
         const struct IRBasicBlock *start_block, const struct IRFunc *func,
         const struct RegToConvList *regs_to_conv) {
@@ -366,21 +386,12 @@ static void create_phi_node_args(u32 r2c_idx, struct IRInstr *instr,
         U32List_push_back(&done_blocks, U32List_back(&block_stack));
         U32List_pop_back(&block_stack, NULL);
 
-        for (i = 0; i < block->imm_doms.size; i++) {
-            u32 new_block = block->imm_doms.elems[i];
-
-            /* prevents infinite looping */
-            if (U32List_find(&done_blocks, new_block) != m_u32_max)
-                continue;
-
-            U32List_push_back(&block_stack, new_block);
-        }
-
         store_idx = StoreInfoList_find_block(
                 &regs_to_conv->elems[r2c_idx].last_store, block
                 );
 
         if (store_idx == m_u32_max) {
+            add_imm_doms_to_list(block, &block_stack, &done_blocks);
             continue;
         }
 
@@ -397,35 +408,63 @@ static void create_phi_node_args(u32 r2c_idx, struct IRInstr *instr,
     U32List_free(&block_stack);
 
 }
+/* generates a temporary phi node with no arguments. this tells the next pass
+ * to convert these temp nodes into real phi nodes once all the alloca's have
+ * been converted. the temp phi nodes are structured like so:
+ *    phi [VREG_NAME], [R2C_IDX]
+ */
+static bool create_temp_phi_node(u32 r2c_idx, struct IRBasicBlock *block,
+        struct IRFunc *func, struct RegToConvList *regs_to_conv) {
 
-/* the phi node gets put at the beginning of the block.
- * returns whether or not a phi node actually got generated. */
-static bool create_phi_node(u32 r2c_idx,
-        struct IRBasicBlock *cur_block, struct IRFunc *func,
-        struct RegToConvList *regs_to_conv) {
+    struct IRInstr instr;
+    char *vreg = NULL;
 
-    struct IRInstr instr = IRInstr_create(IRInstr_PHI, IRInstrArgList_init());
+    /* no phi nodes needed if there isn't any converging program flow */
+    if (block->imm_doms.size < 2)
+        return false;
+
+    instr = IRInstr_create(IRInstr_PHI, IRInstrArgList_init());
+
+    RegToConv_gen_new_name(&regs_to_conv->elems[r2c_idx], func);
+
+    vreg = make_str_copy(regs_to_conv->elems[r2c_idx].new_name);
+
+    StringList_push_back(&func->vregs, vreg);
 
     IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
                 IRInstrArg_REG, regs_to_conv->elems[r2c_idx].d_type,
-                IRInstrArgValue_reg_name(NULL)
+                IRInstrArgValue_reg_name(vreg)
                 ));
 
-    create_phi_node_args(r2c_idx, &instr, cur_block, func, regs_to_conv);
+    IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
+                IRInstrArg_IMM32, IRDataType_init(),
+                IRInstrArgValue_imm_u32(r2c_idx)
+                ));
 
-    /* if instr.args.size is 1, then there were no instances of the vreg in
-     * the dominating blocks.
-     * if instr.args.size is 2, then there was only one instance, in which
-     * case we can just use that vreg directly, no phi node needed.
-     * only if instr.args.size > 2, is the phi node actually needed. */
+    IRInstrList_push_front(&block->instrs, instr);
+
+    return true;
+
+}
+
+/* returns true if the temp phi node got replaced with a real one, and false
+ * if the phi node is actually unnecessary and needs to be erased.*/
+static bool convert_temp_phi_to_real(struct IRInstr *temp_phi,
+        struct IRBasicBlock *cur_block, struct IRFunc *cur_func,
+        const struct RegToConvList *regs_to_conv) {
+
+    u32 r2c_idx = temp_phi->args.elems[Arg_LHS].value.imm_u32;
+    struct IRInstr instr = IRInstr_create(IRInstr_PHI, IRInstrArgList_init());
+
+    assert(temp_phi->args.size == 2);
+
+    IRInstrArgList_push_back(&instr.args, temp_phi->args.elems[Arg_SELF]);
+
+    create_phi_node_args(r2c_idx, &instr, cur_block, cur_func, regs_to_conv);
+
+    /* if instr.args.size is 1, then there was only one instance of the vreg in
+     * the dominating blocks, and the phi node is unnecessary. */
     if (instr.args.size > 2) {
-        /* only set the phi node dest if it's actually gonna be used, cuz
-         * RegToConv_gen_new_name updates the state of the RegToConv instance.
-         */
-
-        RegToConv_gen_new_name(&regs_to_conv->elems[r2c_idx], func);
-        instr.args.elems[0].value.reg_name =
-            regs_to_conv->elems[r2c_idx].new_name;
 
         /* we gotta update the store info so that dependent blocks can chain
          * phi nodes together */
@@ -438,9 +477,11 @@ static bool create_phi_node(u32 r2c_idx,
                 &regs_to_conv->elems[r2c_idx].last_store, StoreInfo_create(
                     regs_to_conv->elems[r2c_idx].old_name,
                     regs_to_conv->elems[r2c_idx].new_name, cur_block
-                    ));
+                    )
+                );
 
-        IRInstrList_push_front(&cur_block->instrs, instr);
+        IRInstr_free(*temp_phi);
+        *temp_phi = instr;
         return true;
     }
     else {
@@ -483,7 +524,7 @@ static void opt_alloca_block(struct IRBasicBlock *block,
     u32 i;
 
     for (i = 0; i < regs_to_conv->size; i++) {
-        if (!create_phi_node(i, block, cur_func, regs_to_conv) &&
+        if (!create_temp_phi_node(i, block, cur_func, regs_to_conv) &&
                 block->imm_doms.size > 0) {
             /* make sure to use the same virt reg as this block's dominator(s)
              */
@@ -518,6 +559,41 @@ static void opt_alloca_block(struct IRBasicBlock *block,
 
 }
 
+static void block_fill_phi_nodes(struct IRBasicBlock *block,
+        struct IRFunc *parent, const struct RegToConvList *regs_to_conv) {
+
+    u32 i;
+
+    for (i = 0; i < block->instrs.size; i++) {
+
+        struct IRInstr *instr = &block->instrs.elems[i];
+
+        if (instr->type != IRInstr_PHI)
+            continue;
+
+        if (!convert_temp_phi_to_real(instr, block, parent, regs_to_conv)) {
+            IRInstrList_erase(&block->instrs, i, IRInstr_free);
+            --i;
+        }
+
+    }
+
+}
+
+/* a sub-pass to replace the temporary, empty phi nodes with real ones */
+static void func_fill_phi_nodes(struct IRFunc *func,
+        const struct RegToConvList *regs_to_conv) {
+
+    u32 i;
+
+    for (i = 0; i < func->blocks.size; i++) {
+
+        block_fill_phi_nodes(&func->blocks.elems[i], func, regs_to_conv);
+
+    }
+
+}
+
 static void opt_alloca_func(struct IRFunc *func) {
 
     u32 i;
@@ -527,6 +603,8 @@ static void opt_alloca_func(struct IRFunc *func) {
     for (i = 0; i < func->blocks.size; i++) {
         opt_alloca_block(&func->blocks.elems[i], func, &regs_to_conv);
     }
+
+    func_fill_phi_nodes(func, &regs_to_conv);
 
     while (regs_to_conv.size > 0) {
         RegToConvList_pop_back(&regs_to_conv, RegToConv_free);

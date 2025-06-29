@@ -524,8 +524,12 @@ static void while_loop_gen_ir(const struct WhileNode *node,
 
     IRBasicBlockList_push_back(&cur_func->blocks, body);
     cur_block = IRBasicBlockList_back_ptr(&cur_func->blocks);
+
     if (node->body)
         block_node_gen_ir(node->body, cur_func, tu);
+    /* the cur block could have gotten updated in block_node_gen_ir */
+    cur_block = IRBasicBlockList_back_ptr(&cur_func->blocks);
+
     IRInstrList_push_back(
             &cur_block->instrs,
             IRInstr_create_str_instr(IRInstr_JMP, loop_start.label)
