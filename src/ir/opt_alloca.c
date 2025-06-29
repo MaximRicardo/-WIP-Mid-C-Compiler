@@ -344,13 +344,65 @@ static void convert_load_to_mov(struct IRInstr *instr,
 
 }
 
+static void create_phi_node_args(u32 r2c_idx, struct IRInstr *instr,
+        const struct IRBasicBlock *start_block, const struct IRFunc *func,
+        const struct RegToConvList *regs_to_conv) {
+
+    u32 i;
+    struct U32List block_stack = U32List_init();
+    struct U32List done_blocks = U32List_init();
+
+    for (i = 0; i < start_block->imm_doms.size; i++) {
+        U32List_push_back(&block_stack, start_block->imm_doms.elems[i]);
+    }
+
+    while (block_stack.size) {
+
+        u32 store_idx;
+        const char *store_name;
+
+        const struct IRBasicBlock *block =
+            &func->blocks.elems[U32List_back(&block_stack)];
+        U32List_push_back(&done_blocks, U32List_back(&block_stack));
+        U32List_pop_back(&block_stack, NULL);
+
+        for (i = 0; i < block->imm_doms.size; i++) {
+            u32 new_block = block->imm_doms.elems[i];
+
+            /* prevents infinite looping */
+            if (U32List_find(&done_blocks, new_block) != m_u32_max)
+                continue;
+
+            U32List_push_back(&block_stack, new_block);
+        }
+
+        store_idx = StoreInfoList_find_block(
+                &regs_to_conv->elems[r2c_idx].last_store, block
+                );
+
+        if (store_idx == m_u32_max) {
+            continue;
+        }
+
+        store_name =
+            regs_to_conv->elems[r2c_idx].last_store.elems[store_idx].new_name;
+
+        IRInstrArgList_push_back(&instr->args, IRInstrArg_create(
+                    IRInstrArg_REG, regs_to_conv->elems[r2c_idx].d_type,
+                    IRInstrArgValue_reg_name(store_name)
+                    ));
+    }
+
+    U32List_free(&done_blocks);
+    U32List_free(&block_stack);
+
+}
+
 /* the phi node gets put at the beginning of the block.
  * returns whether or not a phi node actually got generated. */
 static bool create_phi_node(u32 r2c_idx,
         struct IRBasicBlock *cur_block, struct IRFunc *func,
         struct RegToConvList *regs_to_conv) {
-
-    u32 i;
 
     struct IRInstr instr = IRInstr_create(IRInstr_PHI, IRInstrArgList_init());
 
@@ -359,27 +411,7 @@ static bool create_phi_node(u32 r2c_idx,
                 IRInstrArgValue_reg_name(NULL)
                 ));
 
-    for (i = 0; i < cur_block->imm_doms.size; i++) {
-        u32 block = cur_block->imm_doms.elems[i];
-        const struct IRBasicBlock *other = &func->blocks.elems[block];
-
-        u32 store_idx = StoreInfoList_find_block(
-                &regs_to_conv->elems[r2c_idx].last_store, other
-                );
-
-        const char *store_name;
-
-        if (store_idx == m_u32_max)
-            continue;
-
-        store_name =
-            regs_to_conv->elems[r2c_idx].last_store.elems[store_idx].new_name;
-
-        IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
-                    IRInstrArg_REG, regs_to_conv->elems[r2c_idx].d_type,
-                    IRInstrArgValue_reg_name(store_name)
-                    ));
-    }
+    create_phi_node_args(r2c_idx, &instr, cur_block, func, regs_to_conv);
 
     /* if instr.args.size is 1, then there were no instances of the vreg in
      * the dominating blocks.

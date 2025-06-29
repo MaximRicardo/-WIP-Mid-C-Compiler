@@ -12,3 +12,6 @@ struct U32List {
 };
 
 m_declare_VectorImpl_funcs(U32List, u32)
+
+/* returns the idx, not the value. cuz that would be stupid */
+u32 U32List_find(const struct U32List *self, u32 value);

@@ -11,6 +11,10 @@
 #include <string.h>
 #include <assert.h>
 
+/* TODO:
+ *    verify that loops are handled correctly in init_cpu_reg_vals.
+ */
+
 enum CPURegs {
 
     CPUReg_AX,
@@ -69,7 +73,10 @@ static void print_cpu_reg_vals(const struct IRBasicBlock *cur_block,
     struct RegStates *cpu_reg_vals =
         RegStates_block_preg_states(cur_block, cur_func);
 
+    assert(cpu_reg_vals);
+
     for (i = 0; i < m_n_usable_pregs; i++) {
+        printf("i = %u\n", i);
         printf("%s: %%%s\n", cpu_regs[i], cpu_reg_vals->preg_vals[i].virt_reg);
     }
 
@@ -88,8 +95,22 @@ static void init_cpu_reg_vals(const struct IRBasicBlock *cur_block,
     }
 
     for (i = 0; i < cur_block->imm_doms.size; i++) {
-        const struct IRBasicBlock *other =
-            &cur_func->blocks.elems[cur_block->imm_doms.elems[i]];
+        const struct IRBasicBlock *other = NULL;
+        u32 imm_dom = cur_block->imm_doms.elems[i];
+
+        /* in a loop, a the end of the loop will call the start of the loop,
+         * which would be bad cuz 1. we haven't setup the end loop's cpu reg
+         * values, and 2. it's impossible to set them up without setting up the
+         * values here, and to set up the values here we need to set them up at
+         * the end, which requires setting them up here, etc. so i decided to
+         * just ignore any dependencies past the current block and hope that
+         * nothing goes wrong :)
+         */
+        if (imm_dom > cur_block - cur_func->blocks.elems)
+            continue;
+        assert(imm_dom != cur_block - cur_func->blocks.elems);
+
+        other = &cur_func->blocks.elems[imm_dom];
 
         RegStates_merge(cpu_reg_vals,
                 RegStates_block_preg_states(other, cur_func),
