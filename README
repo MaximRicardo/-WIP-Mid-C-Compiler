@@ -50,8 +50,8 @@ OPTIMIZATION FEATURES:
 
     constant-folding,                         Enabled by default
     placing variables in registers            Enabled with -O
-    constant propagation                      Enabled with -O
-    copy propagation                          Enabled with -O
+    constant-propagation                      Enabled with -O
+    copy-propagation                          Enabled with -O
 
 
 BUILDING THE REPO:
@@ -81,5 +81,5 @@ STANDARD COMPLIANCE:
 
 
     I'm not planning on making the compiler completely compliant with any
-C-standard, but the language will be extremely similar to C89. A list of
+C-standard, but the language will probably be a mix of C89 and C99. A list of
 differences will be added once the compiler reaches a stable release.
