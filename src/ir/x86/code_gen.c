@@ -1,6 +1,8 @@
 #include "code_gen.h"
 #include "../../utils/dyn_str.h"
+#include "get_changed_regs.h"
 #include "instrs.h"
+#include "../../macros.h"
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
@@ -27,6 +29,13 @@ static const char *size_specs[] = {
     "dword",            /* 4 bytes */
 };
 
+static const char *callee_saved_vregs[] = {
+    "__ebx",
+    "__esi",
+    "__edi",
+    "__ebp",
+};
+
 static char str_last_c(const char *str) {
 
     u32 i = 0;
@@ -44,6 +53,47 @@ static const char* vreg_to_preg(const char *vreg) {
     assert(strncmp(vreg, "__", 2) == 0);
 
     return &vreg[2];
+
+}
+
+static void push_callee_saved_regs(struct DynamicStr *output,
+        const struct IRFunc *func) {
+
+    u32 i;
+    struct ConstStringList vregs = X86_func_get_changed_vregs(func);
+
+    for (i = 0; i < m_arr_size(callee_saved_vregs); i++) {
+        const char *preg = NULL;
+
+        if (ConstStringList_find(&vregs, callee_saved_vregs[i]) == m_u32_max)
+            continue;
+
+        preg = vreg_to_preg(callee_saved_vregs[i]);
+        DynamicStr_append_printf(output, "push %s\n", preg);
+    }
+
+    ConstStringList_free(&vregs);
+
+}
+
+static void pop_callee_saved_regs(struct DynamicStr *output,
+        const struct IRFunc *func) {
+
+    u32 i;
+    u32 n = m_arr_size(callee_saved_vregs);
+    struct ConstStringList vregs = X86_func_get_changed_vregs(func);
+
+    for (i = n-1; i < n; i--) {
+        const char *preg = NULL;
+
+        if (ConstStringList_find(&vregs, callee_saved_vregs[i]) == m_u32_max)
+            continue;
+
+        preg = vreg_to_preg(callee_saved_vregs[i]);
+        DynamicStr_append_printf(output, "pop %s\n", preg);
+    }
+
+    ConstStringList_free(&vregs);
 
 }
 
@@ -450,7 +500,8 @@ static void gen_from_uncond_jmp(struct DynamicStr *output,
 }
 
 static void gen_from_ret_instr(struct DynamicStr *output,
-        const struct IRInstr *instr, u32 func_stack_size) {
+        const struct IRInstr *instr, const struct IRFunc *cur_func,
+        u32 func_stack_size) {
 
     struct IRInstrArg *self_arg = NULL;
 
@@ -469,12 +520,14 @@ static void gen_from_ret_instr(struct DynamicStr *output,
 
     if (func_stack_size > 0)
         DynamicStr_append_printf(output, "add esp, %u\n", func_stack_size);
+    pop_callee_saved_regs(output, cur_func);
     DynamicStr_append(output, "ret\n");
 
 }
 
 static void gen_x86_from_instr(struct DynamicStr *output,
-        const struct IRInstr *instr, u32 func_stack_size) {
+        const struct IRInstr *instr, const struct IRFunc *cur_func,
+        u32 func_stack_size) {
 
     /* important that this comes before IRInstrType_is_bin_op */
     if (instr->type == IRInstr_DIV) {
@@ -499,7 +552,7 @@ static void gen_x86_from_instr(struct DynamicStr *output,
         gen_from_uncond_jmp(output, instr);
     }
     else if (instr->type == IRInstr_RET) {
-        gen_from_ret_instr(output, instr, func_stack_size);
+        gen_from_ret_instr(output, instr, cur_func, func_stack_size);
     }
     else if (instr->type == IRInstr_MOV) {
         gen_from_mov_instr(output, instr);
@@ -511,7 +564,8 @@ static void gen_x86_from_instr(struct DynamicStr *output,
 }
 
 static void gen_x86_from_block(struct DynamicStr *output,
-        const struct IRBasicBlock *block, u32 func_stack_size) {
+        const struct IRBasicBlock *block, const struct IRFunc *cur_func,
+        u32 func_stack_size) {
 
     u32 i;
 
@@ -519,9 +573,30 @@ static void gen_x86_from_block(struct DynamicStr *output,
 
     for (i = 0; i < block->instrs.size; i++) {
 
-        gen_x86_from_instr(output, &block->instrs.elems[i], func_stack_size);
+        gen_x86_from_instr(output, &block->instrs.elems[i], cur_func,
+                func_stack_size);
 
     }
+
+}
+
+static void gen_ret_if_no_ret_stmt(struct DynamicStr *output,
+        const struct IRFunc *func, u32 func_stack_size) {
+
+    const struct IRBasicBlock *last_blck =
+        &func->blocks.elems[func->blocks.size-1];
+    const struct IRInstr *last_instr =
+        &last_blck->instrs.elems[last_blck->instrs.size-1];
+
+    if (last_instr->type == IRInstr_RET)
+        return;
+
+    if (func_stack_size > 0)
+        DynamicStr_append_printf(output, "add esp, %u\n", func_stack_size);
+    pop_callee_saved_regs(output, func);
+    /* default func ret value */
+    DynamicStr_append(output, "mov eax, 0\n");
+    DynamicStr_append(output, "ret\n");
 
 }
 
@@ -529,27 +604,25 @@ static void gen_x86_from_func(struct DynamicStr *output,
         const struct IRFunc *func) {
 
     u32 i;
-    u32 func_stack_size = IRFunc_get_stack_size(func);
+    u32 stack_size = IRFunc_get_stack_size(func);
 
     n_pushed_bytes = 0;
 
     DynamicStr_append_printf(output, "%s:\n", func->name);
 
-    if (func_stack_size > 0)
-        DynamicStr_append_printf(output, "sub esp, %u\n", func_stack_size);
+    push_callee_saved_regs(output, func);
+    if (stack_size > 0)
+        DynamicStr_append_printf(output, "sub esp, %u\n", stack_size);
 
     for (i = 0; i < func->blocks.size; i++) {
 
-        gen_x86_from_block(output, &func->blocks.elems[i], func_stack_size);
+        gen_x86_from_block(output, &func->blocks.elems[i], func, stack_size);
 
     }
 
     assert(n_pushed_bytes == 0);
 
-    /* in case there was no explicit return */
-    if (func_stack_size > 0)
-        DynamicStr_append_printf(output, "add esp, %u\n", func_stack_size);
-    DynamicStr_append(output, "ret\n");
+    gen_ret_if_no_ret_stmt(output, func, stack_size);
 
 }
 
