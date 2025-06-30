@@ -1,3 +1,5 @@
+/* DEPRACATED! USE THE IR FOR CODE GENERATION! */
+
 #include "code_gen.h"
 #include "structs.h"
 

@@ -8,6 +8,10 @@
 #include <assert.h>
 #include <stdio.h>
 
+/*
+ * is_root            - true if the function call is the root of the
+ *                      expression and false if it's nested inside it.
+ */
 static bool verify_func_call(const struct Expr *expr,
         const struct ParVarList *vars, const struct StructList *structs,
         bool is_root) {
@@ -111,6 +115,68 @@ static bool verify_single_ptr_operation(const struct Expr *expr) {
 
 }
 
+static bool verify_reference(const struct Expr *expr) {
+
+    if (expr->lhs->expr_type != ExprType_IDENT &&
+            expr->lhs->expr_type != ExprType_MEMBER_ACCESS &&
+            expr->lhs->expr_type != ExprType_MEMBER_ACCESS_PTR &&
+            expr->lhs->expr_type != ExprType_L_ARR_SUBSCR &&
+            /* makes sure it's not a func call */
+            expr->lhs->args.size == 0 &&
+            expr->lhs->expr_type != ExprType_DEREFERENCE) {
+        ErrMsg_print(ErrMsg_on, NULL, expr->file_path,
+                "cannot reference an operand with no address. line %u,"
+                " column %u.\n", expr->line_num, expr->column_num);
+        return true;
+    }
+
+    return false;
+
+}
+
+static bool verify_member_access(const struct Expr *expr) {
+
+    if (expr->lhs->lvls_of_indir != 0) {
+        ErrMsg_print(ErrMsg_on, NULL, expr->file_path,
+                "can not access members of a pointer. line %u, column %u.\n",
+                expr->line_num, expr->column_num);
+        return true;
+    }
+
+    return false;
+
+}
+
+static bool verify_member_access_ptr(const struct Expr *expr) {
+
+    if (expr->lhs->lvls_of_indir != 1) {
+        ErrMsg_print(ErrMsg_on, NULL, expr->file_path,
+                "can not use operator '->' on line %u, column %u.\n",
+                expr->line_num, expr->column_num);
+        return true;
+    }
+
+    return false;
+
+}
+
+static bool verify_array_lit(const struct Expr *expr, bool is_initializer) {
+
+    bool is_str = expr->array_value.elem_size == 1;
+
+    if (!is_initializer && !is_str) {
+        /* an elem size of 0 means the array isn't a string literal */
+        ErrMsg_print(ErrMsg_on, NULL, expr->file_path,
+                "cannot use array literals outside of initializers."
+                " line num = %u, column num = %u.\n", expr->line_num,
+                expr->column_num);
+        return true;
+    }
+
+    return false;
+
+}
+
 static bool verify_expr(const struct Expr *expr, const struct ParVarList *vars,
         const struct StructList *structs, bool is_root, bool is_initializer) {
 
@@ -129,40 +195,24 @@ static bool verify_expr(const struct Expr *expr, const struct ParVarList *vars,
         error |= verify_func_call(expr, vars, structs, is_root);
     }
     else if (expr->expr_type == ExprType_REFERENCE) {
-        if (expr->lhs->expr_type != ExprType_IDENT &&
-                expr->lhs->expr_type != ExprType_MEMBER_ACCESS &&
-                expr->lhs->expr_type != ExprType_MEMBER_ACCESS_PTR &&
-                expr->lhs->expr_type != ExprType_L_ARR_SUBSCR &&
-                /* makes sure it's not a func call */
-                expr->lhs->args.size == 0 &&
-                expr->lhs->expr_type != ExprType_DEREFERENCE) {
-            ErrMsg_print(ErrMsg_on, &error, expr->file_path,
-                    "cannot reference an operand with no address. line %u,"
-                    " column %u.\n", expr->line_num, expr->column_num);
-            error = true;
-        }
+        error |= verify_reference(expr);
     }
     else if (expr->lhs->lvls_of_indir > 0 &&
             ExprType_is_unary_operator(expr->expr_type)) {
         error |= verify_unary_ptr_operation(expr);
     }
+    /*already checked if the child node is a pointer */
     else if (expr->expr_type == ExprType_DEREFERENCE) {
         ErrMsg_print(ErrMsg_on, &error, expr->file_path,
                 "can not dereference a non-pointer. line %u,"
                 " column %u.\n", expr->line_num, expr->column_num);
         error = true;
     }
-    else if (expr->expr_type == ExprType_MEMBER_ACCESS &&
-            expr->lhs->lvls_of_indir != 0) {
-        ErrMsg_print(ErrMsg_on, &error, expr->file_path,
-                "can not access members of a pointer. line %u, column %u.\n",
-                expr->line_num, expr->column_num);
+    else if (expr->expr_type == ExprType_MEMBER_ACCESS) {
+        error |= verify_member_access(expr);
     }
-    else if (expr->expr_type == ExprType_MEMBER_ACCESS_PTR &&
-            expr->lhs->lvls_of_indir != 1) {
-        ErrMsg_print(ErrMsg_on, &error, expr->file_path,
-                "can not use operator '->' on line %u, column %u.\n",
-                expr->line_num, expr->column_num);
+    else if (expr->expr_type == ExprType_MEMBER_ACCESS_PTR) {
+        error |= verify_member_access_ptr(expr);
     }
     else if (expr->lhs->lvls_of_indir > 0 && expr->rhs->lvls_of_indir > 0 &&
             ExprType_is_bin_operator(expr->expr_type)) {
@@ -172,14 +222,8 @@ static bool verify_expr(const struct Expr *expr, const struct ParVarList *vars,
             ExprType_is_bin_operator(expr->expr_type)) {
         error |= verify_single_ptr_operation(expr);
     }
-    else if (!is_initializer && expr->expr_type == ExprType_ARRAY_LIT &&
-            expr->array_value.elem_size == 0) {
-        /* an elem size of 0 means the array isn't a string literal */
-        ErrMsg_print(ErrMsg_on, &error, expr->file_path,
-                "cannot use array literals outside of initializers."
-                " line num = %u, column num = %u.\n", expr->line_num,
-                expr->column_num);
-        error = true;
+    else if (expr->expr_type == ExprType_ARRAY_LIT) {
+        error |= verify_array_lit(expr, is_initializer);
     }
 
     for (i = 0; i < expr->args.size; i++) {

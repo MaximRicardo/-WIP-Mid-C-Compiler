@@ -9,15 +9,21 @@ void MergeStrings_merge(struct TokenList *token_tbl) {
 
     for (i = 0; token_tbl->size >= 2 && i < token_tbl->size-1; i++) {
 
+        u32 new_len;
+
         if (token_tbl->elems[i].type != TokenType_STR_LIT ||
                 token_tbl->elems[i+1].type != TokenType_STR_LIT)
             continue;
 
-        token_tbl->elems[i].value.string = safe_realloc(
-                token_tbl->elems[i].value.string,
-                (strlen(token_tbl->elems[i].value.string)+
-                     strlen(token_tbl->elems[i+1].value.string)+1) *
-                sizeof(*token_tbl->elems[i].value.string));
+        new_len = strlen(token_tbl->elems[i].value.string)+
+                     strlen(token_tbl->elems[i+1].value.string);
+
+        token_tbl->elems[i].value.string =
+            safe_realloc(
+                    token_tbl->elems[i].value.string,
+                    (new_len+1) * sizeof(*token_tbl->elems[i].value.string)
+                    );
+
         strcat(token_tbl->elems[i].value.string,
                 token_tbl->elems[i+1].value.string);
 

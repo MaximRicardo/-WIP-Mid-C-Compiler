@@ -236,6 +236,39 @@ void Expr_recur_free_w_self(struct Expr *self) {
 
 }
 
+static unsigned func_call_indir(const struct Expr *self,
+        const struct ParVarList *vars) {
+
+    char *expr_src = Expr_src(self);
+
+    u32 var_idx = ParVarList_find_var(vars, expr_src);
+    unsigned indir =
+        var_idx == m_u32_max ? 0 : vars->elems[var_idx].lvls_of_indir;
+
+    m_free(expr_src);
+
+    return indir;
+
+}
+
+static unsigned regular_expr_indir(const struct Expr *self) {
+
+    unsigned indir = self->rhs == NULL ?
+        self->lhs->lvls_of_indir :
+        m_max(self->lhs->lvls_of_indir, self->rhs->lvls_of_indir);
+
+    if (self->expr_type == ExprType_DEREFERENCE ||
+            self->expr_type == ExprType_L_ARR_SUBSCR) {
+        assert(indir > 0);
+        --indir;
+    }
+    else if (self->expr_type == ExprType_REFERENCE)
+        ++indir;
+
+    return indir;
+
+}
+
 unsigned Expr_lvls_of_indir(struct Expr *self, const struct ParVarList *vars) {
 
     if (self->expr_type == ExprType_TYPECAST) {
@@ -248,36 +281,89 @@ unsigned Expr_lvls_of_indir(struct Expr *self, const struct ParVarList *vars) {
         self->lvls_of_indir = self->rhs->lvls_of_indir;
     }
     else if (self->expr_type == ExprType_FUNC_CALL) {
-        char *expr_src = Expr_src(self);
-
-        u32 var_idx = ParVarList_find_var(vars, expr_src);
-        unsigned lvls_of_indir =
-            var_idx == m_u32_max ? 0 : vars->elems[var_idx].lvls_of_indir;
-
-        m_free(expr_src);
-
-        self->lvls_of_indir = lvls_of_indir;
+        self->lvls_of_indir = func_call_indir(self, vars);
     }
     else if (self->expr_type == ExprType_ARRAY_LIT) {
         /* assume the array is a string */
         self->lvls_of_indir = 1;
     }
     else {
-        unsigned lvls_of_indir = self->rhs == NULL ? self->lhs->lvls_of_indir :
-            m_max(self->lhs->lvls_of_indir, self->rhs->lvls_of_indir);
-
-        if (self->expr_type == ExprType_DEREFERENCE ||
-                self->expr_type == ExprType_L_ARR_SUBSCR) {
-            assert(lvls_of_indir > 0);
-            --lvls_of_indir;
-        }
-        else if (self->expr_type == ExprType_REFERENCE)
-            ++lvls_of_indir;
-
-        self->lvls_of_indir = lvls_of_indir;
+        self->lvls_of_indir = regular_expr_indir(self);
     }
 
     return self->lvls_of_indir;
+
+}
+
+/* implements the C arithmetic type converisons */
+static enum PrimitiveType bin_expr_type(struct Expr *self,
+        const struct ParVarList *vars, const struct StructList *structs) {
+
+    enum PrimitiveType t = PrimType_INVALID;
+
+    enum PrimitiveType lhs_prom =
+        PrimitiveType_promote(self->lhs->prim_type, self->lhs->lvls_of_indir);
+    enum PrimitiveType rhs_prom =
+        PrimitiveType_promote(self->rhs->prim_type, self->rhs->lvls_of_indir);
+
+    u32 lhs_prom_size = PrimitiveType_size(lhs_prom,
+            self->lhs->lvls_of_indir, self->lhs->type_idx, structs);
+    u32 rhs_prom_size = PrimitiveType_size(rhs_prom,
+            self->rhs->lvls_of_indir, self->rhs->type_idx, structs);
+
+    if (self->rhs->lvls_of_indir > self->lhs->lvls_of_indir)
+        t = rhs_prom;
+    else if (self->lhs->lvls_of_indir > self->rhs->lvls_of_indir)
+        t = lhs_prom;
+    else {
+        if (lhs_prom == rhs_prom)
+            t = lhs_prom;
+        else if (lhs_prom_size > rhs_prom_size)
+            t = lhs_prom;
+        else if (lhs_prom_size < rhs_prom_size)
+            t = rhs_prom;
+        /* unsigned types always "win" */
+        else if (PrimitiveType_signed(lhs_prom, self->lhs->lvls_of_indir))
+            t = rhs_prom;
+        else
+            t = lhs_prom;
+    }
+
+    /* arrays need to be dereferenced */
+    if (self->expr_type == ExprType_L_ARR_SUBSCR &&
+            Expr_lvls_of_indir(self, vars) == 0) {
+        t = PrimitiveType_promote(t, 0);
+    }
+
+    return t;
+
+}
+
+/* if the function called is undefined, then it's assumed to be an int func */
+static enum PrimitiveType func_call_type(const struct Expr *self,
+        const struct ParVarList *vars) {
+
+    char *expr_src = Expr_src(self);
+
+    u32 var_idx = ParVarList_find_var(vars, expr_src);
+    enum PrimitiveType t;
+    unsigned indir;
+
+    if (var_idx == m_u32_max) {
+        t = PrimType_INT;
+        indir = 0;
+    }
+    else {
+        t = vars->elems[var_idx].type;
+        indir = vars->elems[var_idx].lvls_of_indir;
+    }
+
+    m_free(expr_src);
+
+    if (t != PrimType_VOID)
+        t = PrimitiveType_promote(t, indir);
+
+    return t;
 
 }
 
@@ -306,62 +392,10 @@ enum PrimitiveType Expr_type(struct Expr *self,
                 self->rhs->lvls_of_indir);
     }
     else if (self->rhs) {
-        enum PrimitiveType lhs_prom =
-            PrimitiveType_promote(self->lhs->prim_type,
-                self->lhs->lvls_of_indir);
-        enum PrimitiveType rhs_prom =
-            PrimitiveType_promote(self->rhs->prim_type,
-                self->rhs->lvls_of_indir);
-
-        u32 lhs_prom_size = PrimitiveType_size(lhs_prom,
-                self->lhs->lvls_of_indir, self->lhs->type_idx, structs);
-        u32 rhs_prom_size = PrimitiveType_size(rhs_prom,
-                self->rhs->lvls_of_indir, self->rhs->type_idx, structs);
-
-        if (self->rhs->lvls_of_indir > self->lhs->lvls_of_indir)
-            self->prim_type = rhs_prom;
-        else if (self->lhs->lvls_of_indir > self->rhs->lvls_of_indir)
-            self->prim_type = lhs_prom;
-        else {
-            if (lhs_prom == rhs_prom)
-                self->prim_type = lhs_prom;
-            else if (lhs_prom_size > rhs_prom_size)
-                self->prim_type = lhs_prom;
-            else if (lhs_prom_size < rhs_prom_size)
-                self->prim_type = rhs_prom;
-            else if (PrimitiveType_signed(lhs_prom, self->lhs->lvls_of_indir))
-                self->prim_type = rhs_prom;
-            else
-                self->prim_type = lhs_prom;
-        }
-
-        if (self->expr_type == ExprType_L_ARR_SUBSCR &&
-                Expr_lvls_of_indir(self, vars) == 0) {
-            self->prim_type = PrimitiveType_promote(self->prim_type, 0);
-        }
+        self->prim_type = bin_expr_type(self, vars, structs);
     }
     else if (self->expr_type == ExprType_FUNC_CALL) {
-        char *expr_src = Expr_src(self);
-
-        u32 var_idx = ParVarList_find_var(vars, expr_src);
-        enum PrimitiveType type;
-        unsigned lvls_of_indir;
-
-        if (var_idx == m_u32_max) {
-            type = PrimType_INT;
-            lvls_of_indir = 0;
-        }
-        else {
-            type = vars->elems[var_idx].type;
-            lvls_of_indir = vars->elems[var_idx].lvls_of_indir;
-        }
-
-        m_free(expr_src);
-
-        if (type == PrimType_VOID)
-            self->prim_type = PrimType_VOID;
-        else
-            self->prim_type = PrimitiveType_promote(type, lvls_of_indir);
+        self->prim_type = func_call_type(self, vars);
     }
     else if (self->expr_type == ExprType_ARRAY_LIT) {
         /* assume the array is a string */
@@ -378,6 +412,22 @@ enum PrimitiveType Expr_type(struct Expr *self,
 
 }
 
+/* if the function called is undefined, then it's assumed to be an int func */
+static enum PrimitiveType func_call_type_no_prom(const struct Expr *self,
+        const struct ParVarList *vars) {
+
+    char *expr_src = Expr_src(self);
+
+    u32 var_idx = ParVarList_find_var(vars, expr_src);
+    enum PrimitiveType t =
+        var_idx == m_u32_max ? PrimType_INT : vars->elems[var_idx].type;
+
+    m_free(expr_src);
+
+    return t;
+
+}
+
 enum PrimitiveType Expr_type_no_prom(struct Expr *self,
         const struct ParVarList *vars) {
 
@@ -391,19 +441,13 @@ enum PrimitiveType Expr_type_no_prom(struct Expr *self,
     }
     else if (self->expr_type == ExprType_MEMBER_ACCESS ||
             self->expr_type == ExprType_MEMBER_ACCESS_PTR) {
+
         self->type_idx = self->rhs->type_idx;
         self->non_prom_prim_type = self->rhs->non_prom_prim_type;
+
     }
     else if (self->expr_type == ExprType_FUNC_CALL) {
-        char *expr_src = Expr_src(self);
-
-        u32 var_idx = ParVarList_find_var(vars, expr_src);
-        enum PrimitiveType type =
-            var_idx == m_u32_max ? PrimType_INT : vars->elems[var_idx].type;
-
-        m_free(expr_src);
-
-        self->non_prom_prim_type = type;
+        self->non_prom_prim_type = func_call_type_no_prom(self, vars);
     }
     else if (self->expr_type == ExprType_ARRAY_LIT) {
         /* assume the array is a string */
@@ -421,6 +465,30 @@ enum PrimitiveType Expr_type_no_prom(struct Expr *self,
 }
 
 u32 Expr_evaluate(const struct Expr *self, const struct StructList *structs) {
+
+#define m_bin_oper(operation) \
+    do { \
+        if (is_signed) \
+            return (i32)lhs_val operation (i32)rhs_val; \
+        else \
+            return lhs_val operation rhs_val; \
+    } while (0)
+
+#define m_unary_oper(operation) \
+    do { \
+        if (is_signed) \
+            return operation (i32)lhs_val; \
+        else \
+            return operation lhs_val; \
+    } while (0)
+
+#define m_postf_unary_oper(operation) \
+    do { \
+        if (is_signed) \
+            return ((i32)lhs_val) operation; \
+        else \
+            return lhs_val operation; \
+    } while (0)
 
     u32 lhs_val;
     u32 rhs_val;
@@ -443,82 +511,61 @@ u32 Expr_evaluate(const struct Expr *self, const struct StructList *structs) {
     switch (self->expr_type) {
 
     case ExprType_PLUS:
-        return lhs_val + rhs_val;
+        m_bin_oper(+);
 
     case ExprType_MINUS:
-        return lhs_val - rhs_val;
+        m_bin_oper(-);
 
     case ExprType_MUL:
-        if (is_signed)
-            return (i32)lhs_val * (i32)rhs_val;
-        else
-            return lhs_val * rhs_val;
+        m_bin_oper(*);
 
     case ExprType_DIV:
-        if (is_signed)
-            return (i32)lhs_val / (i32)rhs_val;
-        else
-            return lhs_val / rhs_val;
+        m_bin_oper(/);
 
     case ExprType_MODULUS:
-        if (is_signed)
-            return (i32)lhs_val % (i32)rhs_val;
-        else
-            return lhs_val % rhs_val;
+        m_bin_oper(%);
 
     case ExprType_COMMA:
         return 0;
 
     case ExprType_BITWISE_AND:
-        return lhs_val & rhs_val;
+        m_bin_oper(&);
 
     case ExprType_BOOLEAN_OR:
-        return lhs_val || rhs_val;
+        m_bin_oper(||);
 
     case ExprType_BOOLEAN_AND:
-        return lhs_val && rhs_val;
+        m_bin_oper(&&);
 
     case ExprType_EQUAL_TO:
-        return lhs_val == rhs_val;
+        m_bin_oper(==);
 
     case ExprType_NOT_EQUAL_TO:
-        return lhs_val != rhs_val;
+        m_bin_oper(!=);
 
     case ExprType_L_THAN:
-        if (is_signed)
-            return (i32)lhs_val < (i32)rhs_val;
-        else
-            return lhs_val < rhs_val;
+        m_bin_oper(<);
 
     case ExprType_L_THAN_OR_E:
-        if (is_signed)
-            return (i32)lhs_val <= (i32)rhs_val;
-        else
-            return lhs_val <= rhs_val;
+        m_bin_oper(<=);
 
     case ExprType_G_THAN:
-        if (is_signed)
-            return (i32)lhs_val > (i32)rhs_val;
-        else
-            return lhs_val > rhs_val;
+        m_bin_oper(>);
 
     case ExprType_G_THAN_OR_E:
-        if (is_signed)
-            return (i32)lhs_val >= (i32)rhs_val;
-        else
-            return lhs_val >= rhs_val;
+        m_bin_oper(>=);
 
     case ExprType_BITWISE_NOT:
-        return ~lhs_val;
+        m_unary_oper(~);
 
     case ExprType_BOOLEAN_NOT:
-        return !lhs_val;
+        m_unary_oper(!);
 
     case ExprType_POSITIVE:
-        return lhs_val;
+        m_unary_oper(+);
 
     case ExprType_NEGATIVE:
-        return -lhs_val;
+        m_unary_oper(-);
 
     case ExprType_TYPECAST:
         return lhs_val;
@@ -532,6 +579,10 @@ u32 Expr_evaluate(const struct Expr *self, const struct StructList *structs) {
         assert(false);
 
     }
+
+#undef m_bin_oper
+#undef m_unary_oper
+#undef m_postf_unary_oper
 
 }
 

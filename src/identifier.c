@@ -11,16 +11,12 @@ enum PrimitiveType Ident_type_spec(const char *ident,
 
     if (strcmp(ident, "char") == 0)
         return PrimType_CHAR;
-
     if (strcmp(ident, "short") == 0)
         return PrimType_SHORT;
-
     else if (strcmp(ident, "int") == 0)
         return PrimType_INT;
-
     else if (strcmp(ident, "long") == 0)
         return PrimType_LONG;
-
     else if (strcmp(ident, "void") == 0)
         return PrimType_VOID;
 

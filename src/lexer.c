@@ -1,8 +1,8 @@
 #include "lexer.h"
 #include "comp_dependent/ints.h"
 #include "err_msg.h"
-#include "safe_mem.h"
 #include "token.h"
+#include "utils/dyn_str.h"
 #include <assert.h>
 #include <ctype.h>
 #include <stdlib.h>
@@ -194,37 +194,30 @@ static int read_string(const char *src, u32 str_start, unsigned line_num,
 
     u32 src_i = str_start+1;
     u32 cur_column_num = column_num+1;
-    char *string = NULL;
-    u32 string_len = 0;
-    /* must be initialized to a value greater than 0 */
-    u32 string_capacity = 128;
+    struct DynamicStr str = DynamicStr_init();
 
     assert(src[str_start] == '\"');
 
-    string = safe_malloc(string_capacity*sizeof(*string));
-
     while (src[src_i] != '\0' && src[src_i] != '\"' && src[src_i] != '\n') {
 
-        if (string_len >= string_capacity) {
-            string_capacity *= string_capacity;
-            string = safe_realloc(string, string_capacity*sizeof(*string));
-        }
+        char c;
 
-        if (src[src_i-1] == '\\') {
-            string[string_len-1] = escape_code_to_int(src[src_i], line_num,
-                    cur_column_num, file_path);
-            ++src_i;
+        if (src[src_i] == '\\') {
+            c = escape_code_to_int(
+                    src[src_i+1], line_num, cur_column_num, file_path
+                    );
+            src_i += 2;
         }
         else
-            string[string_len++] = src[src_i++];
+            c = src[src_i++];
+        DynamicStr_append_printf(&str, "%c", c);
         ++cur_column_num;
 
     }
 
-    string = safe_realloc(string, (string_len+1)*sizeof(*string));
-    string[string_len++] = '\0';
+    DynamicStr_shrink_to_fit(&str);
 
-    value.string = string;
+    value.string = str.str;
     TokenList_push_back(token_tbl, Token_create_w_val(line_num, column_num,
                 &src[str_start+1], src_i-str_start, file_path,
                 TokenType_STR_LIT, value));
@@ -256,6 +249,63 @@ static u32 find_macro_instance(const struct MacroInstList *macro_insts,
 
 }
 
+static u32 read_identifier(const char *src, u32 ident_idx, u32 line_num,
+        u32 column_num, struct TokenList *token_tbl, const char *file_path) {
+
+    unsigned len = get_identifier_len(&src[ident_idx]);
+
+    enum TokenType keyword_type = identifier_keyword(&src[ident_idx], len);
+    enum TokenType operator_type = identifier_operator(&src[ident_idx],
+            len);
+
+    if (keyword_type != TokenType_NONE) {
+        TokenList_push_back(token_tbl,
+                Token_create(
+                    line_num, column_num, &src[ident_idx], len, file_path,
+                    keyword_type
+                    )
+                );
+    }
+    else if (operator_type != TokenType_NONE) {
+        TokenList_push_back(token_tbl,
+                Token_create(
+                    line_num, column_num, &src[ident_idx], len, file_path,
+                    operator_type
+                    )
+                );
+    }
+    else {
+        TokenList_push_back(token_tbl,
+                Token_create(
+                    line_num, column_num, &src[ident_idx], len, file_path,
+                    TokenType_IDENT
+                    )
+                );
+    }
+
+    return len;
+
+}
+
+static void find_end_of_c_comment(const char *src, u32 *src_i,
+        u32 *line_num, u32 *column_num) {
+
+    while (src[*src_i] != '*' || src[*src_i+1] != '/') {
+        if (src[*src_i] == '\n') {
+            ++*line_num;
+            *column_num = 0;
+        }
+        ++*src_i;
+        ++*column_num;
+    }
+
+    /* skip the ending slash */
+    ++*src_i;
+    ++*column_num;
+
+}
+
+/* not too proud of this function. */
 static void lex_str(const char *src, const char *file_path,
         const struct MacroInstList *macro_insts, unsigned start_line_num,
         unsigned start_column_num, u32 start_i, struct Lexer *lexer,
@@ -309,16 +359,7 @@ static void lex_str(const char *src, const char *file_path,
             while (src[++src_i] != '\n');
         }
         else if (src[src_i] == '/' && src[src_i+1] == '*') {
-            while (src[src_i] != '*' || src[src_i+1] != '/') {
-                if (src[src_i] == '\n') {
-                    ++line_num;
-                    column_num = 0;
-                }
-                ++src_i;
-                ++column_num;
-            }
-            ++src_i;
-            ++column_num;
+            find_end_of_c_comment(src, &src_i, &line_num, &column_num);
         }
 
         else if (src_i+2 < src_len && src[src_i] == '.' &&
@@ -482,36 +523,8 @@ static void lex_str(const char *src, const char *file_path,
         }
 
         else if (valid_ident_start_char(src[src_i])) {
-            unsigned len = get_identifier_len(&src[src_i]);
-
-            enum TokenType keyword_type = identifier_keyword(&src[src_i], len);
-            enum TokenType operator_type = identifier_operator(&src[src_i],
-                    len);
-
-            if (keyword_type != TokenType_NONE) {
-                TokenList_push_back(token_tbl,
-                        Token_create(
-                            line_num, column_num, &src[src_i], len, file_path,
-                            keyword_type
-                            )
-                        );
-            }
-            else if (operator_type != TokenType_NONE) {
-                TokenList_push_back(token_tbl,
-                        Token_create(
-                            line_num, column_num, &src[src_i], len, file_path,
-                            operator_type
-                            )
-                        );
-            }
-            else {
-                TokenList_push_back(token_tbl,
-                        Token_create(
-                            line_num, column_num, &src[src_i], len, file_path,
-                            TokenType_IDENT
-                            )
-                        );
-            }
+            unsigned len = read_identifier(src, src_i, line_num, column_num,
+                    token_tbl, file_path);
             src_i += len-1;
             column_num += len-1;
         }

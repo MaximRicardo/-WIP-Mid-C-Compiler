@@ -68,16 +68,6 @@ static void move_operator_to_out_queue(struct ExprPtrList *output_queue,
     operator->lhs =
         output_queue->elems[output_queue->size-1-(operator->rhs!=NULL)];
 
-    /*
-    operator->lhs_lvls_of_indir = Expr_lvls_of_indir(operator->lhs, vars);
-    operator->lhs_type = Expr_type(operator->lhs, vars, structs);
-    operator->lhs_og_type = Expr_type_no_prom(operator->lhs, vars);
-    if (operator->rhs) {
-        operator->rhs_lvls_of_indir = Expr_lvls_of_indir(operator->rhs, vars);
-        operator->rhs_type = Expr_type(operator->rhs, vars, structs);
-        operator->rhs_og_type = Expr_type_no_prom(operator->rhs, vars);
-    }*/
-
     Expr_lvls_of_indir(operator, vars);
     Expr_type(operator, vars, structs);
     Expr_type_no_prom(operator, vars);
@@ -350,9 +340,11 @@ static void read_string(const struct TokenList *token_tbl,
     struct Expr *str_expr = NULL;
     struct ExprPtrList values = ExprPtrList_init();
 
+    const struct Token *tok = &token_tbl->elems[str_idx];
+
     u32 i;
     /* account for the NULL terminator */
-    u32 str_len = strlen(token_tbl->elems[str_idx].value.string)+1;
+    u32 str_len = strlen(tok->value.string)+1;
 
     for (i = 0; i < str_len; i++) {
 
@@ -360,7 +352,7 @@ static void read_string(const struct TokenList *token_tbl,
 
         *value = Expr_create_w_tok(token_tbl->elems[i], NULL, NULL,
                 PrimType_INT, PrimType_INVALID, 0, 0, ExprPtrList_init(),
-                token_tbl->elems[str_idx].value.string[i], ArrayLit_init(), 0,
+                tok->value.string[i], ArrayLit_init(), 0,
                 ExprType_INT_LIT, false, 0);
 
         ExprPtrList_push_back(&values, value);

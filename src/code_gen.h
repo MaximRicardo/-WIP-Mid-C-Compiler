@@ -1,3 +1,5 @@
+/* DEPRACATED! USE THE IR FOR CODE GENERATION! */
+
 #pragma once
 
 #include "ast.h"

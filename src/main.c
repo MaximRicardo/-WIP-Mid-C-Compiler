@@ -49,6 +49,14 @@ static void free_macros(struct PreProcMacroList *macros,
 
 }
 
+static void process_tokens(struct Lexer *lexer) {
+
+    MergeStrings_merge(&lexer->token_tbl);
+    BinToUnary_convert(&lexer->token_tbl);
+    PreToPostFix_convert(&lexer->token_tbl);
+
+}
+
 /* preprocessing */
 static void compile(char *src, FILE *output, FILE *mccir_output,
         bool *error_occurred) {
@@ -73,9 +81,7 @@ static void compile(char *src, FILE *output, FILE *mccir_output,
         return;
     }
 
-    MergeStrings_merge(&lexer.token_tbl);
-    BinToUnary_convert(&lexer.token_tbl);
-    PreToPostFix_convert(&lexer.token_tbl);
+    process_tokens(&lexer);
 
     tu = Parser_parse(&lexer);
     if (Parser_error_occurred || !output) {
@@ -87,6 +93,7 @@ static void compile(char *src, FILE *output, FILE *mccir_output,
         TranslUnit_compile_via_mccir(&tu, mccir_output, output);
     }
     else {
+        /* DEPRECATED! */
         CodeGen_generate(output, tu.ast, tu.structs);
     }
 
@@ -96,6 +103,40 @@ free_lexer_ret:
     Lexer_free(&lexer);
 free_macros_ret:
     free_macros(&macros, &macro_insts);
+
+}
+
+static FILE* get_asm_out_file(bool *error_occurred) {
+
+    FILE *f = NULL;
+
+    if (CompArgs_args.asm_out_path) {
+        f = fopen(CompArgs_args.asm_out_path, "w");
+        if (!f) {
+            fprintf(stderr, "can't open file '%s': %s\n",
+                    CompArgs_args.asm_out_path, strerror(errno));
+            *error_occurred = true;
+        }
+    }
+
+    return f;
+
+}
+
+static FILE* get_mccir_out_file(bool *error_occurred) {
+
+    FILE *f = NULL;
+
+    if (CompArgs_args.mccir_out_path) {
+        f = fopen(CompArgs_args.mccir_out_path, "w");
+        if (!f) {
+            fprintf(stderr, "can't open file '%s': %s\n",
+                    CompArgs_args.mccir_out_path, strerror(errno));
+            *error_occurred = true;
+        }
+    }
+
+    return f;
 
 }
 
@@ -119,29 +160,16 @@ int main(int argc, char *argv[]) {
     }
 
     src = read_file(CompArgs_args.src_path);
-    if (!src) {
+    if (!src)
         goto clean_up_and_ret;
-    }
 
-    if (CompArgs_args.asm_out_path) {
-        output = fopen(CompArgs_args.asm_out_path, "w");
-        if (!output) {
-            fprintf(stderr, "can't open file '%s': %s\n",
-                    CompArgs_args.asm_out_path, strerror(errno));
-            error_occurred = true;
-            goto clean_up_and_ret;
-        }
-    }
+    output = get_asm_out_file(&error_occurred);
+    if (error_occurred)
+        goto clean_up_and_ret;
 
-    if (CompArgs_args.mccir_out_path) {
-        mccir_output = fopen(CompArgs_args.mccir_out_path, "w");
-        if (!mccir_output) {
-            fprintf(stderr, "can't open file '%s': %s\n",
-                    CompArgs_args.mccir_out_path, strerror(errno));
-            error_occurred = true;
-            goto clean_up_and_ret;
-        }
-    }
+    mccir_output = get_mccir_out_file(&error_occurred);
+    if (error_occurred)
+        goto clean_up_and_ret;
 
     compile(src, output, mccir_output, &error_occurred);
 

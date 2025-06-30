@@ -15,3 +15,6 @@ src/.clangd
 tests/a
 tests/a.o
 tests/a.s
+tests/fib.s
+tests/fib.o
+tests/fib

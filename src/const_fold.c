@@ -5,6 +5,22 @@
 #include "safe_mem.h"
 #include <stdio.h>
 
+static void fold_expr(struct Expr **expr, const struct StructList *structs) {
+
+    enum PrimitiveType old_type = (*expr)->prim_type;
+    u32 value = Expr_evaluate(*expr, structs);
+    struct Expr old_expr = **expr;
+
+    Expr_recur_free_w_self(*expr);
+    *expr = safe_malloc(sizeof(**expr));
+    **expr = Expr_create(old_expr.line_num, old_expr.column_num,
+            old_expr.src_start, old_expr.src_len, old_expr.file_path,
+            NULL, NULL, old_type, old_type, 0, 0,
+            ExprPtrList_init(), value, ArrayLit_init(), 0,
+            ExprType_INT_LIT, false, 0);
+
+}
+
 void Expr_const_fold(struct Expr **expr, const struct StructList *structs) {
 
     u32 i;
@@ -13,17 +29,7 @@ void Expr_const_fold(struct Expr **expr, const struct StructList *structs) {
         return;
 
     if (Expr_statically_evaluatable(*expr)) {
-        enum PrimitiveType old_type = (*expr)->prim_type;
-        u32 value = Expr_evaluate(*expr, structs);
-        struct Expr old_expr = **expr;
-
-        Expr_recur_free_w_self(*expr);
-        *expr = safe_malloc(sizeof(**expr));
-        **expr = Expr_create(old_expr.line_num, old_expr.column_num,
-                old_expr.src_start, old_expr.src_len, old_expr.file_path,
-                NULL, NULL, old_type, old_type, 0, 0,
-                ExprPtrList_init(), value, ArrayLit_init(), 0,
-                ExprType_INT_LIT, false, 0);
+        fold_expr(expr, structs);
     }
     else {
         if ((*expr)->lhs)

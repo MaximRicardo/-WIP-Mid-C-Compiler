@@ -73,3 +73,9 @@ void DynamicStr_append_printf(struct DynamicStr *self, const char *fmt, ...) {
     va_end(args);
 
 }
+
+void DynamicStr_shrink_to_fit(struct DynamicStr *self) {
+
+    self->str = safe_realloc(self->str, (self->size+1)*sizeof(*self->str));
+
+}
