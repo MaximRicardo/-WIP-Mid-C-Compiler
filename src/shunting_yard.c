@@ -53,10 +53,6 @@ static void move_operator_to_out_queue(struct ExprPtrList *output_queue,
     struct Expr *operator =
         ExprPtrList_back(operator_stack);
 
-    printf("popping operator at %u,%u, %d\n",
-            operator->line_num, operator->column_num,
-            ExprType_is_unary_operator(operator->expr_type));
-
     if (output_queue->size == 0) {
         /* an error should have already occurred by now, so no need to print
          * anything */
@@ -504,9 +500,6 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
             if (next_src && (is_type_spec || is_type_mod)) {
                 read_type_cast(token_tbl, &operator_stack, i, &i, typedefs,
                         structs);
-                printf("end idx = %u,%u\n",
-                        token_tbl->elems[i].line_num,
-                        token_tbl->elems[i].column_num);
             }
             else {
                 struct Expr *expr = safe_malloc(sizeof(*expr));
