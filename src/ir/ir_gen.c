@@ -407,10 +407,44 @@ static void ret_stmt_gen_ir(const struct RetNode *ret,
 
 }
 
+static void jmp_if_zero(const struct Expr *expr, const char *true_dest,
+        const char *false_dest, const struct TranslUnit *tu,
+        struct IRBasicBlock *cur_block, struct IRFunc *cur_func) {
+
+    const char *cond_reg = NULL;
+
+    struct IRInstrArg comp_lhs;
+    struct IRInstrArg comp_rhs;
+
+    cond_reg =
+        expr_gen_ir(expr, tu, cur_block, cur_func, NULL, NULL, false);
+
+    comp_lhs = IRInstrArg_create_from_expr(
+                expr, tu->structs, cond_reg
+            );
+
+    comp_rhs = IRInstrArg_create(
+                IRInstrArg_IMM32, IRDataType_create_from_prim_type(
+                    expr->prim_type, expr->type_idx, expr->lvls_of_indir,
+                    tu->structs
+                    ),
+                IRInstrArgValue_imm_i32(0)
+            );
+
+    IRInstrList_push_back(&cur_block->instrs,
+            IRInstr_create_cond_jmp_instr(IRInstr_JE,
+                comp_lhs,
+                comp_rhs,
+                true_dest,
+                false_dest)
+            );
+
+}
+
 static void if_stmt_gen_ir(const struct IfNode *node,
         struct IRFunc *cur_func, const struct TranslUnit *tu) {
 
-    struct IRBasicBlock *cur_block =
+    struct IRBasicBlock *start =
         IRBasicBlockList_back_ptr(&cur_func->blocks);
 
     struct IRBasicBlock if_true = IRBasicBlock_create(
@@ -428,37 +462,11 @@ static void if_stmt_gen_ir(const struct IfNode *node,
             IRInstrList_init(), U32List_init()
             );
 
-    const char *cond_reg = NULL;
-
     ++if_else_counter;
 
-    cond_reg =
-        expr_gen_ir(node->expr, tu, cur_block, cur_func, NULL, NULL, false);
-
-    /* jmp to the false node if the condition resulted in a 0, and to the
-     * true node otherwise */
-    {
-        struct IRInstrArg comp_lhs = IRInstrArg_create_from_expr(
-                    node->expr, tu->structs, cond_reg
-                );
-
-        struct IRInstrArg comp_rhs = IRInstrArg_create(
-                    IRInstrArg_IMM32, IRDataType_create_from_prim_type(
-                        node->expr->prim_type, node->expr->type_idx,
-                        node->expr->lvls_of_indir, tu->structs
-                        ),
-
-                    IRInstrArgValue_imm_i32(0)
-                );
-
-        IRInstrList_push_back(&cur_block->instrs,
-                IRInstr_create_cond_jmp_instr(IRInstr_JE,
-                    comp_lhs,
-                    comp_rhs,
-                    if_false.label,
-                    if_true.label)
-                );
-    }
+    jmp_if_zero(
+            node->expr, if_false.label, if_true.label, tu, start, cur_func
+            );
 
     IRBasicBlockList_push_back(&cur_func->blocks, if_true);
     if (node->body)
@@ -501,8 +509,6 @@ static void while_loop_gen_ir(const struct WhileNode *node,
     struct IRBasicBlock *cur_block =
         IRBasicBlockList_back_ptr(&cur_func->blocks);
 
-    const char *cond_reg = NULL;
-
     ++while_loop_counter;
 
     IRInstrList_push_back(&cur_block->instrs, IRInstr_create_str_instr(
@@ -512,33 +518,10 @@ static void while_loop_gen_ir(const struct WhileNode *node,
     IRBasicBlockList_push_back(&cur_func->blocks, loop_start);
     cur_block = IRBasicBlockList_back_ptr(&cur_func->blocks);
 
-    cond_reg =
-        expr_gen_ir(node->expr, tu, cur_block, cur_func, NULL, NULL, false);
-
-    /* jmp to the loop end node if the condition resulted in a 0, and to the
-     * loop start otherwise */
-    {
-        struct IRInstrArg comp_lhs = IRInstrArg_create_from_expr(
-                    node->expr, tu->structs, cond_reg
-                );
-
-        struct IRInstrArg comp_rhs = IRInstrArg_create(
-                    IRInstrArg_IMM32, IRDataType_create_from_prim_type(
-                        node->expr->prim_type, node->expr->type_idx,
-                        node->expr->lvls_of_indir, tu->structs
-                        ),
-
-                    IRInstrArgValue_imm_i32(0)
-                );
-
-        IRInstrList_push_back(&cur_block->instrs,
-                IRInstr_create_cond_jmp_instr(IRInstr_JE,
-                    comp_lhs,
-                    comp_rhs,
-                    loop_end.label,
-                    body.label)
-                );
-    }
+    jmp_if_zero(
+            node->expr, loop_end.label, body.label, tu, cur_block,
+            cur_func
+            );
 
     IRBasicBlockList_push_back(&cur_func->blocks, body);
     cur_block = IRBasicBlockList_back_ptr(&cur_func->blocks);
