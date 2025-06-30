@@ -1,4 +1,5 @@
 #include "get_changed_regs.h"
+#include <assert.h>
 
 static void get_block_changed_vregs(const struct IRBasicBlock *block,
         struct ConstStringList *chngd_regs) {
@@ -10,8 +11,11 @@ static void get_block_changed_vregs(const struct IRBasicBlock *block,
         struct IRInstr *instr = &block->instrs.elems[i];
         const char *dest = NULL;
 
-        if (IRInstrType_has_dest_reg(instr->type))
+        if (!IRInstrType_has_dest_reg(instr->type))
             continue;
+
+        assert(instr->args.size > 1);
+        assert(instr->args.elems[Arg_SELF].type == IRInstrArg_REG);
 
         dest = instr->args.elems[Arg_SELF].value.reg_name;
         ConstStringList_push_back(chngd_regs, dest);

@@ -22,6 +22,14 @@ bool IRInstrType_is_bin_op(enum IRInstrType type) {
 
 }
 
+bool IRInstrType_is_cmp_op(enum IRInstrType type) {
+
+    return type == IRInstr_SET_EQ || type == IRInstr_SET_NEQ ||
+        type == IRInstr_SET_LT || type == IRInstr_SET_LTEQ ||
+        type == IRInstr_SET_GT || type == IRInstr_SET_GTEQ;
+
+}
+
 bool IRInstrType_is_mem_instr(enum IRInstrType type) {
 
     return type > IRInstr_MEM_INSTRS_START && type < IRInstr_MEM_INSTRS_END;

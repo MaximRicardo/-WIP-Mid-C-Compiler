@@ -26,6 +26,24 @@ const char* X86_get_instr(enum IRInstrType type, struct IRDataType d_type) {
     case IRInstr_DIV:
         return d_type.is_signed ? "idiv" : "div";
 
+    case IRInstr_SET_EQ:
+        return "sete";
+
+    case IRInstr_SET_NEQ:
+        return "setne";
+
+    case IRInstr_SET_LT:
+        return d_type.is_signed ? "setl" : "setb";
+
+    case IRInstr_SET_LTEQ:
+        return d_type.is_signed ? "setle" : "setbe";
+
+    case IRInstr_SET_GT:
+        return d_type.is_signed ? "setg" : "seta";
+
+    case IRInstr_SET_GTEQ:
+        return d_type.is_signed ? "setge" : "setae";
+
     case IRInstr_BINARY_OPS_END:
         assert(false);
 

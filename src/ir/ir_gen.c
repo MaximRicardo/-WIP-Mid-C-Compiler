@@ -293,6 +293,24 @@ static const char* expr_gen_ir(const struct Expr *expr,
     else if (expr->expr_type == ExprType_DIV) {
         instr.type = IRInstr_DIV;
     }
+    else if (expr->expr_type == ExprType_EQUAL_TO) {
+        instr.type = IRInstr_SET_EQ;
+    }
+    else if (expr->expr_type == ExprType_NOT_EQUAL_TO) {
+        instr.type = IRInstr_SET_NEQ;
+    }
+    else if (expr->expr_type == ExprType_L_THAN) {
+        instr.type = IRInstr_SET_LT;
+    }
+    else if (expr->expr_type == ExprType_L_THAN_OR_E) {
+        instr.type = IRInstr_SET_LTEQ;
+    }
+    else if (expr->expr_type == ExprType_G_THAN) {
+        instr.type = IRInstr_SET_GT;
+    }
+    else if (expr->expr_type == ExprType_G_THAN_OR_E) {
+        instr.type = IRInstr_SET_GTEQ;
+    }
     else if (expr->expr_type == ExprType_EQUAL) {
         struct IRDataType expr_d_type = IRDataType_create_from_prim_type(
                     expr->prim_type, expr->type_idx, expr->lvls_of_indir,

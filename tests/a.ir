@@ -9,26 +9,17 @@ start:
     jmp while_0
 while_0:
     load i32 %0, i32* %x.nr0, u32 0
-<<<<<<< Updated upstream
-    sub i32 %1, i32 %0, i32 4
-    je i32 %1, i32 0, while_end_0, while_body_0
-=======
     setgteq u32 %1, i32 %0, u32 4294967196
     je u32 %1, u32 0, while_end_0, while_body_0
->>>>>>> Stashed changes
 while_body_0:
     load i32 %2, i32* %x.nr0, u32 0
     sub i32 %3, i32 %2, i32 1
     store i32 %3, i32* %x.nr0, u32 0
     mov i32 %4, i32 %3
-    load i32 %5, i32* %x.nr0, u32 0
-    sub i32 %6, i32 %5, i32 1
-    store i32 %6, i32* %x.nr0, u32 0
-    mov i32 %7, i32 %6
     jmp while_0
 while_end_0:
-    load i32 %8, i32* %x.nr0, u32 0
-    ret i32 %8
+    load i32 %5, i32* %x.nr0, u32 0
+    ret i32 %5
 }
 
 ;--------------------------------------
@@ -39,22 +30,15 @@ start:
     mov i32 %x.nr0, i32 10
     jmp while_0
 while_0:
-<<<<<<< Updated upstream
-    phi i32 %x.nr0.0, i32 %x.nr0.2, i32 %x.nr0
-    sub i32 %1, i32 %x.nr0.0, i32 4
-    je i32 %1, i32 0, while_end_0, while_body_0
-=======
     phi i32 %x.nr0.0, i32 %x.nr0.1, i32 %x.nr0
     setgteq u32 %1, i32 %x.nr0.0, u32 4294967196
     je u32 %1, u32 0, while_end_0, while_body_0
->>>>>>> Stashed changes
 while_body_0:
     sub i32 %3, i32 %x.nr0.0, i32 1
-    sub i32 %6, i32 %3, i32 1
-    mov i32 %x.nr0.2, i32 %6
+    mov i32 %x.nr0.1, i32 %3
     jmp while_0
 while_end_0:
-    ret i32 %x.nr0.2
+    ret i32 %x.nr0.1
 }
 
 ;--------------------------------------
@@ -65,17 +49,11 @@ start:
     mov i32 %__eax, i32 10
     jmp while_0
 while_0:
-<<<<<<< Updated upstream
-    sub i32 %__ebx, i32 %__eax, i32 4
-    je i32 %__ebx, i32 0, while_end_0, while_body_0
-=======
     setgteq u32 %__ebx, i32 %__eax, u32 4294967196
     je u32 %__ebx, u32 0, while_end_0, while_body_0
->>>>>>> Stashed changes
 while_body_0:
     sub i32 %__ebx, i32 %__eax, i32 1
-    sub i32 %__ecx, i32 %__ebx, i32 1
-    mov i32 %__eax, i32 %__ecx
+    mov i32 %__eax, i32 %__ebx
     jmp while_0
 while_end_0:
     ret i32 %__eax

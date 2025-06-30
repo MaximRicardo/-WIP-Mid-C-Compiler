@@ -36,6 +36,36 @@ static const char *callee_saved_vregs[] = {
     "__ebp",
 };
 
+static const char *pregs[][3] = {
+
+    {"al", "ax", "eax"},
+    {"bl", "bx", "ebx"},
+    {"cl", "cx", "ecx"},
+    {"dl", "dx", "edx"},
+    {"INVALID P_REG", "bp", "ebp"},
+    {"INVALID P_REG", "si", "esi"},
+    {"INVALID P_REG", "di", "edi"},
+
+};
+
+/* eax -> al, cx -> cl, edx -> dl, etc. */
+static const char *byte_preg(const char *preg) {
+
+    u32 i;
+
+    for (i = 0; i < m_arr_size(pregs); i++) {
+        u32 j;
+
+        for (j = 0; j < m_arr_size(pregs[0]); j++) {
+            if (strcmp(preg, pregs[i][j]) == 0)
+                return pregs[i][0];
+        }
+    }
+
+    return NULL;
+
+}
+
 static char str_last_c(const char *str) {
 
     u32 i = 0;
@@ -173,8 +203,8 @@ static void emit_instr_arg(struct DynamicStr *output,
 static void emit_mem_instr_address(struct DynamicStr *output,
         const struct IRInstr *instr) {
 
-    struct IRInstrArg *lhs_arg = NULL;
-    struct IRInstrArg *rhs_arg = NULL;
+    const struct IRInstrArg *lhs_arg = NULL;
+    const struct IRInstrArg *rhs_arg = NULL;
 
     assert(instr->args.size == 3);
 
@@ -203,8 +233,8 @@ static void emit_mem_instr_address(struct DynamicStr *output,
 static void gen_from_mov_instr(struct DynamicStr *output,
         const struct IRInstr *instr) {
 
-    struct IRInstrArg *self_arg = NULL;
-    struct IRInstrArg *lhs_arg = NULL;
+    const struct IRInstrArg *self_arg = NULL;
+    const struct IRInstrArg *lhs_arg = NULL;
 
     bool lhs_on_stack;
     bool use_lea;
@@ -281,9 +311,9 @@ static void gen_from_mov_instr(struct DynamicStr *output,
 static void gen_from_bin_op(struct DynamicStr *output,
         const struct IRInstr *instr) {
 
-    struct IRInstrArg *self_arg = NULL;
-    struct IRInstrArg *lhs_arg = NULL;
-    struct IRInstrArg *rhs_arg = NULL;
+    const struct IRInstrArg *self_arg = NULL;
+    const struct IRInstrArg *lhs_arg = NULL;
+    const struct IRInstrArg *rhs_arg = NULL;
 
     bool self_on_stack = false;
 
@@ -356,9 +386,9 @@ static void gen_from_div_op(struct DynamicStr *output,
 
     const char *self_reg = NULL;
     const char *rhs_reg = NULL;
-    struct IRInstrArg *self_arg = NULL;
-    struct IRInstrArg *lhs_arg = NULL;
-    struct IRInstrArg *rhs_arg = NULL;
+    const struct IRInstrArg *self_arg = NULL;
+    const struct IRInstrArg *lhs_arg = NULL;
+    const struct IRInstrArg *rhs_arg = NULL;
     bool pushed_reg = false;
     bool self_is_eax;
 
@@ -503,7 +533,7 @@ static void gen_from_ret_instr(struct DynamicStr *output,
         const struct IRInstr *instr, const struct IRFunc *cur_func,
         u32 func_stack_size) {
 
-    struct IRInstrArg *self_arg = NULL;
+    const struct IRInstrArg *self_arg = NULL;
 
     assert(instr->args.size == 1);
 
@@ -525,14 +555,61 @@ static void gen_from_ret_instr(struct DynamicStr *output,
 
 }
 
+static void gen_from_cmp_oper(struct DynamicStr *output,
+        const struct IRInstr *instr) {
+
+    bool pushed_eax = false;
+
+    const struct IRInstrArg *self_arg = NULL;
+    const struct IRInstrArg *lhs_arg = NULL;
+    const struct IRInstrArg *rhs_arg = NULL;
+    const char *b_preg = NULL;
+
+    assert(instr->args.size == 3);
+    assert(instr->args.elems[Arg_SELF].type == IRInstrArg_REG);
+
+    self_arg = &instr->args.elems[Arg_SELF];
+    lhs_arg = &instr->args.elems[Arg_LHS];
+    rhs_arg = &instr->args.elems[Arg_RHS];
+
+    b_preg = vreg_to_preg(self_arg->value.reg_name);
+    assert(b_preg);
+
+    if (strcmp(b_preg, "INVALID P_REG") == 0 || strcmp(b_preg, "esp") == 0) {
+        pushed_eax = true;
+        m_push_reg("eax");
+        b_preg = "eax";
+    }
+
+    gen_cmp_instr(output, lhs_arg, rhs_arg);
+
+    DynamicStr_append_printf(output, "%s %s\n",
+            X86_get_instr(instr->type, IRInstr_data_type(instr)),
+            byte_preg(b_preg));
+
+    DynamicStr_append_printf(output, "and %s, 0xff\n",
+            b_preg);
+
+    if (pushed_eax) {
+        DynamicStr_append_printf(output, "mov ");
+        emit_instr_arg(output, self_arg, true);
+        DynamicStr_append(output, ", eax\n");
+        m_pop_reg("eax");
+    }
+
+}
+
 static void gen_x86_from_instr(struct DynamicStr *output,
         const struct IRInstr *instr, const struct IRFunc *cur_func,
         u32 func_stack_size) {
 
-    /* important that this comes before IRInstrType_is_bin_op */
     if (instr->type == IRInstr_DIV) {
         gen_from_div_op(output, instr);
     }
+    else if (IRInstrType_is_cmp_op(instr->type)) {
+        gen_from_cmp_oper(output, instr);
+    }
+    /* important that this comes after div and cmp_op */
     else if (IRInstrType_is_bin_op(instr->type)) {
         gen_from_bin_op(output, instr);
     }

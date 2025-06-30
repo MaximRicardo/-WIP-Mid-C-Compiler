@@ -27,6 +27,24 @@ const char *IR_instr_t_to_str(enum IRInstrType type) {
     case IRInstr_DIV:
         return "div";
 
+    case IRInstr_SET_EQ:
+        return "seteq";
+
+    case IRInstr_SET_NEQ:
+        return "setneq";
+
+    case IRInstr_SET_LT:
+        return "setlt";
+
+    case IRInstr_SET_LTEQ:
+        return "setlteq";
+
+    case IRInstr_SET_GT:
+        return "setgt";
+
+    case IRInstr_SET_GTEQ:
+        return "setgteq";
+
     case IRInstr_BINARY_OPS_END:
         assert(false);
 

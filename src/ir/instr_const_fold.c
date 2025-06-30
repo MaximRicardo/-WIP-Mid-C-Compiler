@@ -46,6 +46,24 @@ bool IRInstr_const_fold(struct IRInstr *self) {
         m_bin_oper(/);
         break;
 
+    case IRInstr_SET_EQ:
+        m_bin_oper(==);
+
+    case IRInstr_SET_NEQ:
+        m_bin_oper(!=);
+
+    case IRInstr_SET_LT:
+        m_bin_oper(<);
+
+    case IRInstr_SET_LTEQ:
+        m_bin_oper(<=);
+
+    case IRInstr_SET_GT:
+        m_bin_oper(>);
+
+    case IRInstr_SET_GTEQ:
+        m_bin_oper(>=);
+
     default:
         return false;
 
