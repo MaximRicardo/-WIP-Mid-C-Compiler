@@ -135,6 +135,7 @@ bool Token_is_operator(enum TokenType type);
 bool Token_is_cmp_operator(enum TokenType type);
 bool Token_is_literal(enum TokenType type);
 bool Token_is_keyword(enum TokenType type);
+bool Token_is_type_mod(enum TokenType type);
 /* only works on token types that have a unary equivalent, such as
  * TokenType_MINUS->TokenType_NEGATIVE */
 bool Token_convert_to_unary(enum TokenType type);

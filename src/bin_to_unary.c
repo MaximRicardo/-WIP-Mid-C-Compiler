@@ -8,6 +8,8 @@ static bool is_typecast(const struct TokenList *token_tbl, u32 r_paren_idx) {
     bool ret;
     u32 asterisks = 0;
 
+    const struct Token *tok = NULL;
+
     if (r_paren_idx < 2)
         return false;
 
@@ -16,8 +18,9 @@ static bool is_typecast(const struct TokenList *token_tbl, u32 r_paren_idx) {
             TokenType_DEREFERENCE)
         ++asterisks;
 
-    ret = token_tbl->elems[r_paren_idx-asterisks-1].type == TokenType_IDENT &&
-            token_tbl->elems[r_paren_idx-asterisks-2].type == TokenType_L_PAREN;
+    tok = &token_tbl->elems[r_paren_idx-asterisks-1];
+
+    ret = tok->type == TokenType_IDENT || Token_is_type_mod(tok->type);
 
     return ret;
 

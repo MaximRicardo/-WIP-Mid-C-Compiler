@@ -491,8 +491,13 @@ struct Expr* SY_shunting_yard(const struct TokenList *token_tbl, u32 start_idx,
             /* it could be a typecast */
             char *next_src = i+1 < token_tbl->size ?
                 Token_src(&token_tbl->elems[i+1]) : NULL;
-            if (next_src && Ident_type_spec(next_src, typedefs) !=
-                    PrimType_INVALID) {
+
+            bool is_type_spec =
+                Ident_type_spec(next_src, typedefs) != PrimType_INVALID;
+            bool is_type_mod =
+                Ident_modifier_str_to_tok(next_src) != TokenType_NONE;
+
+            if (next_src && (is_type_spec || is_type_mod)) {
                 read_type_cast(token_tbl, &operator_stack, i, &i, typedefs,
                         structs);
             }

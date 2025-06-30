@@ -79,6 +79,13 @@ bool Token_is_keyword(enum TokenType type) {
 
 }
 
+bool Token_is_type_mod(enum TokenType type) {
+
+    return type == TokenType_UNSIGNED || type == TokenType_SIGNED ||
+        type == TokenType_STATIC;
+
+}
+
 bool Token_convert_to_unary(enum TokenType type) {
 
     switch (type) {
