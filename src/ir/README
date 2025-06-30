@@ -1,12 +1,19 @@
 MCCIR/Mid C Compiler Intermediate Representation
 
 
-    MCCIR is an Intermediate Language designed for easy optimization. The IR is
-in SSA format.
+    MCCIR is an Intermediate Represenation designed for easy optimization. The
+IR is in an SSA format.
 
 
-NOTABLE INSTRUCTIONS:
+INSTRUCTION LAYOUT:
 
+
+    Instructions can be in one of 2 following formats:
+
+1.  DEST_REG, IMM/SRC_REG                 for example, mov i32 %reg, i32 5
+2.  DEST_REG, IMM/SRC_REG, IMM/SRC_REG    for example, add %r1, %r2, 100
+
+EXCEPTIONS:
 
     je REG_0/IMM_0, REG_1/IMM_1, LABEL_2, LABEL_3
 
@@ -33,6 +40,10 @@ into the first argument.
 
 Tells the backend to allocate space for a virtual register. The allocated space
 could be either a CPU register or a location on the stack.
+
+    phi REG_0, REG_1, REG_2, ...
+
+REG_0 will get set to whichever of the following arguments has been defined.
 
 
 OTHER IMPORTANT INFO:
