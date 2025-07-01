@@ -9,8 +9,8 @@ TARGETS:
 
 
     This compiler outputs 32-bit x86 NASM Assembly, so compiled programs should
-work on any x86 CPU after-and-including the Intel 80386. So basically, this'll
-run on anything bruh.
+work on any x86 CPU after-and-including the Intel 80386. Basically, this will
+run on anything.
 
 
 DEPENDENCIES:
@@ -26,23 +26,15 @@ LANGUAGE FEATURES:
     variables
     multiple types
         (char, short, int, long, all of their unsigned equivalents, and void)
-    function definitions
-    function calls
-    function prototyping
-    static functions
-    return statements
-    function argument error checking
-    if/else statements
     pointers
-    arrays
-    while loops
-    for loops
     typedefs
     type casts
-    constant-folding
+    if/else statements
+    while loops
+    for loops
+    function declarations
+    function definitions
     #define macros
-    signed/unsigned keywords
-    structs
 
 
 OPTIMIZATION FEATURES:
