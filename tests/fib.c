@@ -1,3 +1,8 @@
+/* DISCLAIMER:
+ *    ONLY WORKS USING THE DEPRECATED BACKEND, AS THE NEW BACKEND ISN'T DONE
+ *    YET.
+ */
+
 #define m_big_num_start_capacity 1024
 
 #define true 1
