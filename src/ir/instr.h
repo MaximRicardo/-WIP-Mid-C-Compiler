@@ -129,26 +129,19 @@ struct IRInstr IRInstr_create(enum IRInstrType type,
         struct IRInstrArgList args);
 void IRInstr_free(struct IRInstr instr);
 struct IRDataType IRInstr_data_type(const struct IRInstr *self);
-
 struct IRInstr IRInstr_create_mov(const char *dest,
         struct IRDataType dest_d_type, struct IRInstrArg arg);
-
 struct IRInstr IRInstr_create_str_instr(enum IRInstrType type,
         const char *dest);
-
 struct IRInstr IRInstr_create_cond_jmp_instr(enum IRInstrType type,
         struct IRInstrArg cond_lhs, struct IRInstrArg cond_rhs,
         const char *true_dest, const char *false_dest);
-
 struct IRInstr IRInstr_create_alloc_reg(const char *reg_name,
         struct IRDataType d_type);
-
 struct IRInstr IRInstr_create_alloca(const char *dest_vreg,
         struct IRDataType d_type, u32 size, u32 alignment);
-
 /* returns whether or not it was possible to const fold self */
 bool IRInstr_const_fold(struct IRInstr *self);
-
 /* count_assignment           - if false, doesn't count assigning to the reg
  *                              as using it
  */

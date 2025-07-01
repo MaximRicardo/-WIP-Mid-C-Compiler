@@ -7,6 +7,10 @@
 #include <string.h>
 #include <assert.h>
 
+/* TODO:
+ *    move the pass to push callee saved registers into another file.
+ */
+
 #define m_push_reg(reg) \
     do { \
         DynamicStr_append_printf(output, "push %s\n", reg); \
@@ -76,20 +80,97 @@ static char str_last_c(const char *str) {
 
 }
 
+/* stuff like __eax, __ebx, etc. */
+static bool is_virt_preg(const char *vreg) {
+
+    return strncmp(vreg, "__", 2) == 0;
+
+}
+
 static const char* vreg_to_preg(const char *vreg) {
 
-    /* vregs will be in this format '__eax', '__ebx', etc. */
-
-    assert(strncmp(vreg, "__", 2) == 0);
+    assert(is_virt_preg(vreg));
 
     return &vreg[2];
 
 }
 
-static void push_callee_saved_regs(struct DynamicStr *output,
-        const struct IRFunc *func) {
+static bool reg_is_stack_offset(const char *reg) {
+
+    return strncmp(reg, "esp(", 4) == 0 || strncmp(reg, "__esp(", 6) == 0;
+
+}
+
+static bool reg_is_stack_offset_ref(const char *reg) {
+
+    return reg_is_stack_offset(reg) && str_last_c(reg) == '&';
+
+}
+
+/* offset should be in either esp(x) or esp(x)& format */
+static u32 get_stack_offset_value(const char *offset) {
+
+    return strtoul(&offset[4], NULL, 0);
+
+}
+
+static char* create_esp_offset(u32 offset, bool is_reference, bool make_vreg) {
+
+    struct DynamicStr str = DynamicStr_init();
+
+    if (make_vreg)
+        DynamicStr_append(&str, "__");
+    DynamicStr_append_printf(&str, "esp(%u)", offset);
+    if (is_reference)
+        DynamicStr_append(&str, "&");
+
+    return str.str;
+
+}
+
+/* pushing the callee saved registers on the stack offsets the stack pointer by
+ * an amount not accounted for in earlier passes, so we gotta account for it
+ * here. this has no effect on the offset of stack variables, but it does have
+ * an effect on the offset of the function arguments. */
+static void args_account_for_saved_regs(u32 n_pushed, struct IRFunc *func) {
 
     u32 i;
+
+    u32 stack_size = IRFunc_get_stack_size(func);
+
+    for (i = 0; i < func->vregs.size; i++) {
+
+        char *vreg = func->vregs.elems[i];
+        char *new_vreg = NULL;
+        const char *preg = NULL;
+        u32 offset;
+        bool is_ref;
+
+        if (!is_virt_preg(vreg) || !reg_is_stack_offset(vreg))
+            continue;
+
+        preg = vreg_to_preg(vreg);
+
+        offset = get_stack_offset_value(preg);
+        is_ref = reg_is_stack_offset_ref(preg);
+
+        /* if the offset doesn't reach outside the function's frame, it's
+         * accessing a local var and not an argument */
+        if (offset < stack_size)
+            continue;
+
+        new_vreg = create_esp_offset(offset+n_pushed*4, is_ref, true);
+        IRFunc_rename_vreg(func, vreg, new_vreg);
+
+    }
+
+}
+
+static void push_callee_saved_regs(struct DynamicStr *output,
+        struct IRFunc *func) {
+
+    u32 i;
+    u32 n_pushed = 0;
     struct ConstStringList vregs = X86_func_get_changed_vregs(func);
 
     for (i = 0; i < m_arr_size(callee_saved_vregs); i++) {
@@ -100,9 +181,12 @@ static void push_callee_saved_regs(struct DynamicStr *output,
 
         preg = vreg_to_preg(callee_saved_vregs[i]);
         DynamicStr_append_printf(output, "push %s\n", preg);
+        ++n_pushed;
     }
 
     ConstStringList_free(&vregs);
+
+    args_account_for_saved_regs(n_pushed, func);
 
 }
 
@@ -127,18 +211,6 @@ static void pop_callee_saved_regs(struct DynamicStr *output,
 
 }
 
-static bool reg_is_stack_offset(const char *reg) {
-
-    return strncmp(reg, "esp(", 4) == 0 || strncmp(reg, "__esp(", 6) == 0;
-
-}
-
-static bool reg_is_stack_offset_ref(const char *reg) {
-
-    return reg_is_stack_offset(reg) && str_last_c(reg) == '&';
-
-}
-
 /* converts stack offset access to NASM style syntax. offset is the preg.
  *    esp(x) -> [esp+index*index_width+x]
  *
@@ -154,7 +226,7 @@ static void emit_stack_offset_to_nasm(struct DynamicStr *output,
 
     assert(strncmp(offset, "esp(", 4) == 0);
 
-    offset_val = strtoul(&offset[4], NULL, 0);
+    offset_val = get_stack_offset_value(offset);
 
     if (index_reg) {
         DynamicStr_append_printf(output, "[esp+%s*%u+%u]",
@@ -677,8 +749,7 @@ static void gen_ret_if_no_ret_stmt(struct DynamicStr *output,
 
 }
 
-static void gen_x86_from_func(struct DynamicStr *output,
-        const struct IRFunc *func) {
+static void gen_x86_from_func(struct DynamicStr *output, struct IRFunc *func) {
 
     u32 i;
     u32 stack_size = IRFunc_get_stack_size(func);
@@ -703,7 +774,7 @@ static void gen_x86_from_func(struct DynamicStr *output,
 
 }
 
-char* gen_x86_from_ir(const struct IRModule *module) {
+char* gen_x86_from_ir(struct IRModule *module) {
 
     u32 i;
 
