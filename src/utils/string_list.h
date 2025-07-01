@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../comp_dependent/ints.h"
-#include "../vector_impl.h"
+#include "vector_impl.h"
 
 /* apparently you can't do StringList_pop_back(&list, free), because for some
  * reason char*'s can't be cast to void*'s anymore? */

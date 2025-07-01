@@ -1,5 +1,5 @@
 #include "file_io.h"
-#include "comp_dependent/ints.h"
+#include "../comp_dependent/ints.h"
 #include "safe_mem.h"
 #include <stdio.h>
 

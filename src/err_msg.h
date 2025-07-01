@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bool.h"
+#include "utils/bool.h"
 #include "attrib.h"
 
 /* do errors/warnings get emitted? both are true by default */

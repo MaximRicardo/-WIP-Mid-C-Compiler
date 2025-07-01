@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bool.h"
+#include "utils/bool.h"
 #include "token.h"
 #include "pre_proc.h"
 

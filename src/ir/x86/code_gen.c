@@ -2,7 +2,7 @@
 #include "../../utils/dyn_str.h"
 #include "get_changed_regs.h"
 #include "instrs.h"
-#include "../../macros.h"
+#include "../../utils/macros.h"
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>

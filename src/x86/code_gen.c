@@ -1,3 +1,5 @@
+/* DEPRECATED! COMPILE USING MCCIR INSTEAD! */
+
 #include "code_gen.h"
 #include "ir.h"
 #include <assert.h>

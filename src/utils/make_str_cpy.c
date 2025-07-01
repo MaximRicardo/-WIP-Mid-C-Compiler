@@ -1,5 +1,5 @@
 #include "make_str_cpy.h"
-#include "../safe_mem.h"
+#include "safe_mem.h"
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>

@@ -1,5 +1,5 @@
 DEPRECATED!
-USE THE IR FOR CODE GENERATION INSTEAD!
+USE MCCIR FOR CODE GENERATION INSTEAD!
 
 The IR is allowed to use the following registers for instructions:
     AX, BX, CX

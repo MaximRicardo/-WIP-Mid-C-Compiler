@@ -2,7 +2,7 @@
 
 #include "../comp_dependent/ints.h"
 #include "../utils/string_list.h"
-#include "../vector_impl.h"
+#include "../utils/vector_impl.h"
 
 struct IRNameMangle {
 

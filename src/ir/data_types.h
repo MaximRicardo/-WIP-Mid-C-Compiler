@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../bool.h"
+#include "../utils/bool.h"
 #include "../prim_type.h"
 #include "../structs.h"
 

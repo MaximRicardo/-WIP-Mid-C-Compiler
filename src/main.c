@@ -4,9 +4,9 @@
 #include <stdlib.h>
 #include "code_gen.h"
 #include "comp_args.h"
-#include "file_io.h"
+#include "utils/file_io.h"
 #include "comp_dependent/ints.h"
-#include "safe_mem.h"
+#include "utils/safe_mem.h"
 #include "lexer.h"
 #include "parser.h"
 #include "pre_to_post_fix.h"

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ast.h"
-#include "bool.h"
+#include "utils/bool.h"
 #include "structs.h"
 #include "token.h"
 #include "parser_var.h"

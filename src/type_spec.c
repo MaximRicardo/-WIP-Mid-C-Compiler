@@ -3,7 +3,7 @@
 #include "err_msg.h"
 #include "identifier.h"
 #include "prim_type.h"
-#include "safe_mem.h"
+#include "utils/safe_mem.h"
 #include "structs.h"
 #include "token.h"
 #include "type_mods.h"

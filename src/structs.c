@@ -1,9 +1,9 @@
 #include "structs.h"
 #include "comp_dependent/ints.h"
 #include "prim_type.h"
-#include "safe_mem.h"
+#include "utils/safe_mem.h"
 #include "type_mods.h"
-#include "vector_impl.h"
+#include "utils/vector_impl.h"
 #include <string.h>
 
 struct StructField StructField_init(void) {

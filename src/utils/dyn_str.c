@@ -1,5 +1,5 @@
 #include "dyn_str.h"
-#include "../safe_mem.h"
+#include "safe_mem.h"
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>

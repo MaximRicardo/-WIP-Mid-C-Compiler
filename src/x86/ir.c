@@ -1,3 +1,5 @@
+/* DEPRECATED! COMPILE USING MCCIR INSTEAD! */
+
 #include "ir.h"
 #include "../structs.h"
 #include <assert.h>

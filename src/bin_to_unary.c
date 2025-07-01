@@ -1,5 +1,5 @@
 #include "bin_to_unary.h"
-#include "safe_mem.h"
+#include "utils/safe_mem.h"
 #include "token.h"
 #include <stdio.h>
 

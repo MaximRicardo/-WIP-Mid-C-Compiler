@@ -1,3 +1,5 @@
+/* DEPRECATED! COMPILE USING MCCIR INSTEAD! */
+
 #pragma once
 
 #include "../ast.h"

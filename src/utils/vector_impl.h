@@ -6,7 +6,7 @@
 
 #include <stddef.h>
 #include "safe_mem.h"
-#include "comp_dependent/ints.h"
+#include "../comp_dependent/ints.h"
 
 #define m_define_VectorImpl_funcs(VecStruct, ElemType) \
     m_define_VectorImpl_init(VecStruct) \

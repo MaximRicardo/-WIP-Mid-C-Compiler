@@ -2,7 +2,7 @@
 #include "array_lit.h"
 #include "ast.h"
 #include "prim_type.h"
-#include "safe_mem.h"
+#include "utils/safe_mem.h"
 #include <stdio.h>
 
 static void fold_expr(struct Expr **expr, const struct StructList *structs) {

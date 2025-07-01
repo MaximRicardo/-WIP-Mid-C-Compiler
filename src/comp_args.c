@@ -1,5 +1,5 @@
 #include "comp_args.h"
-#include "bool.h"
+#include "utils/bool.h"
 #include "comp_args_help.h"
 #include "version.h"
 #include <stddef.h>

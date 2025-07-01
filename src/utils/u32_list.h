@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../comp_dependent/ints.h"
-#include "../vector_impl.h"
+#include "vector_impl.h"
 
 struct U32List {
 

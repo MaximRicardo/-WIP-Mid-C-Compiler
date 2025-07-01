@@ -1,9 +1,9 @@
 #include "ast.h"
-#include "bool.h"
+#include "utils/bool.h"
 #include "comp_dependent/ints.h"
 #include "parser_var.h"
 #include "prim_type.h"
-#include "safe_mem.h"
+#include "utils/safe_mem.h"
 #include "err_msg.h"
 #include <assert.h>
 #include <stdio.h>

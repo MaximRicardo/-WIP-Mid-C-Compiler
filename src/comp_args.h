@@ -2,7 +2,7 @@
 
 /* arguments that have been passed to the compiler */
 
-#include "bool.h"
+#include "utils/bool.h"
 
 struct CompArgs {
 

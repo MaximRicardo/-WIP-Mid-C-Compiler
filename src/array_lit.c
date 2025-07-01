@@ -1,7 +1,7 @@
 #include "array_lit.h"
 #include "ast.h"
-#include "safe_mem.h"
-#include "vector_impl.h"
+#include "utils/safe_mem.h"
+#include "utils/vector_impl.h"
 #include <stddef.h>
 
 struct ArrayLit ArrayLit_init(void) {

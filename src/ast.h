@@ -3,7 +3,7 @@
 #include "comp_dependent/ints.h"
 #include "token.h"
 #include "type_mods.h"
-#include "vector_impl.h"
+#include "utils/vector_impl.h"
 #include "prim_type.h"
 #include "parser_var.h"
 #include "array_lit.h"

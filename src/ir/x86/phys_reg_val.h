@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../vector_impl.h"
+#include "../../utils/vector_impl.h"
 
 /* info about which virtual register a physical register is holding */
 struct PhysRegVal {

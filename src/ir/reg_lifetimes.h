@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../comp_dependent/ints.h"
-#include "../vector_impl.h"
+#include "../utils/vector_impl.h"
 #include "func.h"
 
 /* LT is short for lifetime */

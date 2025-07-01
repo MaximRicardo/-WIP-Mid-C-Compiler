@@ -1,7 +1,7 @@
 #pragma once
 
 #include "comp_dependent/ints.h"
-#include "vector_impl.h"
+#include "utils/vector_impl.h"
 
 /* TODO:
  *    make array literals fill uninitialized elements with zero.

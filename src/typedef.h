@@ -3,7 +3,7 @@
 #include "comp_dependent/ints.h"
 #include "prim_type.h"
 #include "type_mods.h"
-#include "vector_impl.h"
+#include "utils/vector_impl.h"
 
 struct Typedef {
 

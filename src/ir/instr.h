@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../comp_dependent/ints.h"
-#include "../vector_impl.h"
+#include "../utils/vector_impl.h"
 #include "data_types.h"
 #include "../ast.h"
 

@@ -1,6 +1,6 @@
 #include "data_types.h"
 #include "instr.h"
-#include "../macros.h"
+#include "../utils/macros.h"
 
 #define m_bin_oper(operation) \
     do { \
