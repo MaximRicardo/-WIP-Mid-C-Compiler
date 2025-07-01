@@ -1,5 +1,5 @@
 #include "transl_unit.h"
-#include "ast.h"
+#include "front_end/ast.h"
 #include "structs.h"
 #include <stddef.h>
 

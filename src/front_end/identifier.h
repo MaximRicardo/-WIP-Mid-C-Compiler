@@ -1,7 +1,7 @@
 #pragma once
 
-#include "prim_type.h"
-#include "type_mods.h"
+#include "../prim_type.h"
+#include "../type_mods.h"
 #include "typedef.h"
 #include "token.h"
 

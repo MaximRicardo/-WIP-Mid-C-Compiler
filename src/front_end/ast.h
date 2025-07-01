@@ -1,12 +1,12 @@
 #pragma once
 
-#include "comp_dependent/ints.h"
+#include "../comp_dependent/ints.h"
 #include "token.h"
-#include "type_mods.h"
-#include "utils/vector_impl.h"
-#include "prim_type.h"
+#include "../type_mods.h"
+#include "../utils/vector_impl.h"
+#include "../prim_type.h"
 #include "parser_var.h"
-#include "array_lit.h"
+#include "../array_lit.h"
 
 /* make sure to update:
  *    ASTNode_free, ASTNode_get_array_lits, ASTNode_const_fold */

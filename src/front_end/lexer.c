@@ -1,8 +1,8 @@
 #include "lexer.h"
-#include "comp_dependent/ints.h"
-#include "err_msg.h"
+#include "../comp_dependent/ints.h"
+#include "../err_msg.h"
 #include "token.h"
-#include "utils/dyn_str.h"
+#include "../utils/dyn_str.h"
 #include <assert.h>
 #include <ctype.h>
 #include <stdlib.h>

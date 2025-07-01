@@ -3,7 +3,7 @@
 #pragma once
 
 #include "../utils/vector_impl.h"
-#include "../ast.h"
+#include "../front_end/ast.h"
 #include "../structs.h"
 
 /* when changing make sure to update:

@@ -3,7 +3,7 @@
 #include "../comp_dependent/ints.h"
 #include "../utils/vector_impl.h"
 #include "data_types.h"
-#include "../ast.h"
+#include "../front_end/ast.h"
 
 enum IRInstrArgIndices {
 

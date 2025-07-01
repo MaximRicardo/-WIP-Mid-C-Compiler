@@ -1,8 +1,8 @@
 #pragma once
 
-#include "utils/bool.h"
+#include "../utils/bool.h"
 #include "token.h"
-#include "pre_proc.h"
+#include "../pre_proc/pre_proc.h"
 
 struct Lexer {
 

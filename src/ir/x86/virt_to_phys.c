@@ -1,7 +1,7 @@
 #include "virt_to_phys.h"
 #include "../reg_lifetimes.h"
 #include "phys_reg_val.h"
-#include "../../attrib.h"
+#include "../../utils/macros.h"
 #include "../../utils/dyn_str.h"
 #include "../../utils/make_str_cpy.h"
 #include "../../utils/u32_list.h"

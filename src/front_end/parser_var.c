@@ -1,5 +1,5 @@
 #include "parser_var.h"
-#include "type_mods.h"
+#include "../type_mods.h"
 #include <string.h>
 
 struct ParserVar ParserVar_init(void) {

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "comp_dependent/ints.h"
-#include "prim_type.h"
-#include "type_mods.h"
-#include "utils/vector_impl.h"
+#include "../comp_dependent/ints.h"
+#include "../prim_type.h"
+#include "../type_mods.h"
+#include "../utils/vector_impl.h"
 
 struct Typedef {
 

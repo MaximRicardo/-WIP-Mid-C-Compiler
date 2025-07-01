@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ast.h"
+#include "front_end/ast.h"
 
 struct TranslUnit {
 

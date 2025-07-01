@@ -1,8 +1,8 @@
 #pragma once
 
 #include "ast.h"
-#include "utils/bool.h"
-#include "structs.h"
+#include "../utils/bool.h"
+#include "../structs.h"
 #include "token.h"
 #include "parser_var.h"
 #include "typedef.h"

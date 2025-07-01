@@ -1,7 +1,7 @@
 #include "basic_block.h"
 #include "instr.h"
 #include "func.h"
-#include "../attrib.h"
+#include "../utils/macros.h"
 #include <assert.h>
 #include <string.h>
 

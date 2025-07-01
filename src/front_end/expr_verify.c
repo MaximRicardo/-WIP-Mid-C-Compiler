@@ -1,10 +1,10 @@
 #include "ast.h"
-#include "utils/bool.h"
-#include "comp_dependent/ints.h"
+#include "../utils/bool.h"
+#include "../comp_dependent/ints.h"
 #include "parser_var.h"
-#include "prim_type.h"
-#include "utils/safe_mem.h"
-#include "err_msg.h"
+#include "../prim_type.h"
+#include "../utils/safe_mem.h"
+#include "../err_msg.h"
 #include <assert.h>
 #include <stdio.h>
 

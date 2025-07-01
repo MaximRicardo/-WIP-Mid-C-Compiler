@@ -1,8 +1,8 @@
 #pragma once
 
-#include "utils/bool.h"
-#include "comp_dependent/ints.h"
-#include "utils/vector_impl.h"
+#include "../utils/bool.h"
+#include "../comp_dependent/ints.h"
+#include "../utils/vector_impl.h"
 
 /* when adding a new token make sure to update:
  *  Token_precedence, ExprType

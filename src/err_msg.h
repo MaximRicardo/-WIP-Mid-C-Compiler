@@ -1,7 +1,7 @@
 #pragma once
 
 #include "utils/bool.h"
-#include "attrib.h"
+#include "utils/macros.h"
 
 /* do errors/warnings get emitted? both are true by default */
 extern bool ErrMsg_on;

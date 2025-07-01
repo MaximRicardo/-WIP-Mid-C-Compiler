@@ -1,8 +1,8 @@
 #pragma once
 
-#include "comp_dependent/ints.h"
-#include "utils/vector_impl.h"
-#include "utils/bool.h"
+#include "../comp_dependent/ints.h"
+#include "../utils/vector_impl.h"
+#include "../utils/bool.h"
 
 extern bool PreProc_error_occurred;
 

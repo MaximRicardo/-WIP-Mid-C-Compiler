@@ -1,10 +1,10 @@
 #pragma once
 
-#include "utils/bool.h"
-#include "prim_type.h"
-#include "comp_dependent/ints.h"
-#include "type_mods.h"
-#include "utils/vector_impl.h"
+#include "../utils/bool.h"
+#include "../prim_type.h"
+#include "../comp_dependent/ints.h"
+#include "../type_mods.h"
+#include "../utils/vector_impl.h"
 
 struct ParserVar {
 

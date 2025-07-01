@@ -1,8 +1,8 @@
 #include "const_fold.h"
-#include "array_lit.h"
+#include "../array_lit.h"
 #include "ast.h"
-#include "prim_type.h"
-#include "utils/safe_mem.h"
+#include "../prim_type.h"
+#include "../utils/safe_mem.h"
 #include <stdio.h>
 
 static void fold_expr(struct Expr **expr, const struct StructList *structs) {

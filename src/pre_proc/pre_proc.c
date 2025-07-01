@@ -1,9 +1,9 @@
 #include "pre_proc.h"
-#include "comp_dependent/ints.h"
-#include "utils/safe_mem.h"
-#include "utils/vector_impl.h"
-#include "utils/bool.h"
-#include "err_msg.h"
+#include "../comp_dependent/ints.h"
+#include "../utils/safe_mem.h"
+#include "../utils/vector_impl.h"
+#include "../utils/bool.h"
+#include "../err_msg.h"
 #include <ctype.h>
 #include <stddef.h>
 #include <stdio.h>

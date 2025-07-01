@@ -1,6 +1,6 @@
 #include "token.h"
-#include "utils/safe_mem.h"
-#include "utils/vector_impl.h"
+#include "../utils/safe_mem.h"
+#include "../utils/vector_impl.h"
 #include <assert.h>
 #include <string.h>
 

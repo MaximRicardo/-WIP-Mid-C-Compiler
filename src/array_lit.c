@@ -1,5 +1,5 @@
 #include "array_lit.h"
-#include "ast.h"
+#include "front_end/ast.h"
 #include "utils/safe_mem.h"
 #include "utils/vector_impl.h"
 #include <stddef.h>

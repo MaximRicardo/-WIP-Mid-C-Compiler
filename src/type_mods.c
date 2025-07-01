@@ -1,5 +1,5 @@
 #include "type_mods.h"
-#include "attrib.h"
+#include "utils/macros.h"
 
 struct TypeModifiers TypeModifiers_init(void) {
 

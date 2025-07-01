@@ -1,8 +1,8 @@
 #include "typedef.h"
-#include "prim_type.h"
-#include "utils/safe_mem.h"
-#include "type_mods.h"
-#include "utils/vector_impl.h"
+#include "../prim_type.h"
+#include "../utils/safe_mem.h"
+#include "../type_mods.h"
+#include "../utils/vector_impl.h"
 #include <stddef.h>
 
 struct Typedef Typedef_init(void) {

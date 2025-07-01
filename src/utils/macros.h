@@ -17,3 +17,10 @@
     #define m_emit_compiler_warning_compose(x) message(m_emit_compiler_message_preface("warning C0000") x)
 #endif
 #define m_warning(x) _Pragma(m_emit_compiler_warning_stringify1(m_emit_compiler_warning_compose(x)))
+
+/* keep compiler independency */
+#ifdef __GNUC__
+#define ATTRIBUTE(x) __attribute__ (x)
+#else
+#define ATTRIBUTE(x)
+#endif

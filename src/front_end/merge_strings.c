@@ -1,5 +1,5 @@
 #include "merge_strings.h"
-#include "utils/safe_mem.h"
+#include "../utils/safe_mem.h"
 #include "token.h"
 #include <string.h>
 

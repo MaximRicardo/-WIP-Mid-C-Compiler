@@ -1,7 +1,7 @@
 #include "identifier.h"
-#include "prim_type.h"
+#include "../prim_type.h"
 #include "token.h"
-#include "type_mods.h"
+#include "../type_mods.h"
 #include <string.h>
 
 enum PrimitiveType Ident_type_spec(const char *ident,

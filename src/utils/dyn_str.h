@@ -3,7 +3,7 @@
 /* resizable strings */
 
 #include "../comp_dependent/ints.h"
-#include "../attrib.h"
+#include "../utils/macros.h"
 
 #define m_DYNAMIC_STR_start_capacity 128
 /* c89 doesn't support vsnprintf, and i don't feel like implementing that
