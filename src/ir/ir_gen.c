@@ -16,6 +16,7 @@
 static u32 reg_counter = 0;
 static u32 if_else_counter = 0;
 static u32 while_loop_counter = 0;
+static u32 for_loop_counter = 0;
 
 struct IRNameMangleList name_mangles;
 
@@ -540,6 +541,62 @@ static void while_loop_gen_ir(const struct WhileNode *node,
 
 }
 
+static void for_loop_gen_ir(const struct ForNode *node,
+        struct IRFunc *cur_func, const struct TranslUnit *tu) {
+
+    struct IRBasicBlock loop_start = IRBasicBlock_create(
+            create_string_with_num_appended("for_", for_loop_counter),
+            IRInstrList_init(), U32List_init()
+            );
+
+    struct IRBasicBlock body = IRBasicBlock_create(
+            create_string_with_num_appended("for_body_", for_loop_counter),
+            IRInstrList_init(), U32List_init()
+            );
+
+    struct IRBasicBlock loop_end = IRBasicBlock_create(
+            create_string_with_num_appended("for_end_", for_loop_counter),
+            IRInstrList_init(), U32List_init()
+            );
+
+    struct IRBasicBlock *cur_block =
+        IRBasicBlockList_back_ptr(&cur_func->blocks);
+
+    ++for_loop_counter;
+
+    /* the init portion will only be run once, so it isn't put inside of the
+     * loop */
+    expr_gen_ir(node->init, tu, cur_block, cur_func, NULL, NULL, false);
+    IRInstrList_push_back(&cur_block->instrs, IRInstr_create_str_instr(
+                IRInstr_JMP, loop_start.label
+                ));
+
+    IRBasicBlockList_push_back(&cur_func->blocks, loop_start);
+    cur_block = IRBasicBlockList_back_ptr(&cur_func->blocks);
+
+    jmp_if_zero(
+            node->condition, loop_end.label, body.label, tu, cur_block,
+            cur_func
+            );
+
+    IRBasicBlockList_push_back(&cur_func->blocks, body);
+    cur_block = IRBasicBlockList_back_ptr(&cur_func->blocks);
+
+    expr_gen_ir(node->inc, tu, cur_block, cur_func, NULL, NULL, false);
+
+    if (node->body)
+        block_node_gen_ir(node->body, cur_func, tu);
+    /* the cur block could have gotten updated in block_node_gen_ir */
+    cur_block = IRBasicBlockList_back_ptr(&cur_func->blocks);
+
+    IRInstrList_push_back(&cur_block->instrs, IRInstr_create_str_instr(
+                IRInstr_JMP, loop_start.label
+                ));
+
+    IRBasicBlockList_push_back(&cur_func->blocks, loop_end);
+
+}
+
 /* returns the mangled name, and updates cur_func->vregs and the name_mangles
  * list */
 static const char* var_decl_name_mangle(const struct Declarator *node,
@@ -635,6 +692,9 @@ static void ast_node_gen_ir(const struct ASTNode *node,
     else if (node->type == ASTType_WHILE_STMT) {
         while_loop_gen_ir(node->node_struct, cur_func, tu);
     }
+    else if (node->type == ASTType_FOR_STMT) {
+        for_loop_gen_ir(node->node_struct, cur_func, tu);
+    }
     else if (node->type == ASTType_VAR_DECL) {
         var_decl_gen_ir(node->node_struct, cur_block, cur_func, tu);
     }
@@ -719,6 +779,8 @@ static struct IRFunc func_node_gen_ir(const struct FuncDeclNode *func,
 
     reg_counter = 0;
     if_else_counter = 0;
+    while_loop_counter = 0;
+    for_loop_counter = 0;
 
     name_mangles = IRNameMangleList_init();
 

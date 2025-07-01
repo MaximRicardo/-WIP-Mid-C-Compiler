@@ -1,9 +1,10 @@
 int main(int argc, char **argv) {
 
-    int x = 10;
+    int i;
+    int x = 0;
 
-    while (x >= 0) {
-        x = x - 1;
+    for (i = 0; i < 100; i = i + 1) {
+        x = x + 2;
     }
 
     return x;
