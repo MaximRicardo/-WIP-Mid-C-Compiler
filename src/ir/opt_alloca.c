@@ -408,6 +408,29 @@ static void create_phi_node_args(u32 r2c_idx, struct IRInstr *instr,
     U32List_free(&block_stack);
 
 }
+
+/* WARNING: WILL PROBABLY BREAK IF THE IMMEDIATE DOMINATOR IS BELOW BLOCK!
+ * sets the current r2c new_name to it's first immediate dominator's last store
+ * info's new name */
+static void set_new_name_to_imm_dom_new_name(u32 r2c_idx,
+        const struct IRBasicBlock *block, const struct IRFunc *cur_func,
+        struct RegToConvList *regs_to_conv) {
+
+    const struct StoreInfoList *info =
+        &regs_to_conv->elems[r2c_idx].last_store;
+
+    const struct IRBasicBlock *imm_dom =
+        &cur_func->blocks.elems[block->imm_doms.elems[0]];
+
+    u32 idx = StoreInfoList_find_block(info, imm_dom);
+
+    if (idx == m_u32_max)
+        return;
+
+    regs_to_conv->elems[r2c_idx].new_name = info->elems[idx].new_name;
+
+}
+
 /* generates a temporary phi node with no arguments. this tells the next pass
  * to convert these temp nodes into real phi nodes once all the alloca's have
  * been converted. the temp phi nodes are structured like so:
@@ -419,13 +442,23 @@ static bool create_temp_phi_node(u32 r2c_idx, struct IRBasicBlock *block,
     struct IRInstr instr;
     char *vreg = NULL;
 
+    struct RegToConv *r2c = &regs_to_conv->elems[r2c_idx];
+
     /* no phi nodes needed if there isn't any converging program flow */
-    if (block->imm_doms.size < 2)
+    if (block->imm_doms.size == 0) {
         return false;
+    }
+    else if (block->imm_doms.size == 1) {
+        set_new_name_to_imm_dom_new_name(r2c_idx, block, func, regs_to_conv);
+        return false;
+    }
 
     instr = IRInstr_create(IRInstr_PHI, IRInstrArgList_init());
 
-    RegToConv_gen_new_name(&regs_to_conv->elems[r2c_idx], func);
+    RegToConv_gen_new_name(r2c, func);
+    StoreInfoList_push_back(&r2c->last_store, StoreInfo_create(
+                r2c->old_name, r2c->new_name, block
+                ));
 
     vreg = make_str_copy(regs_to_conv->elems[r2c_idx].new_name);
 
@@ -469,16 +502,18 @@ static bool convert_temp_phi_to_real(struct IRInstr *temp_phi,
         /* we gotta update the store info so that dependent blocks can chain
          * phi nodes together */
 
-        assert(StoreInfoList_find_block(
+        u32 idx = StoreInfoList_find_block(
                 &regs_to_conv->elems[r2c_idx].last_store, cur_block
-                ) == m_u32_max);
-
-        StoreInfoList_push_back(
-                &regs_to_conv->elems[r2c_idx].last_store, StoreInfo_create(
-                    regs_to_conv->elems[r2c_idx].old_name,
-                    regs_to_conv->elems[r2c_idx].new_name, cur_block
-                    )
                 );
+
+        if (idx == m_u32_max) {
+            StoreInfoList_push_back(
+                    &regs_to_conv->elems[r2c_idx].last_store, StoreInfo_create(
+                        regs_to_conv->elems[r2c_idx].old_name,
+                        regs_to_conv->elems[r2c_idx].new_name, cur_block
+                        )
+                    );
+        }
 
         IRInstr_free(*temp_phi);
         *temp_phi = instr;

@@ -582,12 +582,13 @@ static void for_loop_gen_ir(const struct ForNode *node,
     IRBasicBlockList_push_back(&cur_func->blocks, body);
     cur_block = IRBasicBlockList_back_ptr(&cur_func->blocks);
 
-    expr_gen_ir(node->inc, tu, cur_block, cur_func, NULL, NULL, false);
-
     if (node->body)
         block_node_gen_ir(node->body, cur_func, tu);
     /* the cur block could have gotten updated in block_node_gen_ir */
     cur_block = IRBasicBlockList_back_ptr(&cur_func->blocks);
+
+    /* the inc part runs at the end of each iteration */
+    expr_gen_ir(node->inc, tu, cur_block, cur_func, NULL, NULL, false);
 
     IRInstrList_push_back(&cur_block->instrs, IRInstr_create_str_instr(
                 IRInstr_JMP, loop_start.label

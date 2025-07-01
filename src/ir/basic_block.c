@@ -144,7 +144,7 @@ u32 IRBasicBlock_find_common_dom(const struct IRBasicBlock *self,
 
 }
 
-struct ConstStringList IRBasicblock_get_vregs(
+struct ConstStringList IRBasicBlock_get_vregs(
         const struct IRBasicBlock *self, bool skip_reserved_regs) {
 
     u32 i;
