@@ -600,25 +600,24 @@ static void for_loop_gen_ir(const struct ForNode *node,
 
 /* returns the mangled name, and updates cur_func->vregs and the name_mangles
  * list */
-static const char* var_decl_name_mangle(const struct Declarator *node,
+static const char* declarator_name_mangle(const char *name,
         struct IRFunc *cur_func) {
 
     struct DynamicStr new_name = DynamicStr_init();
-    const char *og_name = node->ident;
 
-    u32 idx = IRNameMangleList_find(&name_mangles, og_name);
-    const struct IRNameMangle *name_mangl = NULL;
+    u32 idx = IRNameMangleList_find(&name_mangles, name);
+    const struct IRNameMangle *name_mangle = NULL;
 
-    if (IRNameMangleList_find(&name_mangles, og_name) == m_u32_max) {
+    if (IRNameMangleList_find(&name_mangles, name) == m_u32_max) {
         IRNameMangleList_push_back(&name_mangles, IRNameMangle_create(
-                    make_str_copy(og_name), ConstStringList_init()
+                    make_str_copy(name), ConstStringList_init()
                     ));
         idx = name_mangles.size-1;
     }
-    name_mangl = &name_mangles.elems[idx];
+    name_mangle = &name_mangles.elems[idx];
 
     DynamicStr_append_printf(&new_name, "%s.nr%u",
-            og_name, name_mangl->new_names.size);
+            name, name_mangle->new_names.size);
 
     StringList_push_back(&cur_func->vregs, new_name.str);
 
@@ -630,6 +629,46 @@ static const char* var_decl_name_mangle(const struct Declarator *node,
 
 }
 
+/* returns the mangled name of the declarator */
+static const char* declarator_gen_ir(enum PrimitiveType type, u32 type_idx,
+        u32 indir, const char *name, const struct Expr *init,
+        struct IRBasicBlock *cur_block, struct IRFunc *cur_func,
+        const struct TranslUnit *tu) {
+
+    struct IRDataType var_type;
+    /* the reg holding the result of alloca */
+    struct DynamicStr init_reg = DynamicStr_init();
+    const char* var_reg = NULL;
+
+    var_type = IRDataType_create_from_prim_type(
+            type, type_idx, indir, tu->structs
+            );
+
+    var_reg = declarator_name_mangle(name, cur_func);
+    DynamicStr_append_printf(&init_reg, "%s.init", var_reg);
+
+    alloca_gen_ir(var_reg,
+            IRDataType_create(
+                var_type.is_signed, var_type.width, var_type.lvls_of_indir+1
+                ),
+            cur_block);
+
+    if (!init) {
+        DynamicStr_free(init_reg);
+    }
+    else {
+        StringList_push_back(&cur_func->vregs, init_reg.str);
+        expr_gen_ir(
+                init, tu, cur_block, cur_func, init_reg.str, &var_type, false
+                );
+
+        store_gen_ir(init_reg.str, var_reg, 0, var_type, cur_block);
+    }
+
+    return var_reg;
+
+}
+
 static void var_decl_gen_ir(const struct VarDeclNode *node,
         struct IRBasicBlock *cur_block, struct IRFunc *cur_func,
         const struct TranslUnit *tu) {
@@ -638,36 +677,12 @@ static void var_decl_gen_ir(const struct VarDeclNode *node,
 
     for (i = 0; i < node->decls.size; i++) {
 
-        struct IRDataType var_type;
-        /* the reg holding the result of alloca */
-        struct DynamicStr init_reg = DynamicStr_init();
-        const char* var_reg = NULL;
+        const struct Declarator *decl = &node->decls.elems[i];
 
-        var_type = IRDataType_create_from_prim_type(
-                node->type, node->type_idx, node->decls.elems[i].lvls_of_indir,
-                tu->structs
+        declarator_gen_ir(
+                node->type, node->type_idx, decl->lvls_of_indir, decl->ident,
+                decl->value, cur_block, cur_func, tu
                 );
-
-        var_reg = var_decl_name_mangle(&node->decls.elems[i], cur_func);
-        DynamicStr_append_printf(&init_reg, "%s.init", var_reg);
-
-        alloca_gen_ir(var_reg,
-                IRDataType_create(
-                    var_type.is_signed, var_type.width,
-                    var_type.lvls_of_indir+1
-                    ),
-                cur_block);
-
-        if (!node->decls.elems[i].value) {
-            DynamicStr_free(init_reg);
-            continue;
-        }
-
-        StringList_push_back(&cur_func->vregs, init_reg.str);
-        expr_gen_ir(node->decls.elems[i].value, tu, cur_block, cur_func,
-                init_reg.str, &var_type, false);
-
-        store_gen_ir(init_reg.str, var_reg, 0, var_type, cur_block);
 
     }
 
@@ -737,9 +752,10 @@ static struct IRFuncArgList func_node_get_args(const struct FuncDeclNode *func,
     for (i = 0; i < func->args.size; i++) {
 
         struct IRFuncArg arg;
+        struct Declarator *node_arg = &func->args.elems[i]->decls.elems[0];
 
         struct DynamicStr arg_name = DynamicStr_init();
-        DynamicStr_append_printf(&arg_name, "arg.%u", i);
+        DynamicStr_append_printf(&arg_name, "%s", node_arg->ident);
 
         arg = IRFuncArg_create(
                 IRDataType_create_from_prim_type(
@@ -755,6 +771,46 @@ static struct IRFuncArgList func_node_get_args(const struct FuncDeclNode *func,
     }
 
     return args;
+
+}
+
+/* creates a copy of each func arg on the stack to make it act like a regular
+ * variable */
+static void func_setup_args(struct IRFunc *func, struct IRBasicBlock *start,
+        const struct TranslUnit *tu) {
+
+    u32 i;
+
+    for (i = 0; i < func->args.size; i++) {
+
+        const struct IRFuncArg *arg = &func->args.elems[i];
+        struct IRInstr store_instr =
+            IRInstr_create(IRInstr_STORE, IRInstrArgList_init());
+
+        const char *vreg = declarator_gen_ir(
+                IRDataType_to_prim_type(&arg->type), 0,
+                arg->type.lvls_of_indir, arg->name, NULL, start, func, tu
+                );
+
+        IRInstrArgList_push_back(&store_instr.args, IRInstrArg_create(
+                    IRInstrArg_REG, arg->type,
+                    IRInstrArgValue_reg_name(arg->name)
+                    ));
+        IRInstrArgList_push_back(&store_instr.args, IRInstrArg_create(
+                    IRInstrArg_REG,
+                    IRDataType_create(
+                        arg->type.is_signed, arg->type.width,
+                        arg->type.lvls_of_indir+1
+                        ),
+                    IRInstrArgValue_reg_name(vreg)
+                    ));
+        IRInstrArgList_push_back(&store_instr.args, IRInstrArg_create(
+                    IRInstrArg_IMM32, IRDataType_create(false, 32, 0),
+                    IRInstrArgValue_imm_u32(0)
+                    ));
+        IRInstrList_push_back(&start->instrs, store_instr);
+
+    }
 
 }
 
@@ -784,6 +840,8 @@ static struct IRFunc func_node_gen_ir(const struct FuncDeclNode *func,
     for_loop_counter = 0;
 
     name_mangles = IRNameMangleList_init();
+
+    func_setup_args(&ir_func, IRBasicBlockList_back_ptr(&ir_func.blocks), tu);
 
     block_node_gen_ir(func->body, &ir_func, tu);
     IRFunc_move_allocas_to_top(&ir_func);

@@ -6,6 +6,7 @@
 #include "ir/opt_unused_vregs.h"
 #include "ir/opt_copy_prop.h"
 #include "ir/ssa_to_tac.h"
+#include "ir/x86/arg_to_esp.h"
 #include "ir/x86/code_gen.h"
 #include "ir/x86/alloca_to_esp.h"
 #include "ir/x86/virt_to_phys.h"
@@ -46,6 +47,7 @@ void TranslUnit_compile_via_mccir(struct TranslUnit *tu, FILE *mccir_output,
     IR_ssa_to_tac(&ir);
 
     X86_alloca_to_esp(&ir);
+    X86_arg_to_esp(&ir);
     X86_virt_to_phys(&ir);
 
     if (mccir_output)
