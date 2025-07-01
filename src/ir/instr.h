@@ -149,6 +149,12 @@ struct IRInstr IRInstr_create_alloca(const char *dest_vreg,
 /* returns whether or not it was possible to const fold self */
 bool IRInstr_const_fold(struct IRInstr *self);
 
+/* count_assignment           - if false, doesn't count assigning to the reg
+ *                              as using it
+ */
+bool IRInstr_uses_vreg(const struct IRInstr *self, const char *vreg,
+        bool count_assignment);
+
 struct IRInstrList {
 
     struct IRInstr *elems;

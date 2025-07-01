@@ -12,7 +12,7 @@ start:
     jmp while_0
 while_0:
     load i32 %0, i32* %i.nr0, u32 0
-    setlt i32 %1, i32 %0, i32 100
+    setlteq i32 %1, i32 %0, i32 100
     je i32 %1, i32 0, while_end_0, while_body_0
 while_body_0:
     load i32 %2, i32* %i.nr0, u32 0
@@ -40,7 +40,7 @@ start:
 while_0:
     phi i32 %i.nr0.0, i32 %i.nr0.1, i32 %i.nr0
     phi i32 %x.nr0.0, i32 %x.nr0.1, i32 %x.nr0
-    setlt i32 %1, i32 %i.nr0.0, i32 100
+    setlteq i32 %1, i32 %i.nr0.0, i32 100
     je i32 %1, i32 0, while_end_0, while_body_0
 while_body_0:
     add i32 %3, i32 %i.nr0.0, i32 1
@@ -61,13 +61,13 @@ start:
     mov i32 %__ebx, i32 0
     jmp while_0
 while_0:
-    setlt i32 %__ecx, i32 %__eax, i32 100
+    setlteq i32 %__ecx, i32 %__eax, i32 100
     je i32 %__ecx, i32 0, while_end_0, while_body_0
 while_body_0:
     add i32 %__ecx, i32 %__eax, i32 1
     mov i32 %__eax, i32 %__ecx
-    add i32 %__eax, i32 %__ebx, i32 2
-    mov i32 %__ebx, i32 %__eax
+    add i32 %__ecx, i32 %__ebx, i32 2
+    mov i32 %__ebx, i32 %__ecx
     jmp while_0
 while_end_0:
     ret i32 %__ebx

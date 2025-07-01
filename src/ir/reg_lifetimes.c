@@ -1,6 +1,7 @@
 #include "reg_lifetimes.h"
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 
 struct IRRegLT IRRegLT_init(void) {
 
@@ -75,7 +76,71 @@ static void get_instr_reg_lts(const struct IRInstr *instr, u32 *n_instrs,
 
 }
 
-static void get_block_reg_lts(const struct IRBasicBlock *block, u32 *n_instrs,
+/* ignore_list contains all the block indices to ignore */
+static bool block_exits_use_vreg(const struct IRBasicBlock *block,
+        const struct IRFunc *parent, struct U32List *ignore_list,
+        const char *vreg) {
+
+    u32 i;
+    struct U32List exits;
+    bool alloced = false;
+    bool uses = false;
+
+    if (!ignore_list) {
+        alloced = true;
+        ignore_list = safe_malloc(sizeof(*ignore_list));
+        *ignore_list = U32List_init();
+    }
+
+    U32List_push_back(ignore_list, block - parent->blocks.elems);
+
+    exits = IRBasicBlock_get_exits(block, parent);
+
+    for (i = 0; i < exits.size; i++) {
+
+        const struct IRBasicBlock *exit_b =
+            &parent->blocks.elems[exits.elems[i]];
+
+        if (U32List_find(ignore_list, exits.elems[i]) != m_u32_max)
+            continue;
+
+        if (IRBasicBlock_uses_vreg(exit_b, vreg, true) ||
+                block_exits_use_vreg(exit_b, parent, ignore_list, vreg)) {
+            uses = true;
+            break;
+        }
+
+    }
+
+    if (alloced) {
+        U32List_free(ignore_list);
+        m_free(ignore_list);
+    }
+    U32List_free(&exits);
+    return uses;
+
+}
+
+/* if the vreg in lt is used in a block exit then it's lifetime is extended to
+ * the end of the current block */
+static void extend_lifetime_via_exits(const struct IRBasicBlock *block,
+        const struct IRFunc *cur_func, struct IRRegLT *lt,
+        u32 block_end_instr_idx) {
+
+    bool used = block_exits_use_vreg(block, cur_func, NULL, lt->reg_name);
+
+    if (!used)
+        return;
+
+    /* in case this assert ever fires: this might be unnecessary and u should
+     * try removing it and see if that breaks anything */
+    assert(lt->death_idx <= block_end_instr_idx);
+    lt->death_idx = block_end_instr_idx;
+
+}
+
+static void get_block_reg_lts(const struct IRBasicBlock *block,
+        const struct IRFunc *cur_func, u32 *n_instrs,
         struct IRRegLTList *lts) {
 
     u32 i;
@@ -83,6 +148,14 @@ static void get_block_reg_lts(const struct IRBasicBlock *block, u32 *n_instrs,
     for (i = 0; i < block->instrs.size; i++) {
 
         get_instr_reg_lts(&block->instrs.elems[i], n_instrs, lts);
+
+    }
+
+    for (i = 0; i < lts->size; i++) {
+
+        extend_lifetime_via_exits(
+                block, cur_func, &lts->elems[i], *n_instrs-1
+                );
 
     }
 
@@ -97,7 +170,7 @@ struct IRRegLTList IRRegLTList_get_func_lts(const struct IRFunc *func) {
 
     for (i = 0; i < func->blocks.size; i++) {
 
-        get_block_reg_lts(&func->blocks.elems[i], &n_instrs, &lts);
+        get_block_reg_lts(&func->blocks.elems[i], func, &n_instrs, &lts);
 
     }
 

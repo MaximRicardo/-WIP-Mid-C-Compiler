@@ -175,4 +175,116 @@ struct ConstStringList IRBasicBlock_get_vregs(
 
 }
 
+static u32 label_to_block_idx(const char *label, const struct IRFunc *parent) {
+
+    u32 i;
+
+    for (i = 0; i < parent->blocks.size; i++) {
+
+        const struct IRBasicBlock *block = &parent->blocks.elems[i];
+
+        if (strcmp(block->label, label) == 0)
+            return i;
+
+    }
+
+    return m_u32_max;
+
+}
+
+static void append_uncond_jmp_dest(const struct IRInstr *instr,
+        const struct IRFunc *parent, struct U32List *list) {
+
+    const char *label = NULL;
+
+    assert(instr->args.size == 1);
+
+    label = instr->args.elems[Arg_SELF].value.generic_str;
+
+    U32List_push_back(list, label_to_block_idx(label, parent));
+
+}
+
+static void append_cond_jmp_dests(const struct IRInstr *instr,
+        const struct IRFunc *parent, struct U32List *list) {
+
+    const char *true_label = NULL;
+    const char *false_label = NULL;
+
+    assert(instr->args.size == 4);
+
+    true_label = instr->args.elems[2].value.generic_str;
+    false_label = instr->args.elems[3].value.generic_str;
+
+    U32List_push_back(list, label_to_block_idx(true_label, parent));
+    U32List_push_back(list, label_to_block_idx(false_label, parent));
+
+}
+
+static void append_branch_dests(const struct IRInstr *instr,
+        const struct IRFunc *parent, struct U32List *list) {
+
+    if (IRInstrType_is_cond_branch(instr->type))
+        append_cond_jmp_dests(instr, parent, list);
+    else
+        append_uncond_jmp_dest(instr, parent, list);
+
+}
+
+struct U32List IRBasicBlock_get_exits(const struct IRBasicBlock *self,
+        const struct IRFunc *parent) {
+
+    u32 i;
+    struct U32List list = U32List_init();
+
+    for (i = 0; i < self->instrs.size; i++) {
+
+        const struct IRInstr *instr = &self->instrs.elems[i];
+
+        if (!IRInstrType_is_branch(instr->type))
+            continue;
+
+        append_branch_dests(instr, parent, &list);
+
+        /* each block only has one exit point */
+        break;
+
+    }
+
+    return list;
+
+}
+
+static bool instr_changed_vreg(const struct IRInstr *instr, const char *vreg) {
+
+    if (!IRInstrType_has_dest_reg(instr->type))
+        return false;
+
+    assert(instr->args.elems[Arg_SELF].type == IRInstrArg_REG);
+
+    return strcmp(instr->args.elems[Arg_SELF].value.reg_name, vreg) == 0;
+
+}
+
+bool IRBasicBlock_uses_vreg(const struct IRBasicBlock *self,
+        const char *vreg, bool skip_if_changed) {
+
+    u32 i;
+
+    for (i = 0; i < self->instrs.size; i++) {
+
+        const struct IRInstr *instr = &self->instrs.elems[i];
+
+        if (skip_if_changed && instr_changed_vreg(instr, vreg))
+            break;
+
+        if (IRInstr_uses_vreg(instr, vreg, true))
+            return true;
+
+    }
+
+    return false;
+
+}
+
 m_define_VectorImpl_funcs(IRBasicBlockList, struct IRBasicBlock)

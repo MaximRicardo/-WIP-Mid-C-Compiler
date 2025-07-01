@@ -27,6 +27,15 @@ u32 IRBasicBlock_find_common_dom(const struct IRBasicBlock *self,
         const struct IRFunc *parent);
 struct ConstStringList IRBasicBlock_get_vregs(const struct IRBasicBlock *self,
         bool skip_reserved_regs);
+/* gets the block that self exits to. */
+struct U32List IRBasicBlock_get_exits(const struct IRBasicBlock *self,
+        const struct IRFunc *parent);
+/* skip_if_changed            - if the value of the vreg got changed in the
+ *                              block, skip any uses of the vreg past that
+ *                              point
+ */
+bool IRBasicBlock_uses_vreg(const struct IRBasicBlock *self, const char *vreg,
+        bool skip_if_changed);
 
 struct IRBasicBlockList {
 

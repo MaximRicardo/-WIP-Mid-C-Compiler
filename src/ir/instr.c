@@ -249,5 +249,29 @@ struct IRInstr IRInstr_create_alloca(const char *dest_vreg,
 
 }
 
+bool IRInstr_uses_vreg(const struct IRInstr *self, const char *vreg,
+        bool count_assignment) {
+
+    u32 i;
+
+    u32 start_idx = count_assignment && IRInstrType_has_dest_reg(self->type) ?
+        1 : 0;
+
+    for (i = start_idx; i < self->args.size; i++) {
+
+        const struct IRInstrArg *arg = &self->args.elems[i];
+
+        if (arg->type != IRInstrArg_REG)
+            continue;
+
+        if (strcmp(arg->value.reg_name, vreg) == 0)
+            return true;
+
+    }
+
+    return false;
+
+}
+
 m_define_VectorImpl_funcs(IRInstrArgList, struct IRInstrArg)
 m_define_VectorImpl_funcs(IRInstrList, struct IRInstr)

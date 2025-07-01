@@ -4,6 +4,7 @@
 #include "../../attrib.h"
 #include "../../utils/dyn_str.h"
 #include "../../utils/make_str_cpy.h"
+#include "../../utils/u32_list.h"
 #include "reg_states.h"
 #include "remove_alloc_reg.h"
 #include <stdio.h>
@@ -98,7 +99,7 @@ static void init_cpu_reg_vals(const struct IRBasicBlock *cur_block,
         const struct IRBasicBlock *other = NULL;
         u32 imm_dom = cur_block->imm_doms.elems[i];
 
-        /* in a loop, a the end of the loop will call the start of the loop,
+        /* in a loop, at the end of the loop will call the start of the loop,
          * which would be bad cuz 1. we haven't setup the end loop's cpu reg
          * values, and 2. it's impossible to set them up without setting up the
          * values here, and to set up the values here we need to set them up at
@@ -117,11 +118,6 @@ static void init_cpu_reg_vals(const struct IRBasicBlock *cur_block,
                 vreg_lts
                 );
     }
-
-    /*
-    printf("init regs result on block %lu\n",
-            cur_block-cur_func->blocks.elems);
-    print_cpu_reg_vals(cur_block, cur_func);*/
 
 }
 
@@ -225,6 +221,7 @@ static bool phys_reg_val_is_free(const struct PhysRegVal *preg,
 
     reg_lt_idx = IRRegLTList_find_reg(vreg_lts, preg->virt_reg);
     assert(reg_lt_idx != m_u32_max);
+
     if (vreg_lts->elems[reg_lt_idx].death_idx < instr_idx) {
         return true;
     }
@@ -242,7 +239,11 @@ static bool preg_is_free(u32 preg_idx,
         RegStates_block_preg_states(cur_block, cur_func);
 
     const struct PhysRegVal *preg = &reg_states->preg_vals[preg_idx];
-    return phys_reg_val_is_free(preg, instr_idx, vreg_lts);
+
+    bool is_free =
+        phys_reg_val_is_free(preg, instr_idx, vreg_lts);
+
+    return is_free;
 
 }
 
