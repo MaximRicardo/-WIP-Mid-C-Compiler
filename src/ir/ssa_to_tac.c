@@ -23,8 +23,10 @@ static void replace_phi_args(struct IRInstr *instr, struct IRFunc *cur_func) {
         old_vreg = StringList_find(&cur_func->vregs, arg->value.reg_name);
         assert(old_vreg != m_u32_max);
 
-        if (old_vreg != dest_vreg)
+        if (old_vreg != dest_vreg) {
             IRFunc_replace_vreg(cur_func, old_vreg, dest_vreg);
+            dest_vreg -= dest_vreg > old_vreg;
+        }
     }
 
 }
