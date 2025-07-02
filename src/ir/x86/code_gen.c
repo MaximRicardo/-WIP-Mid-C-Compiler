@@ -211,6 +211,24 @@ static void pop_callee_saved_regs(struct DynamicStr *output,
 
 }
 
+/* increments n pushed bytes by 12 */
+static void push_caller_saved_regs(struct DynamicStr *output) {
+
+    m_push_reg("eax");
+    m_push_reg("ecx");
+    m_push_reg("edx");
+
+}
+
+/* decrements n pushed bytes by 12 */
+static void pop_caller_saved_regs(struct DynamicStr *output) {
+
+    m_pop_reg("edx");
+    m_pop_reg("ecx");
+    m_pop_reg("eax");
+
+}
+
 /* converts stack offset access to NASM style syntax. offset is the preg.
  *    esp(x) -> [esp+index*index_width+x]
  *
@@ -671,6 +689,46 @@ static void gen_from_cmp_oper(struct DynamicStr *output,
 
 }
 
+static void gen_from_call_instr(struct DynamicStr *output,
+        const struct IRInstr *instr) {
+
+    u32 i;
+    u32 arg_bytes = 0;
+
+    assert(instr->args.size >= 1);
+    assert(instr->args.elems[Arg_SELF].type == IRInstrArg_STR);
+
+    printf("n_pushed_bytes = %u\n", n_pushed_bytes);
+
+    push_caller_saved_regs(output);
+
+    /* arguments get pushed in right to left order */
+    for (i = instr->args.size-1; i >= 2; i--) {
+
+        const struct IRInstrArg *arg = &instr->args.elems[i];
+
+        DynamicStr_append(output, "push ");
+        emit_instr_arg(output, arg, true);
+        DynamicStr_append(output, "\n");
+        /* not good. improve later pls */
+        n_pushed_bytes += 4;
+        arg_bytes += 4;
+
+    }
+
+    DynamicStr_append_printf(output, "call %s",
+            instr->args.elems[Arg_SELF].value.generic_str);
+    DynamicStr_append(output, "\n");
+
+    /* clean up */
+    DynamicStr_append_printf(output, "add esp, %u\n", arg_bytes);
+    n_pushed_bytes -= arg_bytes;
+    pop_caller_saved_regs(output);
+
+    printf("n_pushed_bytes = %u, arg_bytes = %u\n", n_pushed_bytes, arg_bytes);
+
+}
+
 static void gen_x86_from_instr(struct DynamicStr *output,
         const struct IRInstr *instr, const struct IRFunc *cur_func,
         u32 func_stack_size) {
@@ -705,6 +763,9 @@ static void gen_x86_from_instr(struct DynamicStr *output,
     }
     else if (instr->type == IRInstr_MOV) {
         gen_from_mov_instr(output, instr);
+    }
+    else if (instr->type == IRInstr_CALL) {
+        gen_from_call_instr(output, instr);
     }
     else {
         assert(false);

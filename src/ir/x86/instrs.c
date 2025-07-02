@@ -47,14 +47,17 @@ const char* X86_get_instr(enum IRInstrType type, struct IRDataType d_type) {
     case IRInstr_BINARY_OPS_END:
         assert(false);
 
-    case IRInstr_RET:
-        return "ret";
-
     case IRInstr_JMP:
         return "jmp";
 
     case IRInstr_JE:
         return "je";
+
+    case IRInstr_CALL:
+        return "call";
+
+    case IRInstr_RET:
+        return "ret";
 
     case IRInstr_MEM_INSTRS_START:
         assert(false);

@@ -1,5 +1,6 @@
 #include "module.h"
 #include "func.h"
+#include <string.h>
 
 struct IRModule IRModule_init(void) {
 
@@ -23,5 +24,18 @@ void IRModule_free(struct IRModule module) {
         IRFuncList_pop_back(&module.funcs, IRFunc_free);
     }
     IRFuncList_free(&module.funcs);
+
+}
+
+u32 IRModule_find_func(const struct IRModule *module, const char *name) {
+
+    u32 i;
+
+    for (i = 0; i < module->funcs.size; i++) {
+        if (strcmp(module->funcs.elems[i].name, name) == 0)
+            return i;
+    }
+
+    return m_u32_max;
 
 }
