@@ -31,5 +31,6 @@ void DynamicStr_append_dyn(struct DynamicStr *self,
 /* appends the formatted string to self */
 void DynamicStr_append_printf(struct DynamicStr *self, const char *fmt, ...)
     ATTRIBUTE((format (printf, 2, 3)));
+void DynamicStr_append_char(struct DynamicStr *self, char c);
 
 void DynamicStr_shrink_to_fit(struct DynamicStr *self);

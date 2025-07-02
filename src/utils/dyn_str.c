@@ -79,3 +79,11 @@ void DynamicStr_shrink_to_fit(struct DynamicStr *self) {
     self->str = safe_realloc(self->str, (self->size+1)*sizeof(*self->str));
 
 }
+
+void DynamicStr_append_char(struct DynamicStr *self, char c) {
+
+    grow_to_fit(self, self->size+2);
+    self->str[self->size++] = c;
+    self->str[self->size] = '\0';
+
+}

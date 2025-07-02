@@ -60,6 +60,9 @@ u32 IRFunc_get_stack_size(const struct IRFunc *self);
 u32 IRFunc_find_none_reg(const struct IRFunc *self);
 bool IRFunc_vreg_in_phi_node(const struct IRFunc *self, const char *vreg);
 void IRFunc_move_allocas_to_top(struct IRFunc *self);
+u32 IRFunc_find_arg(const struct IRFunc *self, const char *name);
+/* old and new vreg are indices in self->vregs */
+void IRFunc_replace_vreg(struct IRFunc *self, u32 old_vreg, u32 new_vreg);
 
 struct IRFuncList {
 

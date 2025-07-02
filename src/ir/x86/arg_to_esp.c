@@ -1,5 +1,6 @@
 #include "arg_to_esp.h"
 #include "../../utils/dyn_str.h"
+#include "../name_mangling.h"
 #include <string.h>
 #include <assert.h>
 
@@ -42,7 +43,8 @@ static u32 func_arg_esp_offset(const struct IRFunc *func, const char *arg) {
 
 }
 
-static const char* esp_offset_to_vreg(u32 offset, struct IRFunc *func) {
+/* returns the idx of the esp offset vreg in func->vregs */
+static u32 esp_offset_to_vreg(u32 offset, struct IRFunc *func) {
 
     u32 vreg_idx;
     struct DynamicStr esp = DynamicStr_init();
@@ -58,7 +60,7 @@ static const char* esp_offset_to_vreg(u32 offset, struct IRFunc *func) {
         DynamicStr_free(esp);
     }
 
-    return func->vregs.elems[vreg_idx];
+    return vreg_idx;
 
 }
 
@@ -66,20 +68,26 @@ static void instrarg_args_to_esp(struct IRInstrArg *arg,
         struct IRFunc *func) {
 
     u32 offset;
-    const char *vreg;
+    const char *vreg = NULL;
+    u32 new_vreg;
+    char *demangled = NULL;
 
     if (arg->type != IRInstrArg_REG)
         return;
 
     vreg = arg->value.reg_name;
+    demangled = IR_demangle(vreg);
 
-    if (func_arg_idx(vreg, func) == m_u32_max)
-        return;
+    if (func_arg_idx(demangled, func) == m_u32_max)
+        goto clean_up_and_ret;
 
-    offset = func_arg_esp_offset(func, vreg);
-    vreg = esp_offset_to_vreg(offset, func);
+    offset = func_arg_esp_offset(func, demangled);
+    new_vreg = esp_offset_to_vreg(offset, func);
 
-    arg->value.reg_name = vreg;
+    IRFunc_replace_vreg(func, StringList_find(&func->vregs, vreg), new_vreg);
+
+clean_up_and_ret:
+    m_free(demangled);
 
 }
 

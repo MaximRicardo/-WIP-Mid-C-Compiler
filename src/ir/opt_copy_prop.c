@@ -7,19 +7,23 @@
 static bool mov_copy_prop(struct IRInstr *instr,
         struct IRBasicBlock *cur_block, struct IRFunc *cur_func) {
 
+    bool used_in_phi;
+
     assert(instr->args.size == 2);
     assert(instr->args.elems[Arg_SELF].type == IRInstrArg_REG);
 
-    if (IRFunc_vreg_in_phi_node(
-                cur_func,
-                instr->args.elems[Arg_SELF].value.reg_name
-                )) {
+    used_in_phi = IRFunc_vreg_in_phi_node(
+                cur_func, instr->args.elems[Arg_SELF].value.reg_name
+                );
+
+    if (used_in_phi && instr->args.elems[Arg_LHS].type != IRInstrArg_REG) {
         return false;
     }
 
     IRFunc_replace_vreg_w_instr_arg(
             cur_func, instr->args.elems[Arg_SELF].value.reg_name,
-            &instr->args.elems[Arg_LHS]);
+            &instr->args.elems[Arg_LHS]
+            );
 
     IRInstrList_erase(&cur_block->instrs, instr-cur_block->instrs.elems,
             IRInstr_free);

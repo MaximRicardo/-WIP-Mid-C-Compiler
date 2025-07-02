@@ -186,8 +186,8 @@ bool IRFunc_rename_vreg(struct IRFunc *self, const char *old_name,
     }
 
     /* free and replace at the end to prevent heap use after free when
-     * replacing vreg names, since they will point to the address we're about
-     * to free. */
+     * replacing vreg names, since they will point to the address we're
+     * about to free. */
     m_free(self->vregs.elems[vreg_idx]);
     self->vregs.elems[vreg_idx] = new_name;
 
@@ -374,6 +374,33 @@ void IRFunc_move_allocas_to_top(struct IRFunc *self) {
     for (i = 0; i < self->blocks.size; i++) {
         move_allocas_to_top_block(&self->blocks.elems[i], self);
     }
+
+}
+
+u32 IRFunc_find_arg(const struct IRFunc *self, const char *name) {
+
+
+    u32 i;
+
+    for (i = 0; i < self->args.size; i++) {
+        if (strcmp(self->args.elems[i].name, name) == 0)
+            return i;
+    }
+
+    return m_u32_max;
+
+}
+
+void IRFunc_replace_vreg(struct IRFunc *self, u32 old_vreg, u32 new_vreg) {
+
+    const char *old = self->vregs.elems[old_vreg];
+    char *new = self->vregs.elems[new_vreg];
+
+    assert(old_vreg != new_vreg);
+
+    assert(IRFunc_rename_vreg(self, old, new));
+
+    StringList_erase(&self->vregs, old_vreg, NULL);
 
 }
 

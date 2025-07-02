@@ -784,6 +784,7 @@ static void func_setup_args(struct IRFunc *func, struct IRBasicBlock *start,
     for (i = 0; i < func->args.size; i++) {
 
         const struct IRFuncArg *arg = &func->args.elems[i];
+        char *arg_cpy = make_str_copy(arg->name);
         struct IRInstr store_instr =
             IRInstr_create(IRInstr_STORE, IRInstrArgList_init());
 
@@ -792,9 +793,11 @@ static void func_setup_args(struct IRFunc *func, struct IRBasicBlock *start,
                 arg->type.lvls_of_indir, arg->name, NULL, start, func, tu
                 );
 
+        StringList_push_back(&func->vregs, arg_cpy);
+
         IRInstrArgList_push_back(&store_instr.args, IRInstrArg_create(
                     IRInstrArg_REG, arg->type,
-                    IRInstrArgValue_reg_name(arg->name)
+                    IRInstrArgValue_reg_name(arg_cpy)
                     ));
         IRInstrArgList_push_back(&store_instr.args, IRInstrArg_create(
                     IRInstrArg_REG,

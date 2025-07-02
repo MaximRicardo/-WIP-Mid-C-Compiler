@@ -2,25 +2,46 @@
 #include "basic_block.h"
 #include "func.h"
 #include "instr.h"
-#include "../utils/make_str_cpy.h"
 #include <assert.h>
+
+static void replace_phi_args(struct IRInstr *instr, struct IRFunc *cur_func) {
+
+    u32 i;
+
+    const struct IRInstrArg *self_arg = &instr->args.elems[Arg_SELF];
+    u32 dest_vreg =
+        StringList_find(&cur_func->vregs, self_arg->value.reg_name);
+
+    assert(dest_vreg != m_u32_max);
+
+    for (i = 1; i < instr->args.size; i++) {
+        u32 old_vreg;
+        const struct IRInstrArg *arg = &instr->args.elems[i];
+
+        assert(arg->type == IRInstrArg_REG);
+
+        old_vreg = StringList_find(&cur_func->vregs, arg->value.reg_name);
+        assert(old_vreg != m_u32_max);
+
+        if (old_vreg != dest_vreg)
+            IRFunc_replace_vreg(cur_func, old_vreg, dest_vreg);
+    }
+
+}
 
 /* returns whether or not it erased instr from cur_block->instrs */
 static bool instr_ssa_to_tac(struct IRInstr *instr,
         struct IRBasicBlock *cur_block, struct IRFunc *cur_func) {
 
-    u32 i;
     u32 block_common_dom;
 
     if (instr->type != IRInstr_PHI)
         return false;
 
-    for (i = 1; i < instr->args.size; i++) {
-        assert(instr->args.elems[i].type == IRInstrArg_REG);
+    assert(instr->args.size > 0);
+    assert(instr->args.elems[Arg_SELF].type == IRInstrArg_REG);
 
-        IRFunc_rename_vreg(cur_func, instr->args.elems[i].value.reg_name,
-                make_str_copy(instr->args.elems[0].value.reg_name));
-    }
+    replace_phi_args(instr, cur_func);
 
     block_common_dom = IRBasicBlock_find_common_dom(cur_block, cur_func);
 
