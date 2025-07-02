@@ -24,7 +24,6 @@ struct DynamicStr {
 
 struct DynamicStr DynamicStr_init(void);
 void DynamicStr_free(struct DynamicStr str);
-
 void DynamicStr_append(struct DynamicStr *self, const char *src);
 void DynamicStr_append_dyn(struct DynamicStr *self,
         const struct DynamicStr *other);
@@ -32,5 +31,6 @@ void DynamicStr_append_dyn(struct DynamicStr *self,
 void DynamicStr_append_printf(struct DynamicStr *self, const char *fmt, ...)
     ATTRIBUTE((format (printf, 2, 3)));
 void DynamicStr_append_char(struct DynamicStr *self, char c);
-
+/* doesn't do anything if self->size == 0 */
+void DynamicStr_pop_back_char(struct DynamicStr *self);
 void DynamicStr_shrink_to_fit(struct DynamicStr *self);

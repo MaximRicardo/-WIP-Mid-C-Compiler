@@ -2,6 +2,7 @@
 #include "basic_block.h"
 #include "data_types.h"
 #include "instr.h"
+#include "../utils/dyn_str.h"
 #include <string.h>
 #include <assert.h>
 
@@ -44,10 +45,50 @@ void IRFuncArg_free(struct IRFuncArg arg) {
 
 }
 
+struct IRFuncMods IRFuncMods_init(void) {
+
+    struct IRFuncMods mods;
+    /* everything gets defaulted to false */
+    memset(&mods, 0, sizeof(mods));
+    return mods;
+
+}
+
+struct IRFuncMods IRFuncMods_create_from_func_node(
+        const struct FuncDeclNode *node, const struct TranslUnit *tu) {
+
+    struct IRFuncMods mods = IRFuncMods_init();
+
+    bool func_defined = FuncDeclNode_defined(node, tu->ast);
+
+    mods.is_extern = !func_defined && !node->ret_type_mods.is_static;
+    mods.is_global = func_defined && !node->ret_type_mods.is_static;
+
+    return mods;
+
+}
+
+char* IRFuncMods_to_str(const struct IRFuncMods *self) {
+
+    struct DynamicStr str = DynamicStr_init();
+
+    if (self->is_extern)
+        DynamicStr_append(&str, "extern ");
+    if (self->is_global)
+        DynamicStr_append(&str, "global ");
+
+    /* remove the final space */
+    DynamicStr_pop_back_char(&str);
+
+    return str.str;
+
+}
+
 struct IRFunc IRFunc_init(void) {
 
     struct IRFunc func;
     func.name = NULL;
+    func.mods = IRFuncMods_init();
     func.ret_type = IRDataType_init();
     func.args = IRFuncArgList_init();
     func.blocks = IRBasicBlockList_init();
@@ -56,12 +97,13 @@ struct IRFunc IRFunc_init(void) {
 
 }
 
-struct IRFunc IRFunc_create(char *name, struct IRDataType ret_type,
-        struct IRFuncArgList args, struct IRBasicBlockList blocks,
-        struct StringList vregs) {
+struct IRFunc IRFunc_create(char *name, struct IRFuncMods mods,
+        struct IRDataType ret_type, struct IRFuncArgList args,
+        struct IRBasicBlockList blocks, struct StringList vregs) {
 
     struct IRFunc func;
     func.name = name;
+    func.mods = mods;
     func.ret_type = ret_type;
     func.args = args;
     func.blocks = blocks;

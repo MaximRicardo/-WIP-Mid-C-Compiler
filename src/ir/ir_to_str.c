@@ -107,12 +107,13 @@ static void func_to_str(struct DynamicStr *output, const struct IRFunc *func) {
 
     u32 i;
 
+    char *func_mods_str = IRFuncMods_to_str(&func->mods);
     char *func_type_str = IR_data_type_to_str(&func->ret_type);
     char *func_args_str = func_args_to_str(func);
 
     DynamicStr_append_printf(output,
-            "define %s @%s(%s)",
-            func_type_str, func->name, func_args_str);
+            "define %s %s @%s(%s)",
+            func_mods_str, func_type_str, func->name, func_args_str);
 
     if (!IRFunc_has_body(func)) {
         DynamicStr_append(output, "\n");
@@ -129,6 +130,7 @@ static void func_to_str(struct DynamicStr *output, const struct IRFunc *func) {
     DynamicStr_append(output, "}\n");
 
 clean_up_and_ret:
+    m_free(func_mods_str);
     m_free(func_type_str);
     m_free(func_args_str);
 

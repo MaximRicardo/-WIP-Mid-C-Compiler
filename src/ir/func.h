@@ -27,9 +27,22 @@ struct IRFuncArgList {
 
 m_declare_VectorImpl_funcs(IRFuncArgList, struct IRFuncArg)
 
+struct IRFuncMods {
+
+    bool is_global;
+    bool is_extern;
+
+};
+
+struct IRFuncMods IRFuncMods_init(void);
+struct IRFuncMods IRFuncMods_create_from_func_node(
+        const struct FuncDeclNode *node, const struct TranslUnit *tu);
+char* IRFuncMods_to_str(const struct IRFuncMods *self);
+
 struct IRFunc {
 
     char *name;
+    struct IRFuncMods mods;
     struct IRDataType ret_type;
     struct IRFuncArgList args;
     struct IRBasicBlockList blocks;
@@ -39,7 +52,8 @@ struct IRFunc {
 };
 
 struct IRFunc IRFunc_init(void);
-struct IRFunc IRFunc_create(char *name, struct IRDataType ret_type,
+struct IRFunc IRFunc_create(char *name, struct IRFuncMods mods,
+        struct IRDataType ret_type,
         struct IRFuncArgList args, struct IRBasicBlockList blocks,
         struct StringList vregs);
 void IRFunc_free(struct IRFunc func);

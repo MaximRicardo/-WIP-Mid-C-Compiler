@@ -920,6 +920,7 @@ static struct IRFunc func_node_gen_ir(const struct FuncDeclNode *func,
 
     struct IRFunc ir_func = IRFunc_create(
             make_str_copy(func->name),
+            IRFuncMods_create_from_func_node(func, tu),
             IRDataType_create_from_prim_type(
                 func->ret_type, func->ret_type_idx, func->ret_lvls_of_indir,
                 tu->structs

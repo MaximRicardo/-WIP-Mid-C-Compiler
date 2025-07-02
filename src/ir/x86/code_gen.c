@@ -806,10 +806,22 @@ static void gen_ret_if_no_ret_stmt(struct DynamicStr *output,
 
 }
 
+static void gen_from_func_mods(struct DynamicStr *output,
+        struct IRFunc *func) {
+
+    if (func->mods.is_extern)
+        DynamicStr_append_printf(output, "extern %s\n", func->name);
+    if (func->mods.is_global)
+        DynamicStr_append_printf(output, "global %s\n", func->name);
+
+}
+
 static void gen_x86_from_func(struct DynamicStr *output, struct IRFunc *func) {
 
     u32 i;
     u32 stack_size = IRFunc_get_stack_size(func);
+
+    gen_from_func_mods(output, func);
 
     if (!IRFunc_has_body(func))
         return;
@@ -842,9 +854,7 @@ char* gen_x86_from_ir(struct IRModule *module) {
 
     DynamicStr_append(&output, "[BITS 32]\n");
 
-    DynamicStr_append(&output, "\nsection .text\n");
-
-    DynamicStr_append(&output, "\nglobal main\n\n");
+    DynamicStr_append(&output, "\nsection .text\n\n");
 
     for (i = 0; i < module->funcs.size; i++) {
         gen_x86_from_func(&output, &module->funcs.elems[i]);
