@@ -469,6 +469,18 @@ static const char* expr_gen_ir(const struct Expr *expr,
     else if (expr->expr_type == ExprType_REFERENCE) {
         instr.type = IRInstr_MOV;
     }
+    else if (expr->expr_type == ExprType_DEREFERENCE && !load_reference) {
+        instr.type = IRInstr_LOAD;
+        /* an offset of 0 into the pointer */
+        IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
+                    IRInstrArg_IMM32, IRDataType_create(false, 32, 0),
+                    IRInstrArgValue_imm_u32(0)
+                    ));
+    }
+    else if (expr->expr_type == ExprType_DEREFERENCE && load_reference) {
+        IRInstr_free(instr);
+        return lhs_reg;
+    }
     else {
         instr.type = IRInstr_INVALID;
         assert(false);

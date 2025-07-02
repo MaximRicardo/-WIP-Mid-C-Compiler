@@ -105,8 +105,9 @@ struct IRInstrArg IRInstrArg_create_from_expr(const struct Expr *expr,
     x.type = expr->expr_type == ExprType_INT_LIT ?
         IRInstrArg_IMM32 : IRInstrArg_REG;
 
-    x.data_type = IRDataType_create_from_prim_type(expr->prim_type,
-            expr->type_idx, expr->lvls_of_indir, structs);
+    x.data_type = IRDataType_create_from_prim_type(
+            expr->prim_type, expr->type_idx, expr->lvls_of_indir, structs
+            );
 
     x.value =
         x.type == IRInstrArg_REG ? IRInstrArgValue_reg_name(reg) :

@@ -30,7 +30,12 @@ struct IRDataType IRDataType_create_from_prim_type(enum PrimitiveType type,
     struct IRDataType x;
     x.is_signed = PrimitiveType_signed(type, lvls_of_indir);
     x.lvls_of_indir = lvls_of_indir;
-    x.width = PrimitiveType_size(type, lvls_of_indir, type_idx, structs)*8;
+    /* the lvls of indir is already accounted for by x.lvls_of_indir, so it
+     * should be set to zero here to get the width of the actual base type */
+    if (type != PrimType_VOID)
+        x.width = PrimitiveType_size(type, 0, type_idx, structs)*8;
+    else
+        x.width = 0;
     return x;
 
 }
@@ -53,5 +58,13 @@ enum PrimitiveType IRDataType_to_prim_type(const struct IRDataType *self) {
 u32 IRDataType_real_width(const struct IRDataType *self) {
 
     return self->lvls_of_indir == 0 ? self->width : 32;
+
+}
+
+u32 IRDataType_deref_real_width(const struct IRDataType *self) {
+
+    assert(self->lvls_of_indir > 0);
+
+    return self->lvls_of_indir-1 == 0 ? self->width : 32;
 
 }

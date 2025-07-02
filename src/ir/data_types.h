@@ -23,3 +23,4 @@ struct IRDataType IRDataType_create_from_prim_type(enum PrimitiveType type,
 enum PrimitiveType IRDataType_to_prim_type(const struct IRDataType *self);
 /* accounts for lvls of indir. ptrs are only 32 bits wide */
 u32 IRDataType_real_width(const struct IRDataType *self);
+u32 IRDataType_deref_real_width(const struct IRDataType *self);
