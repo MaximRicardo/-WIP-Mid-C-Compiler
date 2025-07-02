@@ -270,6 +270,8 @@ static const char* func_call_gen_ir(const struct Expr *expr,
 
     IRInstrList_push_back(&cur_block->instrs, instr);
 
+    ConstStringList_free(&arg_vregs);
+
     return dest;
 
 }

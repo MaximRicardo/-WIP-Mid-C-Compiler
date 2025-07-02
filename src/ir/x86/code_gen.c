@@ -698,8 +698,6 @@ static void gen_from_call_instr(struct DynamicStr *output,
     assert(instr->args.size >= 1);
     assert(instr->args.elems[Arg_SELF].type == IRInstrArg_STR);
 
-    printf("n_pushed_bytes = %u\n", n_pushed_bytes);
-
     push_caller_saved_regs(output);
 
     /* arguments get pushed in right to left order */
@@ -724,8 +722,6 @@ static void gen_from_call_instr(struct DynamicStr *output,
     DynamicStr_append_printf(output, "add esp, %u\n", arg_bytes);
     n_pushed_bytes -= arg_bytes;
     pop_caller_saved_regs(output);
-
-    printf("n_pushed_bytes = %u, arg_bytes = %u\n", n_pushed_bytes, arg_bytes);
 
 }
 
