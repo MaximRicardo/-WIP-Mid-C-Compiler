@@ -811,6 +811,9 @@ static void gen_x86_from_func(struct DynamicStr *output, struct IRFunc *func) {
     u32 i;
     u32 stack_size = IRFunc_get_stack_size(func);
 
+    if (!IRFunc_has_body(func))
+        return;
+
     n_pushed_bytes = 0;
 
     DynamicStr_append_printf(output, "%s:\n", func->name);

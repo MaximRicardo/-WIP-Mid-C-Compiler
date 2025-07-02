@@ -66,6 +66,7 @@ u32 IRFunc_find_arg(const struct IRFunc *self, const char *name);
  *    REMOVES OLD_VREG FROM SELF->VREGS. ANY INDICES GREATER THAN OLD_VREG MUST
  *    BE DECREMENTED! */
 void IRFunc_replace_vreg(struct IRFunc *self, u32 old_vreg, u32 new_vreg);
+bool IRFunc_has_body(const struct IRFunc *self);
 
 struct IRFuncList {
 

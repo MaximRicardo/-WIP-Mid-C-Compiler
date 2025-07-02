@@ -1,6 +1,7 @@
 #include "ir_to_str.h"
 #include "../utils/dyn_str.h"
 #include "data_types.h"
+#include "func.h"
 #include "instr.h"
 #include "ir_instr_to_str.h"
 #include "data_type_to_str.h"
@@ -110,8 +111,16 @@ static void func_to_str(struct DynamicStr *output, const struct IRFunc *func) {
     char *func_args_str = func_args_to_str(func);
 
     DynamicStr_append_printf(output,
-            "define %s @%s(%s) {\n",
+            "define %s @%s(%s)",
             func_type_str, func->name, func_args_str);
+
+    if (!IRFunc_has_body(func)) {
+        DynamicStr_append(output, "\n");
+        goto clean_up_and_ret;
+    }
+    else {
+        DynamicStr_append(output, " {\n");
+    }
 
     for (i = 0; i < func->blocks.size; i++) {
         basic_block_to_str(output, &func->blocks.elems[i]);
@@ -119,6 +128,7 @@ static void func_to_str(struct DynamicStr *output, const struct IRFunc *func) {
 
     DynamicStr_append(output, "}\n");
 
+clean_up_and_ret:
     m_free(func_type_str);
     m_free(func_args_str);
 

@@ -404,5 +404,11 @@ void IRFunc_replace_vreg(struct IRFunc *self, u32 old_vreg, u32 new_vreg) {
 
 }
 
+bool IRFunc_has_body(const struct IRFunc *self) {
+
+    return self->blocks.size > 0;
+
+}
+
 m_define_VectorImpl_funcs(IRFuncArgList, struct IRFuncArg)
 m_define_VectorImpl_funcs(IRFuncList, struct IRFunc)

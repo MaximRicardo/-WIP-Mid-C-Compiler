@@ -929,6 +929,9 @@ static struct IRFunc func_node_gen_ir(const struct FuncDeclNode *func,
             StringList_init()
             );
 
+    if (!func->body)
+        return ir_func;
+
     IRBasicBlockList_push_back(&ir_func.blocks,
             IRBasicBlock_create(
                 make_str_copy("start"), IRInstrList_init(), U32List_init()
@@ -968,9 +971,6 @@ static struct IRModule ast_gen_ir(const struct TranslUnit *tu) {
     for (i = 0; i < tu->ast->nodes.size; i++) {
 
         assert(tu->ast->nodes.elems[i].type == ASTType_FUNC);
-
-        if (!((struct FuncDeclNode*)tu->ast->nodes.elems[i].node_struct)->body)
-            continue;
 
         IRFuncList_push_back(
                 &module.funcs,
