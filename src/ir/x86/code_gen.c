@@ -846,6 +846,35 @@ static void gen_x86_from_func(struct DynamicStr *output, struct IRFunc *func) {
 
 }
 
+static void gen_from_array_lit(struct DynamicStr *output,
+        const struct IRArrayLit *lit) {
+
+    u32 i;
+
+    DynamicStr_append_printf(output, "%s: db ",
+            lit->name);
+
+    for (i = 0; i < lit->array.size; i++) {
+        u32 elem = lit->array.elems[i];
+
+        if (i > 0)
+            DynamicStr_append(output, ",");
+        DynamicStr_append_printf(output, "%u", elem);
+    }
+
+}
+
+static void gen_from_array_lits(struct DynamicStr *output,
+        const struct IRArrayLitList *lits) {
+
+    u32 i;
+
+    for (i = 0; i < lits->size; i++) {
+        gen_from_array_lit(output, &lits->elems[i]);
+    }
+
+}
+
 char* gen_x86_from_ir(struct IRModule *module) {
 
     u32 i;
@@ -859,6 +888,9 @@ char* gen_x86_from_ir(struct IRModule *module) {
     for (i = 0; i < module->funcs.size; i++) {
         gen_x86_from_func(&output, &module->funcs.elems[i]);
     }
+
+    DynamicStr_append(&output, "\n\nsection .rodata\n\n");
+    gen_from_array_lits(&output, &module->array_lits);
 
     return output.str;
 

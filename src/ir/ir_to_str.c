@@ -136,10 +136,51 @@ clean_up_and_ret:
 
 }
 
+static void array_lit_elems_to_str(struct DynamicStr *output,
+        const struct IRArrayLit *lit) {
+
+    u32 i;
+
+    for (i = 0; i < lit->array.size; i++) {
+
+        u32 elem = lit->array.elems[i];
+
+        if (i > 0)
+            DynamicStr_append(output, ", ");
+        DynamicStr_append_printf(output, "%d", elem);
+
+    }
+
+}
+
+static void array_lit_list_to_str(struct DynamicStr *output,
+        const struct IRArrayLitList *list) {
+
+    u32 i;
+
+    for (i = 0; i < list->size; i++) {
+        const struct IRArrayLit *lit = &list->elems[i];
+        struct IRDataType type = IRDataType_create(
+                false, 32, 0
+                );
+
+        char *type_str = IR_data_type_to_str(&type);
+
+        DynamicStr_append_printf(output, "%s %s = ", type_str, lit->name);
+        array_lit_elems_to_str(output, lit);
+        DynamicStr_append_char(output, '\n');
+
+        m_free(type_str);
+    }
+
+}
+
 static void module_to_str(struct DynamicStr *output,
         const struct IRModule *module) {
 
     u32 i;
+
+    array_lit_list_to_str(output, &module->array_lits);
 
     for (i = 0; i < module->funcs.size; i++) {
         func_to_str(output, &module->funcs.elems[i]);

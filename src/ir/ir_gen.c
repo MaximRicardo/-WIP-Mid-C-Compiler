@@ -1,4 +1,5 @@
 #include "ir_gen.h"
+#include "array_lit.h"
 #include "basic_block.h"
 #include "data_types.h"
 #include "func.h"
@@ -13,6 +14,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* do not reset between func definitions */
+static u32 array_lit_counter = 0;
+
+/* reset between func definitions */
 static u32 reg_counter = 0;
 static u32 if_else_counter = 0;
 static u32 while_loop_counter = 0;
@@ -245,6 +250,7 @@ static const char* get_func_call_name_ptr(const struct Expr *expr,
 
 }
 
+/* returns the register the return value got put in */
 static const char* func_call_gen_ir(const struct Expr *expr,
         const struct TranslUnit *tu, struct IRBasicBlock *cur_block,
         struct IRFunc *cur_func, struct IRModule *module,
@@ -271,6 +277,38 @@ static const char* func_call_gen_ir(const struct Expr *expr,
     IRInstrList_push_back(&cur_block->instrs, instr);
 
     ConstStringList_free(&arg_vregs);
+
+    return dest;
+
+}
+
+static const char* array_lit_expr_gen_ir(const struct Expr *expr,
+        struct IRBasicBlock *cur_block, struct IRFunc *cur_func,
+        struct IRModule *module,
+        const char *result_reg, const struct IRDataType *result_reg_type,
+        const struct TranslUnit *tu) {
+
+    const char *dest = result_reg ? result_reg : create_new_reg(cur_func);
+    struct IRDataType d_type = result_reg_type ?
+        *result_reg_type :
+        IRDataType_create_from_prim_type(
+                expr->prim_type, expr->type_idx, expr->lvls_of_indir,
+                tu->structs
+                );
+    const char *array = NULL;
+    struct IRInstr instr;
+
+    assert(array_lit_counter < module->array_lits.size);
+
+    array = module->array_lits.elems[array_lit_counter++].name;
+
+    instr = IRInstr_create_mov(
+            dest, d_type, IRInstrArg_create(
+            IRInstrArg_STR, d_type,
+            IRInstrArgValue_generic_str(array)
+            ));
+
+    IRInstrList_push_back(&cur_block->instrs, instr);
 
     return dest;
 
@@ -320,6 +358,12 @@ static const char* expr_gen_ir(const struct Expr *expr,
         else {
             return NULL;
         }
+    }
+    else if (expr->expr_type == ExprType_ARRAY_LIT) {
+        return array_lit_expr_gen_ir(
+                expr, cur_block, cur_func, module, result_reg, result_reg_type,
+                tu
+                );
     }
     else if (expr->expr_type == ExprType_IDENT) {
         return load_ident_expr_gen_ir(expr, load_reference, result_reg,
@@ -963,11 +1007,39 @@ static struct IRFunc func_node_gen_ir(const struct FuncDeclNode *func,
 
 }
 
+static void get_array_lits(struct IRModule *module,
+        const struct TranslUnit *tu) {
+
+    u32 i;
+    struct ArrayLitList array_lits = ArrayLitList_init();
+
+    BlockNode_get_array_lits(tu->ast, &array_lits);
+
+    for (i = 0; i < array_lits.size; i++) {
+
+        struct DynamicStr name = DynamicStr_init();
+        struct IRArrayLit lit = IRArrayLit_init();
+        const struct ArrayLit *other_lit = &array_lits.elems[i];
+
+        DynamicStr_append_printf(&name, "array_lit_%u$", i);
+
+        lit.name = name.str;
+        IRArrayLit_append_elems(&lit, other_lit);
+        IRArrayLitList_push_back(&module->array_lits, lit);
+
+    }
+
+    ArrayLitList_free(&array_lits);
+
+}
+
 static struct IRModule ast_gen_ir(const struct TranslUnit *tu) {
 
     u32 i;
 
     struct IRModule module = IRModule_init();
+
+    get_array_lits(&module, tu);
 
     for (i = 0; i < tu->ast->nodes.size; i++) {
 
