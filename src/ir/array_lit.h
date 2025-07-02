@@ -8,11 +8,13 @@ struct IRArrayLit {
 
     char *name;
     struct U32List array;
+    u32 elem_width;
 
 };
 
 struct IRArrayLit IRArrayLit_init(void);
-struct IRArrayLit IRArrayLit_create(char *name, struct U32List array);
+struct IRArrayLit IRArrayLit_create(char *name, struct U32List array,
+        u32 elem_width);
 void IRArrayLit_free(struct IRArrayLit lit);
 void IRArrayLit_append_elems(struct IRArrayLit *self,
         const struct ArrayLit *lit);

@@ -1021,9 +1021,12 @@ static void get_array_lits(struct IRModule *module,
         struct IRArrayLit lit = IRArrayLit_init();
         const struct ArrayLit *other_lit = &array_lits.elems[i];
 
+        /* a dollar sign is appended to prevent naming conflicts with C
+         * identifiers */
         DynamicStr_append_printf(&name, "array_lit_%u$", i);
 
         lit.name = name.str;
+        lit.elem_width = other_lit->elem_size*8;
         IRArrayLit_append_elems(&lit, other_lit);
         IRArrayLitList_push_back(&module->array_lits, lit);
 

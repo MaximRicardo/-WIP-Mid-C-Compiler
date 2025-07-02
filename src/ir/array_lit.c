@@ -7,15 +7,18 @@ struct IRArrayLit IRArrayLit_init(void) {
     struct IRArrayLit lit;
     lit.name = NULL;
     lit.array = U32List_init();
+    lit.elem_width = 0;
     return lit;
 
 }
 
-struct IRArrayLit IRArrayLit_create(char *name, struct U32List array) {
+struct IRArrayLit IRArrayLit_create(char *name, struct U32List array,
+        u32 elem_width) {
 
     struct IRArrayLit lit;
     lit.name = name;
     lit.array = array;
+    lit.elem_width = elem_width;
     return lit;
 
 }

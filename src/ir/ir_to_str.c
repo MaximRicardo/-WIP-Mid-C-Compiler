@@ -161,7 +161,7 @@ static void array_lit_list_to_str(struct DynamicStr *output,
     for (i = 0; i < list->size; i++) {
         const struct IRArrayLit *lit = &list->elems[i];
         struct IRDataType type = IRDataType_create(
-                false, 32, 0
+                false, lit->elem_width, 0
                 );
 
         char *type_str = IR_data_type_to_str(&type);

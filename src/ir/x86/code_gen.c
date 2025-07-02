@@ -33,6 +33,14 @@ static const char *size_specs[] = {
     "dword",            /* 4 bytes */
 };
 
+static const char *def_size_specs[] = {
+    "ILLEGAL SIZE",     /* 0 bytes */
+    "db",               /* 1 byte */
+    "dw",               /* 2 bytes */
+    "ILLEGAL SIZE",     /* 3 bytes */
+    "dd",               /* 4 bytes */
+};
+
 static const char *callee_saved_vregs[] = {
     "__ebx",
     "__esi",
@@ -851,8 +859,8 @@ static void gen_from_array_lit(struct DynamicStr *output,
 
     u32 i;
 
-    DynamicStr_append_printf(output, "%s: db ",
-            lit->name);
+    DynamicStr_append_printf(output, "%s: %s ",
+            lit->name, def_size_specs[lit->elem_width/8]);
 
     for (i = 0; i < lit->array.size; i++) {
         u32 elem = lit->array.elems[i];
@@ -861,6 +869,8 @@ static void gen_from_array_lit(struct DynamicStr *output,
             DynamicStr_append(output, ",");
         DynamicStr_append_printf(output, "%u", elem);
     }
+
+    DynamicStr_append_char(output, '\n');
 
 }
 
