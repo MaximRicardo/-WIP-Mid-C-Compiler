@@ -496,6 +496,8 @@ static const char* expr_gen_ir(const struct Expr *expr,
 static void alloca_gen_ir(const char *result_reg,
         struct IRDataType result_type, struct IRBasicBlock *cur_block) {
 
+    u32 real_width = IRDataType_real_width(&result_type);
+
     struct IRInstr instr = IRInstr_create(
             IRInstr_ALLOCA, IRInstrArgList_init()
             );
@@ -508,13 +510,13 @@ static void alloca_gen_ir(const char *result_reg,
     IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
                 IRInstrArg_IMM32,
                 IRDataType_create(false, 32, 0),
-                IRInstrArgValue_imm_u32(result_type.width/8)
+                IRInstrArgValue_imm_u32(real_width/8)
                 ));
 
     IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
                 IRInstrArg_IMM32,
                 IRDataType_create(false, 32, 0),
-                IRInstrArgValue_imm_u32(result_type.width/8)
+                IRInstrArgValue_imm_u32(real_width/8)
                 ));
 
     IRInstrList_push_back(&cur_block->instrs, instr);

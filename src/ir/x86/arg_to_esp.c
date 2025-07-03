@@ -34,7 +34,7 @@ static u32 func_arg_esp_offset(const struct IRFunc *func, const char *arg) {
         if (strcmp(cur_arg->name, arg) == 0)
             return offset;
 
-        offset += cur_arg->type.width/8;
+        offset += IRDataType_real_width(&cur_arg->type)/8;
         assert(offset % 4 == 0);
 
     }
