@@ -1,25 +1,24 @@
-#include <errno.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 #include "code_gen.h"
 #include "comp_args.h"
-#include "utils/file_io.h"
 #include "comp_dependent/ints.h"
-#include "utils/safe_mem.h"
+#include "compile_via_ir.h"
+#include "front_end/bin_to_unary.h"
 #include "front_end/lexer.h"
+#include "front_end/merge_strings.h"
 #include "front_end/parser.h"
 #include "front_end/pre_to_post_fix.h"
-#include "front_end/bin_to_unary.h"
-#include "front_end/merge_strings.h"
 #include "pre_proc/pre_proc.h"
 #include "transl_unit.h"
-#include "compile_via_ir.h"
+#include "utils/file_io.h"
+#include "utils/safe_mem.h"
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define m_gen_ir
 
-#define m_build_bug_on(condition) \
-    ((void)sizeof(char[1 - 2*!!(condition)]))
+#define m_build_bug_on(condition) ((void)sizeof(char[1 - 2 * !!(condition)]))
 
 static char *read_file(const char *file_path) {
 
@@ -33,11 +32,10 @@ static char *read_file(const char *file_path) {
     contents = copy_file_into_str(file);
     fclose(file);
     return contents;
-
 }
 
 static void free_macros(struct PreProcMacroList *macros,
-        struct MacroInstList *macro_insts) {
+                        struct MacroInstList *macro_insts) {
 
     while (macro_insts->size > 0)
         MacroInstList_pop_back(macro_insts, MacroInstance_free);
@@ -46,7 +44,6 @@ static void free_macros(struct PreProcMacroList *macros,
     while (macros->size > 0)
         PreProcMacroList_pop_back(macros, PreProcMacro_free);
     PreProcMacroList_free(macros);
-
 }
 
 static void process_tokens(struct Lexer *lexer) {
@@ -54,12 +51,11 @@ static void process_tokens(struct Lexer *lexer) {
     MergeStrings_merge(&lexer->token_tbl);
     BinToUnary_convert(&lexer->token_tbl);
     PreToPostFix_convert(&lexer->token_tbl);
-
 }
 
 /* preprocessing */
 static void compile(char *src, FILE *output, FILE *mccir_output,
-        bool *error_occurred) {
+                    bool *error_occurred) {
 
     struct PreProcMacroList macros;
     struct MacroInstList macro_insts;
@@ -72,13 +68,11 @@ static void compile(char *src, FILE *output, FILE *mccir_output,
     PreProc_process(src, &macros, &macro_insts, CompArgs_args.src_path);
     if (PreProc_error_occurred) {
         goto free_macros_ret;
-        return;
     }
 
     lexer = Lexer_lex(src, CompArgs_args.src_path, &macro_insts);
     if (Lexer_error_occurred) {
         goto free_lexer_ret;
-        return;
     }
 
     process_tokens(&lexer);
@@ -86,13 +80,11 @@ static void compile(char *src, FILE *output, FILE *mccir_output,
     tu = Parser_parse(&lexer);
     if (Parser_error_occurred || !output) {
         goto free_tu_ret;
-        return;
     }
 
     if (!CompArgs_args.skip_ir) {
         TranslUnit_compile_via_mccir(&tu, mccir_output, output);
-    }
-    else {
+    } else {
         /* DEPRECATED! */
         CodeGen_generate(output, tu.ast, tu.structs);
     }
@@ -103,10 +95,9 @@ free_lexer_ret:
     Lexer_free(&lexer);
 free_macros_ret:
     free_macros(&macros, &macro_insts);
-
 }
 
-static FILE* get_asm_out_file(bool *error_occurred) {
+static FILE *get_asm_out_file(bool *error_occurred) {
 
     FILE *f = NULL;
 
@@ -120,10 +111,9 @@ static FILE* get_asm_out_file(bool *error_occurred) {
     }
 
     return f;
-
 }
 
-static FILE* get_mccir_out_file(bool *error_occurred) {
+static FILE *get_mccir_out_file(bool *error_occurred) {
 
     FILE *f = NULL;
 
@@ -137,7 +127,6 @@ static FILE* get_mccir_out_file(bool *error_occurred) {
     }
 
     return f;
-
 }
 
 int main(int argc, char *argv[]) {
@@ -181,5 +170,4 @@ clean_up_and_ret:
         fclose(mccir_output);
 
     return !error_occurred;
-
 }

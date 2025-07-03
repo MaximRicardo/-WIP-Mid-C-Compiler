@@ -4,6 +4,8 @@
 #include "../utils/string_list.h"
 #include "../utils/vector_impl.h"
 
+char* IR_demangle(const char *name);
+
 struct IRNameMangle {
 
     char *og_name;

@@ -1,5 +1,21 @@
 #include "name_mangling.h"
+#include "../utils/dyn_str.h"
 #include <string.h>
+
+char* IR_demangle(const char *name) {
+
+    u32 i = 0;
+
+    struct DynamicStr str = DynamicStr_init();
+
+    while (name[i] != '\0' && name[i] != '.') {
+        DynamicStr_append_char(&str, name[i]);
+        ++i;
+    }
+
+    return str.str;
+
+}
 
 struct IRNameMangle IRNameMangle_init(void) {
 

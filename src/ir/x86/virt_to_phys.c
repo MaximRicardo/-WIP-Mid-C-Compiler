@@ -420,13 +420,16 @@ static void virt_to_phys_block(struct IRBasicBlock *block,
 static void virt_to_phys_func(struct IRFunc *func) {
 
     u32 i;
-
-    u32 start_last_block_n_instrs =
-        IRBasicBlockList_back_ptr(&func->blocks)->instrs.size;
-
-    struct IRRegLTList vreg_lts = IRRegLTList_get_func_lts(func);
+    u32 last_block_n_instrs;
     u32 instr_idx = 0;
+    struct IRRegLTList vreg_lts;
 
+    if (!IRFunc_has_body(func))
+        return;
+
+    last_block_n_instrs =
+        IRBasicBlockList_back_ptr(&func->blocks)->instrs.size;
+    vreg_lts = IRRegLTList_get_func_lts(func);
     reg_stack = PhysRegValList_init();
 
     for (i = 0; i < func->blocks.size; i++) {
@@ -438,7 +441,7 @@ static void virt_to_phys_func(struct IRFunc *func) {
      * byte alignment which esp already has. */
     incr_func_stack_size(func,
             (IRBasicBlockList_back_ptr(&func->blocks)->instrs.size -
-                start_last_block_n_instrs)*4);
+                last_block_n_instrs)*4);
 
     for (i = 0; i < func->vregs.size; i++) {
         struct DynamicStr str;

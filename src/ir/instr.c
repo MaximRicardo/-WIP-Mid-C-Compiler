@@ -1,5 +1,6 @@
 #include "instr.h"
 #include "data_types.h"
+#include "../transl_unit.h"
 #include <stddef.h>
 #include <assert.h>
 #include <string.h>
@@ -104,8 +105,9 @@ struct IRInstrArg IRInstrArg_create_from_expr(const struct Expr *expr,
     x.type = expr->expr_type == ExprType_INT_LIT ?
         IRInstrArg_IMM32 : IRInstrArg_REG;
 
-    x.data_type = IRDataType_create_from_prim_type(expr->prim_type,
-            expr->type_idx, expr->lvls_of_indir, structs);
+    x.data_type = IRDataType_create_from_prim_type(
+            expr->prim_type, expr->type_idx, expr->lvls_of_indir, structs
+            );
 
     x.value =
         x.type == IRInstrArg_REG ? IRInstrArgValue_reg_name(reg) :
@@ -244,6 +246,44 @@ struct IRInstr IRInstr_create_alloca(const char *dest_vreg,
     IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
                 IRInstrArg_IMM32, u32_d_type, IRInstrArgValue_imm_u32(alignment)
                 ));
+
+    return instr;
+
+}
+
+struct IRInstr IRInstr_create_call(const char *func, const char *dest_vreg,
+        struct IRDataType dest_d_type,
+        const struct ConstStringList *arg_vregs,
+        const struct Expr *call_expr, const struct TranslUnit *tu) {
+
+    u32 i;
+
+    struct IRInstr instr = IRInstr_init();
+    instr.type = IRInstr_CALL;
+
+    IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
+                IRInstrArg_STR, IRDataType_init(),
+                IRInstrArgValue_generic_str(func)
+                ));
+
+    IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
+                IRInstrArg_REG, dest_d_type,
+                IRInstrArgValue_reg_name(dest_vreg)
+                ));
+
+    for (i = 0; i < arg_vregs->size; i++) {
+        const struct Expr *arg_expr = call_expr->args.elems[i];
+
+        struct IRDataType d_type = IRDataType_create_from_prim_type(
+                arg_expr->prim_type, arg_expr->type_idx,
+                arg_expr->lvls_of_indir, tu->structs
+                );
+
+        IRInstrArgList_push_back(&instr.args, IRInstrArg_create(
+                    IRInstrArg_REG, d_type,
+                    IRInstrArgValue_reg_name(arg_vregs->elems[i])
+                    ));
+    }
 
     return instr;
 

@@ -4,6 +4,8 @@
 #include "../utils/vector_impl.h"
 #include "data_types.h"
 #include "../front_end/ast.h"
+#include "../utils/string_list.h"
+#include "../transl_unit.h"
 
 enum IRInstrArgIndices {
 
@@ -36,6 +38,7 @@ enum IRInstrType {
     /* control flow instructions */
     IRInstr_JMP,
     IRInstr_JE,
+    IRInstr_CALL,
     IRInstr_RET,
 
     /* mem instructions */
@@ -54,6 +57,7 @@ enum IRInstrType {
 
 };
 
+/* doesn't count func calls */
 bool IRInstrType_is_branch(enum IRInstrType type);
 bool IRInstrType_is_cond_branch(enum IRInstrType type);
 /* not counting the result register */
@@ -140,6 +144,10 @@ struct IRInstr IRInstr_create_alloc_reg(const char *reg_name,
         struct IRDataType d_type);
 struct IRInstr IRInstr_create_alloca(const char *dest_vreg,
         struct IRDataType d_type, u32 size, u32 alignment);
+struct IRInstr IRInstr_create_call(const char *func, const char *dest_vreg,
+        struct IRDataType dest_d_type,
+        const struct ConstStringList *arg_vregs,
+        const struct Expr *call_expr, const struct TranslUnit *tu);
 /* returns whether or not it was possible to const fold self */
 bool IRInstr_const_fold(struct IRInstr *self);
 /* count_assignment           - if false, doesn't count assigning to the reg
