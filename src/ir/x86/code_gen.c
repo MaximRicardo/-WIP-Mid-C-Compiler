@@ -325,7 +325,7 @@ static void emit_mem_instr_address(struct DynamicStr *output,
         emit_stack_offset_to_nasm(
             output, offset,
             rhs_arg->type == IRInstrArg_REG ? rhs_arg->value.reg_name : NULL,
-            rhs_arg->value.imm_u32, 1);
+            rhs_arg->value.imm_u32 + n_pushed_bytes, 1);
     } else {
         DynamicStr_append(output, "[");
         emit_instr_arg(output, lhs_arg, false, 0);
@@ -560,18 +560,41 @@ static void gen_from_store_instr(struct DynamicStr *output,
     const struct IRInstrArg *self_arg = NULL;
     const struct IRInstrArg *lhs_arg = NULL;
 
+    bool use_eax_for_lhs = false;
+    bool pushed_eax = false;
+
     assert(instr->args.size == 3);
 
     self_arg = &instr->args.elems[Arg_SELF];
     lhs_arg = &instr->args.elems[Arg_LHS];
 
+    if (lhs_arg->type == IRInstrArg_REG &&
+        reg_is_stack_offset(lhs_arg->value.reg_name) &&
+        !reg_is_stack_offset_ref(lhs_arg->value.reg_name)) {
+        use_eax_for_lhs = true;
+        if (self_arg->type != IRInstrArg_REG ||
+            strcmp(self_arg->value.reg_name, "__eax") != 0) {
+            pushed_eax = true;
+            m_push_reg("eax");
+        }
+        DynamicStr_append(output, "mov eax, ");
+        emit_mem_instr_address(output, instr);
+        DynamicStr_append(output, "\n");
+    }
+
     store_width = IRDataType_deref_real_width(&lhs_arg->data_type);
 
     DynamicStr_append(output, "mov ");
-    emit_mem_instr_address(output, instr);
+    if (use_eax_for_lhs)
+        DynamicStr_append(output, "[eax]");
+    else
+        emit_mem_instr_address(output, instr);
     DynamicStr_append(output, ", ");
     emit_instr_arg(output, self_arg, true, store_width);
     DynamicStr_append(output, "\n");
+
+    if (pushed_eax)
+        m_pop_reg("eax");
 }
 
 static void gen_from_load_instr(struct DynamicStr *output,
@@ -582,6 +605,7 @@ static void gen_from_load_instr(struct DynamicStr *output,
     u32 res_width;
 
     bool use_eax_for_lhs = false;
+    bool pushed_eax = false;
 
     const struct IRInstrArg *self_arg = NULL;
     const struct IRInstrArg *lhs_arg = NULL;
@@ -599,8 +623,10 @@ static void gen_from_load_instr(struct DynamicStr *output,
         !reg_is_stack_offset_ref(lhs_arg->value.reg_name)) {
         use_eax_for_lhs = true;
         if (self_arg->type != IRInstrArg_REG ||
-            strcmp(self_arg->value.reg_name, "__eax") != 0)
-            DynamicStr_append(output, "push eax");
+            strcmp(self_arg->value.reg_name, "__eax") != 0) {
+            pushed_eax = true;
+            m_push_reg("eax");
+        }
         DynamicStr_append(output, "mov eax, ");
         emit_mem_instr_address(output, instr);
         DynamicStr_append(output, "\n");
@@ -621,6 +647,9 @@ static void gen_from_load_instr(struct DynamicStr *output,
         emit_instr_arg(output, &instr->args.elems[Arg_SELF], true, 0);
         DynamicStr_append_printf(output, ", %u\n", (1 << min_width) - 1);
     }
+
+    if (pushed_eax)
+        m_pop_reg("eax");
 }
 
 static void gen_cmp_instr(struct DynamicStr *output,
