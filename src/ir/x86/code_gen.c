@@ -820,7 +820,6 @@ static void gen_x86_from_block(struct DynamicStr *output,
                                const struct IRFunc *cur_func,
                                u32 func_stack_size)
 {
-
     u32 i;
 
     DynamicStr_append_printf(output, ".%s:\n", block->label);
@@ -836,7 +835,6 @@ static void gen_ret_if_no_ret_stmt(struct DynamicStr *output,
                                    const struct IRFunc *func,
                                    u32 func_stack_size)
 {
-
     const struct IRBasicBlock *last_blck =
         &func->blocks.elems[func->blocks.size - 1];
     const struct IRInstr *last_instr =
@@ -844,7 +842,7 @@ static void gen_ret_if_no_ret_stmt(struct DynamicStr *output,
             ? &last_blck->instrs.elems[last_blck->instrs.size - 1]
             : NULL;
 
-    if (!last_instr || last_instr->type == IRInstr_RET)
+    if (last_instr && last_instr->type == IRInstr_RET)
         return;
 
     if (func_stack_size > 0)
@@ -857,7 +855,6 @@ static void gen_ret_if_no_ret_stmt(struct DynamicStr *output,
 
 static void gen_from_func_mods(struct DynamicStr *output, struct IRFunc *func)
 {
-
     if (func->mods.is_extern)
         DynamicStr_append_printf(output, "extern %s\n", func->name);
     if (func->mods.is_global)
@@ -866,7 +863,6 @@ static void gen_from_func_mods(struct DynamicStr *output, struct IRFunc *func)
 
 static void gen_x86_from_func(struct DynamicStr *output, struct IRFunc *func)
 {
-
     u32 i;
     u32 stack_size = IRFunc_get_stack_size(func);
 
@@ -896,7 +892,6 @@ static void gen_x86_from_func(struct DynamicStr *output, struct IRFunc *func)
 static void gen_from_array_lit(struct DynamicStr *output,
                                const struct IRArrayLit *lit)
 {
-
     u32 i;
 
     DynamicStr_append_printf(output, "%s: %s ", lit->name,
@@ -916,7 +911,6 @@ static void gen_from_array_lit(struct DynamicStr *output,
 static void gen_from_array_lits(struct DynamicStr *output,
                                 const struct IRArrayLitList *lits)
 {
-
     u32 i;
 
     for (i = 0; i < lits->size; i++) {
@@ -926,7 +920,6 @@ static void gen_from_array_lits(struct DynamicStr *output,
 
 char *gen_x86_from_ir(struct IRModule *module)
 {
-
     u32 i;
 
     struct DynamicStr output = DynamicStr_init();
