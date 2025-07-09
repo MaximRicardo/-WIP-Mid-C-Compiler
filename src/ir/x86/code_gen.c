@@ -338,9 +338,11 @@ static void emit_mem_instr_address(struct DynamicStr *output,
 static void gen_from_mov_instr(struct DynamicStr *output,
                                const struct IRInstr *instr)
 {
-
     const struct IRInstrArg *self_arg = NULL;
     const struct IRInstrArg *lhs_arg = NULL;
+
+    unsigned self_size;
+    unsigned lhs_size;
 
     bool lhs_on_stack;
     bool use_lea;
@@ -352,13 +354,15 @@ static void gen_from_mov_instr(struct DynamicStr *output,
     self_arg = &instr->args.elems[Arg_SELF];
     lhs_arg = &instr->args.elems[Arg_LHS];
 
+    self_size = IRDataType_real_width(&self_arg->data_type) / 8;
+    lhs_size = IRDataType_real_width(&lhs_arg->data_type) / 8;
+
     lhs_on_stack = lhs_arg->type == IRInstrArg_REG &&
                    reg_is_stack_offset(lhs_arg->value.reg_name);
 
     use_lea = lhs_on_stack && reg_is_stack_offset_ref(lhs_arg->value.reg_name);
 
     if (use_lea) {
-
         bool pushed_reg = false;
         if (reg_is_stack_offset(self_arg->value.reg_name)) {
             m_push_reg("eax");
@@ -368,17 +372,14 @@ static void gen_from_mov_instr(struct DynamicStr *output,
         DynamicStr_append_printf(
             output, "lea %s, ",
             pushed_reg ? "eax" : vreg_to_preg(self_arg->value.reg_name));
-        emit_instr_arg(output, lhs_arg, true, 0);
+        emit_instr_arg(output, lhs_arg, false, 0);
         DynamicStr_append(output, "\n");
 
         if (pushed_reg) {
             m_pop_reg("eax");
         }
-
     } else {
-
         if (lhs_on_stack) {
-
             lhs_temp_reg =
                 strcmp(vreg_to_preg(self_arg->value.reg_name), "eax") == 0
                     ? "ebx"
@@ -386,9 +387,15 @@ static void gen_from_mov_instr(struct DynamicStr *output,
 
             m_push_reg(lhs_temp_reg);
 
-            DynamicStr_append_printf(output, "mov %s, ", lhs_temp_reg);
+            DynamicStr_append_printf(output, "mov %s, ",
+                                     n_bytes_preg(lhs_temp_reg, lhs_size));
             emit_instr_arg(output, lhs_arg, true, 0);
             DynamicStr_append(output, "\n");
+            if (self_size > lhs_size) {
+                assert(lhs_size < 4);
+                DynamicStr_append_printf(output, "and %s, %u\n", lhs_temp_reg,
+                                         (1 << (lhs_size * 8)) - 1);
+            }
         }
 
         DynamicStr_append_printf(output, "mov ");
@@ -398,9 +405,9 @@ static void gen_from_mov_instr(struct DynamicStr *output,
         DynamicStr_append(output, ", ");
 
         if (lhs_on_stack) {
-            DynamicStr_append(output, lhs_temp_reg);
+            DynamicStr_append(output, n_bytes_preg(lhs_temp_reg, self_size));
         } else {
-            emit_instr_arg(output, lhs_arg, true, 0);
+            emit_instr_arg(output, lhs_arg, true, self_size * 8);
         }
 
         DynamicStr_append(output, "\n");
@@ -419,6 +426,8 @@ static void gen_from_bin_op(struct DynamicStr *output,
     const struct IRInstrArg *lhs_arg = NULL;
     const struct IRInstrArg *rhs_arg = NULL;
 
+    unsigned lhs_size;
+
     bool self_on_stack = false;
 
     assert(instr->args.size == 3);
@@ -427,6 +436,8 @@ static void gen_from_bin_op(struct DynamicStr *output,
     self_arg = &instr->args.elems[Arg_SELF];
     lhs_arg = &instr->args.elems[Arg_LHS];
     rhs_arg = &instr->args.elems[Arg_RHS];
+
+    lhs_size = IRDataType_real_width(&lhs_arg->data_type) / 8;
 
     self_on_stack = reg_is_stack_offset(vreg_to_preg(self_arg->value.reg_name));
 
@@ -438,9 +449,15 @@ static void gen_from_bin_op(struct DynamicStr *output,
         if (lhs_arg->type != IRInstrArg_REG ||
             strcmp(lhs_arg->value.reg_name, "__eax") != 0) {
 
-            DynamicStr_append(output, "mov eax, ");
+            DynamicStr_append_printf(output, "mov %s, ",
+                                     n_bytes_preg("eax", lhs_size));
             emit_instr_arg(output, lhs_arg, true, 0);
             DynamicStr_append(output, "\n");
+
+            if (lhs_size < 4) {
+                DynamicStr_append_printf(output, "and eax, %u\n",
+                                         (1 << (lhs_size * 8)) - 1);
+            }
         }
 
         DynamicStr_append_printf(
@@ -466,10 +483,17 @@ static void gen_from_bin_op(struct DynamicStr *output,
          *    add r1 <- r2
          */
         DynamicStr_append_printf(output, "mov ");
-        emit_instr_arg(output, self_arg, true, 0);
+        emit_instr_arg(output, self_arg, true, lhs_size * 8);
         DynamicStr_append(output, ", ");
         emit_instr_arg(output, lhs_arg, true, 0);
         DynamicStr_append(output, "\n");
+
+        if (lhs_size < 4) {
+            DynamicStr_append(output, "and ");
+            emit_instr_arg(output, self_arg, true, 0);
+            DynamicStr_append_printf(output, ", %u\n",
+                                     (1 << (lhs_size * 8)) - 1);
+        }
 
         DynamicStr_append_printf(
             output, "%s ",

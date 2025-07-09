@@ -1,7 +1,8 @@
 #include "math_funcs.h"
 #include <assert.h>
 
-u32 log2_u32(u32 x) {
+u32 log2_u32(u32 x)
+{
 
     u32 i = 0;
 
@@ -23,10 +24,10 @@ u32 log2_u32(u32 x) {
     --i;
 
     return i;
-
 }
 
-u32 log2_u32_up(u32 x) {
+u32 log2_u32_up(u32 x)
+{
 
     u32 i = 0;
     u32 og_x = x;
@@ -45,5 +46,40 @@ u32 log2_u32_up(u32 x) {
         ++i;
 
     return i;
+}
 
+unsigned long u_round_up(unsigned long num, unsigned long multiple)
+{
+    unsigned long remainder;
+
+    assert(multiple != 0);
+
+    remainder = num % multiple;
+    if (remainder == 0)
+        return num;
+
+    return num + multiple - remainder;
+}
+
+unsigned long u_round_down(unsigned long num, unsigned long multiple)
+{
+    return num / multiple * multiple;
+}
+
+long s_round_up(long num, long multiple)
+{
+    long remainder;
+
+    assert(multiple != 0);
+
+    remainder = num % multiple;
+    if (remainder == 0)
+        return num;
+
+    return num + multiple - remainder;
+}
+
+long s_round_down(long num, long multiple)
+{
+    return num / multiple * multiple;
 }
