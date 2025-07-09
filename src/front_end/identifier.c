@@ -1,12 +1,12 @@
 #include "identifier.h"
 #include "../prim_type.h"
-#include "token.h"
 #include "../type_mods.h"
+#include "token.h"
 #include <string.h>
 
 enum PrimitiveType Ident_type_spec(const char *ident,
-        const struct TypedefList *typedefs) {
-
+                                   const struct TypedefList *typedefs)
+{
     u32 i;
 
     if (strcmp(ident, "char") == 0)
@@ -27,12 +27,11 @@ enum PrimitiveType Ident_type_spec(const char *ident,
     }
 
     return PrimType_INVALID;
-
 }
 
 u32 Ident_type_lvls_of_indir(const char *ident,
-        const struct TypedefList *typedefs) {
-
+                             const struct TypedefList *typedefs)
+{
     u32 i;
 
     for (i = 0; i < typedefs->size; i++) {
@@ -41,12 +40,11 @@ u32 Ident_type_lvls_of_indir(const char *ident,
     }
 
     return 0;
-
 }
 
 struct TypeModifiers Ident_type_modifiers(const char *ident,
-        const struct TypedefList *typedefs) {
-
+                                          const struct TypedefList *typedefs)
+{
     u32 i;
 
     for (i = 0; i < typedefs->size; i++) {
@@ -55,11 +53,10 @@ struct TypeModifiers Ident_type_modifiers(const char *ident,
     }
 
     return TypeModifiers_init();
-
 }
 
-enum TokenType Ident_modifier_str_to_tok(const char *ident) {
-
+enum TokenType Ident_modifier_str_to_tok(const char *ident)
+{
     if (strcmp(ident, "unsigned") == 0)
         return TokenType_UNSIGNED;
     else if (strcmp(ident, "signed") == 0)
@@ -68,5 +65,4 @@ enum TokenType Ident_modifier_str_to_tok(const char *ident) {
         return TokenType_STATIC;
     else
         return TokenType_NONE;
-
 }

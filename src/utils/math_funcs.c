@@ -3,7 +3,6 @@
 
 u32 log2_u32(u32 x)
 {
-
     u32 i = 0;
 
     assert(x > 0);
@@ -28,7 +27,6 @@ u32 log2_u32(u32 x)
 
 u32 log2_u32_up(u32 x)
 {
-
     u32 i = 0;
     u32 og_x = x;
 

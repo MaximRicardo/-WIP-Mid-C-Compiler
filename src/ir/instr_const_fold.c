@@ -1,19 +1,21 @@
+#include "../utils/macros.h"
 #include "data_types.h"
 #include "instr.h"
-#include "../utils/macros.h"
 
-#define m_bin_oper(operation) \
-    do { \
-        if (is_signed) \
-            result = self->args.elems[Arg_LHS].value.imm_i32 operation \
-                self->args.elems[Arg_RHS].value.imm_i32; \
-        else \
-            result = self->args.elems[Arg_LHS].value.imm_u32 operation \
-                self->args.elems[Arg_RHS].value.imm_u32; \
+#define m_bin_oper(operation)                                                  \
+    do {                                                                       \
+        if (is_signed)                                                         \
+            result = self->args.elems[Arg_LHS]                                 \
+                         .value.imm_i32 operation self->args.elems[Arg_RHS]    \
+                         .value.imm_i32;                                       \
+        else                                                                   \
+            result = self->args.elems[Arg_LHS]                                 \
+                         .value.imm_u32 operation self->args.elems[Arg_RHS]    \
+                         .value.imm_u32;                                       \
     } while (0)
 
-bool IRInstr_const_fold(struct IRInstr *self) {
-
+bool IRInstr_const_fold(struct IRInstr *self)
+{
     u32 i;
     u32 result;
     bool is_signed = IRInstr_data_type(self).is_signed;
@@ -25,11 +27,10 @@ bool IRInstr_const_fold(struct IRInstr *self) {
         if (self->args.elems[i].type != IRInstrArg_IMM32)
             return false;
         max_lvls_of_indir = m_max(max_lvls_of_indir,
-                    self->args.elems[i].data_type.lvls_of_indir);
+                                  self->args.elems[i].data_type.lvls_of_indir);
     }
 
     switch (self->type) {
-
     case IRInstr_ADD:
         m_bin_oper(+);
         break;
@@ -66,19 +67,17 @@ bool IRInstr_const_fold(struct IRInstr *self) {
 
     default:
         return false;
-
     }
 
     /* convert self to a mov instr with an immediate operand */
 
     IRInstr_free(*self);
 
-    *self = IRInstr_create_mov(self_dest, dest_d_type, IRInstrArg_create(
-                IRInstrArg_IMM32,
-                IRDataType_create(is_signed, 32, max_lvls_of_indir),
-                IRInstrArgValue_imm_u32(result)
-                ));
+    *self = IRInstr_create_mov(
+        self_dest, dest_d_type,
+        IRInstrArg_create(IRInstrArg_IMM32,
+                          IRDataType_create(is_signed, 32, max_lvls_of_indir),
+                          IRInstrArgValue_imm_u32(result)));
 
     return true;
-
 }

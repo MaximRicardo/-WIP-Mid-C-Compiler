@@ -3,23 +3,20 @@
 #include "structs.h"
 #include <assert.h>
 
-bool PrimitiveType_signed(enum PrimitiveType type, unsigned lvls_of_indir) {
-
-    return lvls_of_indir == 0 && (
-            type == PrimType_INT || type == PrimType_CHAR ||
-            type == PrimType_SHORT || type == PrimType_LONG
-            );
-
+bool PrimitiveType_signed(enum PrimitiveType type, unsigned lvls_of_indir)
+{
+    return lvls_of_indir == 0 &&
+           (type == PrimType_INT || type == PrimType_CHAR ||
+            type == PrimType_SHORT || type == PrimType_LONG);
 }
 
 u32 PrimitiveType_size(enum PrimitiveType type, unsigned lvls_of_indir,
-        u32 type_idx, const struct StructList *structs) {
-
+                       u32 type_idx, const struct StructList *structs)
+{
     if (lvls_of_indir > 0)
         return m_TypeSize_ptr;
 
     switch (type) {
-
     case PrimType_CHAR:
     case PrimType_UCHAR:
         return m_TypeSize_char;
@@ -41,19 +38,16 @@ u32 PrimitiveType_size(enum PrimitiveType type, unsigned lvls_of_indir,
 
     default:
         assert(false);
-
     }
-
 }
 
 enum PrimitiveType PrimitiveType_promote(enum PrimitiveType type,
-        unsigned lvls_of_indir) {
-
+                                         unsigned lvls_of_indir)
+{
     if (lvls_of_indir > 0)
         return type;
 
     switch (type) {
-
     case PrimType_CHAR:
     case PrimType_SHORT:
     case PrimType_INT:
@@ -85,15 +79,12 @@ enum PrimitiveType PrimitiveType_promote(enum PrimitiveType type,
 
     default:
         assert(false);
-
     }
-
 }
 
-enum PrimitiveType PrimitiveType_make_unsigned(enum PrimitiveType type) {
-
+enum PrimitiveType PrimitiveType_make_unsigned(enum PrimitiveType type)
+{
     switch (type) {
-
     case PrimType_CHAR:
     case PrimType_UCHAR:
         return PrimType_UCHAR;
@@ -112,21 +103,19 @@ enum PrimitiveType PrimitiveType_make_unsigned(enum PrimitiveType type) {
 
     default:
         assert(false);
-
     }
-
 }
 
-bool PrimitiveType_non_prim_type(enum PrimitiveType type) {
-
+bool PrimitiveType_non_prim_type(enum PrimitiveType type)
+{
     return type == PrimType_STRUCT;
-
 }
 
 bool PrimitiveType_can_convert_to(enum PrimitiveType conv_dest,
-        unsigned dest_indir, u32 dest_type_idx, enum PrimitiveType conv_src,
-        unsigned src_indir, u32 src_type_idx) {
-
+                                  unsigned dest_indir, u32 dest_type_idx,
+                                  enum PrimitiveType conv_src,
+                                  unsigned src_indir, u32 src_type_idx)
+{
     if (dest_type_idx != src_type_idx)
         return false;
 
@@ -143,9 +132,9 @@ bool PrimitiveType_can_convert_to(enum PrimitiveType conv_dest,
         return false;
 
     else if (PrimitiveType_non_prim_type(conv_dest) ==
-            PrimitiveType_non_prim_type(conv_src) && dest_indir == src_indir)
+                 PrimitiveType_non_prim_type(conv_src) &&
+             dest_indir == src_indir)
         return true;
 
     return false;
-
 }

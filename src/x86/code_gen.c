@@ -10,27 +10,16 @@
  * gonna bother. */
 
 const char *reg_names[][3] = {
-    {"al", "ax", "eax"},
-    {"bl", "bx", "ebx"},
-    {"cl", "cx", "ecx"},
-    {"spl", "sp", "esp"},
-    {"bpl", "bp", "ebp"},
-    {"sil", "si", "esi"},
-    {"dil", "di", "edi"},
-    {"dl", "dx", "edx"},
+    {"al", "ax", "eax"},  {"bl", "bx", "ebx"},  {"cl", "cx", "ecx"},
+    {"spl", "sp", "esp"}, {"bpl", "bp", "ebp"}, {"sil", "si", "esi"},
+    {"dil", "di", "edi"}, {"dl", "dx", "edx"},
 };
 
-const char *dx_names[] = {
-    "dl", "dx", "edx"
-};
+const char *dx_names[] = {"dl", "dx", "edx"};
 
-const char *si_names[] = {
-    "sil", "si", "esi"
-};
+const char *si_names[] = {"sil", "si", "esi"};
 
-const char *di_names[] = {
-    "dil", "di", "edi"
-};
+const char *di_names[] = {"dil", "di", "edi"};
 
 const char *instr_type_to_asm[] = {
     "INVALID INSTRUCTION",
@@ -62,7 +51,7 @@ const char *instr_type_to_asm[] = {
 
     "UNARY OPERATORS START",
     "not",
-    "neg",  /* hmm */
+    "neg", /* hmm */
     "sete",
     "setne",
     "setl",
@@ -100,7 +89,6 @@ const char *instr_type_to_asm[] = {
 
 /* used in stuff like pushing an immediate */
 const char *size_specifier[] = {
-
     "byte",
     "word",
     "dword",
@@ -108,7 +96,6 @@ const char *size_specifier[] = {
 };
 
 const char *elem_size_specifier[] = {
-
     "db",
     "dw",
     "dd",
@@ -118,10 +105,9 @@ const char *elem_size_specifier[] = {
 /* returns the log2 of bytes. only works for 1, 2, and 4 bytes. i can't get
  * log2 and friends to work for some reason, my best guess is that c89 doesn't
  * support them? */
-static unsigned bytes_log2(unsigned bytes) {
-
+static unsigned bytes_log2(unsigned bytes)
+{
     switch (bytes) {
-
     case 1:
         return 0;
 
@@ -133,68 +119,58 @@ static unsigned bytes_log2(unsigned bytes) {
 
     default:
         assert(false);
-
     }
-
 }
 
-static unsigned type_to_reg(enum InstrOperandType type) {
-
-    return type-InstrOperandType_REGISTERS_START-1;
-
+static unsigned type_to_reg(enum InstrOperandType type)
+{
+    return type - InstrOperandType_REGISTERS_START - 1;
 }
 
-static bool type_is_reg(enum InstrOperandType type) {
-
+static bool type_is_reg(enum InstrOperandType type)
+{
     return type > InstrOperandType_REGISTERS_START &&
-        type < InstrOperandType_REGISTERS_END;
-
+           type < InstrOperandType_REGISTERS_END;
 }
 
 /* is the instruction type one that can take any register as the first operand
  * and any register or an immediate as the second argument? */
-static bool regular_2_oper_instr(enum InstrType type) {
-
+static bool regular_2_oper_instr(enum InstrType type)
+{
     return type == InstrType_ADD || type == InstrType_SUB ||
-        type == InstrType_MOV || type == InstrType_AND ||
-        type == InstrType_OR || type == InstrType_CMP;
-
+           type == InstrType_MOV || type == InstrType_AND ||
+           type == InstrType_OR || type == InstrType_CMP;
 }
 
-static bool unary_instr(enum InstrType type) {
-
+static bool unary_instr(enum InstrType type)
+{
     return type > InstrType_UNARY_START && type < InstrType_UNARY_END;
-
 }
 
-static bool branch_instr(enum InstrType type) {
-
+static bool branch_instr(enum InstrType type)
+{
     return type == InstrType_JMP || type == InstrType_JE ||
-        type == InstrType_JNE;
-
+           type == InstrType_JNE;
 }
 
-static bool shift_instr(enum InstrType type) {
-
+static bool shift_instr(enum InstrType type)
+{
     return type == InstrType_SHL || type == InstrType_SHR ||
-        type == InstrType_ASHR;
-
+           type == InstrType_ASHR;
 }
 
-static void write_instr(FILE *output, const struct Instruction *instr) {
-
+static void write_instr(FILE *output, const struct Instruction *instr)
+{
     if (instr->type == InstrType_MOV_F_LOC) {
         assert(type_is_reg(instr->lhs.type));
         assert(type_is_reg(instr->rhs.type));
 
         fprintf(output, "mov %s",
-                reg_names[type_to_reg(instr->lhs.type)][instr->instr_size]
-                );
+                reg_names[type_to_reg(instr->lhs.type)][instr->instr_size]);
 
         fprintf(output, ", [%s+%d]\n",
                 reg_names[type_to_reg(instr->rhs.type)][InstrSize_32],
-                instr->offset
-                );
+                instr->offset);
     }
 
     else if (instr->type == InstrType_MOV_T_LOC) {
@@ -203,19 +179,14 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
         if (type_is_reg(instr->rhs.type)) {
             fprintf(output, "mov [%s+%d]",
                     reg_names[type_to_reg(instr->lhs.type)][InstrSize_32],
-                    instr->offset
-                    );
+                    instr->offset);
 
             fprintf(output, ", %s\n",
-                    reg_names[type_to_reg(instr->rhs.type)][instr->instr_size]
-                    );
-        }
-        else {
-            fprintf(output, "mov %s [%s+%d]",
-                    size_specifier[instr->instr_size],
+                    reg_names[type_to_reg(instr->rhs.type)][instr->instr_size]);
+        } else {
+            fprintf(output, "mov %s [%s+%d]", size_specifier[instr->instr_size],
                     reg_names[type_to_reg(instr->lhs.type)][InstrSize_32],
-                    instr->offset
-                    );
+                    instr->offset);
 
             fprintf(output, ", %u\n", instr->rhs.value.imm);
         }
@@ -231,10 +202,8 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
             fprintf(output, ", [%s+%d]\n",
                     reg_names[type_to_reg(instr->rhs.type)][InstrSize_32],
                     instr->offset);
-        }
-        else {
-            fprintf(output, ", [%d+%d]\n", instr->rhs.value.imm,
-                    instr->offset);
+        } else {
+            fprintf(output, ", [%d+%d]\n", instr->rhs.value.imm, instr->offset);
         }
     }
 
@@ -248,12 +217,11 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
     }
 
     else if (instr->type == InstrType_INC_LOC ||
-            instr->type == InstrType_DEC_LOC) {
+             instr->type == InstrType_DEC_LOC) {
         if (type_is_reg(instr->lhs.type))
             fprintf(output, "%s %s [%s]\n", instr_type_to_asm[instr->type],
                     size_specifier[instr->instr_size],
-                    reg_names[type_to_reg(instr->lhs.type)][InstrSize_32]
-                    );
+                    reg_names[type_to_reg(instr->lhs.type)][InstrSize_32]);
         else if (instr->string)
             fprintf(output, "%s %s [%s]\n", instr_type_to_asm[instr->type],
                     size_specifier[instr->instr_size], instr->string);
@@ -271,17 +239,14 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
     else if (regular_2_oper_instr(instr->type)) {
         assert(type_is_reg(instr->lhs.type));
         fprintf(output, "%s %s", instr_type_to_asm[instr->type],
-                reg_names[type_to_reg(instr->lhs.type)][instr->instr_size]
-                );
+                reg_names[type_to_reg(instr->lhs.type)][instr->instr_size]);
 
         if (type_is_reg(instr->rhs.type))
             fprintf(output, ", %s\n",
-                    reg_names[type_to_reg(instr->rhs.type)][instr->instr_size]
-                    );
+                    reg_names[type_to_reg(instr->rhs.type)][instr->instr_size]);
         else if (instr->string) {
             fprintf(output, ", %s\n", instr->string);
-        }
-        else
+        } else
             fprintf(output, ", %s %d\n", size_specifier[instr->instr_size],
                     instr->rhs.value.imm);
     }
@@ -294,8 +259,7 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
 
         if (type_is_reg(instr->rhs.type))
             fprintf(output, "%s %s\n", instr_type_to_asm[instr->type],
-                    reg_names[type_to_reg(instr->rhs.type)][instr->instr_size]
-                    );
+                    reg_names[type_to_reg(instr->rhs.type)][instr->instr_size]);
         else {
             fprintf(output, "mov %s, %u\n", dx_names[instr->instr_size],
                     instr->rhs.value.imm);
@@ -327,8 +291,7 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
 
         if (type_is_reg(instr->rhs.type))
             fprintf(output, "%s %s\n", instr_type_to_asm[instr->type],
-                    reg_names[type_to_reg(instr->rhs.type)][instr->instr_size]
-                    );
+                    reg_names[type_to_reg(instr->rhs.type)][instr->instr_size]);
         else {
             /* uses SI to temporarily hold the immediate value */
             fprintf(output, "mov %s, %u\n", si_names[instr->instr_size],
@@ -343,7 +306,7 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
     }
 
     else if (instr->type == InstrType_MODULO ||
-            instr->type == InstrType_IMODULO) {
+             instr->type == InstrType_IMODULO) {
         /* day 7045205478 of questioning why div and mul always use AX */
         if (instr->lhs.type != InstrOperandType_REG_AX)
             fprintf(output, "xchg eax, %s\n",
@@ -362,8 +325,7 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
 
         if (type_is_reg(instr->rhs.type))
             fprintf(output, "%s %s\n", instr_type_to_asm[instr->type],
-                    reg_names[type_to_reg(instr->rhs.type)][instr->instr_size]
-                    );
+                    reg_names[type_to_reg(instr->rhs.type)][instr->instr_size]);
         else {
             /* uses SI to temporarily hold the immediate value */
             fprintf(output, "mov %s, %u\n", si_names[instr->instr_size],
@@ -385,8 +347,7 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
     else if (instr->type == InstrType_PUSH) {
         if (type_is_reg(instr->lhs.type))
             fprintf(output, "push %s\n",
-                    reg_names[type_to_reg(instr->lhs.type)][instr->instr_size]
-                    );
+                    reg_names[type_to_reg(instr->lhs.type)][instr->instr_size]);
         else if (instr->string)
             fprintf(output, "push %s\n", instr->string);
         else
@@ -411,7 +372,7 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
 
     else if (branch_instr(instr->type)) {
         fprintf(output, "%s %s\n", instr_type_to_asm[instr->type],
-            instr->string);
+                instr->string);
     }
 
     else if (instr->type == InstrType_LABEL) {
@@ -420,7 +381,7 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
     }
 
     else if (instr->type == InstrType_EXTERN ||
-            instr->type == InstrType_GLOBAL) {
+             instr->type == InstrType_GLOBAL) {
         assert(instr->string);
         fprintf(output, "%s %s\n", instr_type_to_asm[instr->type],
                 instr->string);
@@ -453,12 +414,11 @@ static void write_instr(FILE *output, const struct Instruction *instr) {
         fprintf(stderr, "invalid instruction %d.\n", instr->type);
         assert(false);
     }
-
 }
 
 void CodeGenArch_generate(FILE *output, const struct BlockNode *ast,
-        const struct StructList *structs) {
-
+                          const struct StructList *structs)
+{
     struct ArrayLitList array_lits = ArrayLitList_init();
 
     struct InstrList instrs = IR_get_instructions(ast, structs);
@@ -482,9 +442,7 @@ void CodeGenArch_generate(FILE *output, const struct BlockNode *ast,
     for (i = 0; i < array_lits.size; i++) {
         u32 j;
         fprintf(output, "array_lit_%lu$: %s ", (unsigned long)i,
-                elem_size_specifier[
-                    bytes_log2(array_lits.elems[i].elem_size)
-                ]);
+                elem_size_specifier[bytes_log2(array_lits.elems[i].elem_size)]);
         for (j = 0; j < array_lits.elems[i].n_values; j++) {
             if (j != 0)
                 fprintf(output, ", ");
@@ -502,5 +460,4 @@ void CodeGenArch_generate(FILE *output, const struct BlockNode *ast,
     /* don't free the individual elements cuz they'll be freed when the ast is
      * freed. */
     ArrayLitList_free(&array_lits);
-
 }

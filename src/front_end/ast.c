@@ -1,45 +1,43 @@
 #include "ast.h"
 #include "../array_lit.h"
-#include "../utils/bool.h"
 #include "../comp_dependent/ints.h"
-#include "parser_var.h"
 #include "../prim_type.h"
-#include "../utils/safe_mem.h"
-#include "token.h"
 #include "../type_mods.h"
-#include "../utils/vector_impl.h"
+#include "../utils/bool.h"
 #include "../utils/macros.h"
+#include "../utils/safe_mem.h"
+#include "../utils/vector_impl.h"
+#include "parser_var.h"
+#include "token.h"
 #include <assert.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-struct ASTNode ASTNode_init(void) {
-
+struct ASTNode ASTNode_init(void)
+{
     struct ASTNode node;
     node.line_num = 0;
     node.column_num = 0;
     node.type = ASTType_INVALID;
     node.node_struct = NULL;
     return node;
-
 }
 
 struct ASTNode ASTNode_create(unsigned line_num, unsigned column_num,
-        enum ASTNodeType type, void *node_struct) {
-
+                              enum ASTNodeType type, void *node_struct)
+{
     struct ASTNode node;
     node.line_num = line_num;
     node.column_num = column_num;
     node.type = type;
     node.node_struct = node_struct;
     return node;
-
 }
 
-void ASTNode_free(struct ASTNode node) {
-
+void ASTNode_free(struct ASTNode node)
+{
     if (node.node_struct) {
         if (node.type == ASTType_EXPR)
             ExprNode_free_w_self(node.node_struct);
@@ -63,12 +61,11 @@ void ASTNode_free(struct ASTNode node) {
         else
             assert(false);
     }
-
 }
 
 void ASTNode_get_array_lits(const struct ASTNode *self,
-        struct ArrayLitList *list) {
-
+                            struct ArrayLitList *list)
+{
     if (self->node_struct) {
         if (self->type == ASTType_EXPR)
             ExprNode_get_array_lits(self->node_struct, list);
@@ -87,69 +84,60 @@ void ASTNode_get_array_lits(const struct ASTNode *self,
         else if (self->type == ASTType_FOR_STMT)
             ForNode_get_array_lits(self->node_struct, list);
     }
-
 }
 
-bool ExprType_is_bin_operator(enum ExprType type) {
-
+bool ExprType_is_bin_operator(enum ExprType type)
+{
     return Token_is_bin_operator(expr_t_to_tok_t(type));
-
 }
 
-bool ExprType_is_unary_operator(enum ExprType type) {
-
+bool ExprType_is_unary_operator(enum ExprType type)
+{
     return Token_is_unary_operator(expr_t_to_tok_t(type));
-
 }
 
-bool ExprType_is_operator(enum ExprType type) {
-
+bool ExprType_is_operator(enum ExprType type)
+{
     return Token_is_operator(expr_t_to_tok_t(type));
-
 }
 
-bool ExprType_is_cmp_operator(enum ExprType type) {
-
+bool ExprType_is_cmp_operator(enum ExprType type)
+{
     return Token_is_cmp_operator(expr_t_to_tok_t(type));
-
 }
 
-bool ExprType_is_inc_or_dec_operator(enum ExprType type) {
-
+bool ExprType_is_inc_or_dec_operator(enum ExprType type)
+{
     return type == ExprType_PREFIX_INC || type == ExprType_PREFIX_DEC ||
-        type == ExprType_POSTFIX_INC || type == ExprType_POSTFIX_DEC;
-
+           type == ExprType_POSTFIX_INC || type == ExprType_POSTFIX_DEC;
 }
 
-bool ExprType_is_valid_ptr_operation(enum ExprType type) {
-
+bool ExprType_is_valid_ptr_operation(enum ExprType type)
+{
     /* add comparison operators later */
     return type == ExprType_EQUAL || type == ExprType_MINUS ||
-        type == ExprType_EQUAL_TO || type == ExprType_NOT_EQUAL_TO ||
-        type == ExprType_L_THAN || type == ExprType_L_THAN_OR_E ||
-        type == ExprType_G_THAN || type == ExprType_G_THAN_OR_E ||
-        type == ExprType_MEMBER_ACCESS_PTR;
-
+           type == ExprType_EQUAL_TO || type == ExprType_NOT_EQUAL_TO ||
+           type == ExprType_L_THAN || type == ExprType_L_THAN_OR_E ||
+           type == ExprType_G_THAN || type == ExprType_G_THAN_OR_E ||
+           type == ExprType_MEMBER_ACCESS_PTR;
 }
 
-bool ExprType_is_valid_single_ptr_operation(enum ExprType type) {
-
+bool ExprType_is_valid_single_ptr_operation(enum ExprType type)
+{
     return type == ExprType_PLUS || type == ExprType_MINUS ||
-        type == ExprType_L_ARR_SUBSCR || type == ExprType_MEMBER_ACCESS ||
-        type == ExprType_MEMBER_ACCESS_PTR;
-
+           type == ExprType_L_ARR_SUBSCR || type == ExprType_MEMBER_ACCESS ||
+           type == ExprType_MEMBER_ACCESS_PTR;
 }
 
-bool ExprType_is_valid_unary_ptr_operation(enum ExprType type) {
-
+bool ExprType_is_valid_unary_ptr_operation(enum ExprType type)
+{
     return type == ExprType_REFERENCE || type == ExprType_DEREFERENCE ||
-        type == ExprType_TYPECAST || ExprType_is_inc_or_dec_operator(type) ||
-        type == ExprType_SIZEOF;
-
+           type == ExprType_TYPECAST || ExprType_is_inc_or_dec_operator(type) ||
+           type == ExprType_SIZEOF;
 }
 
-struct Expr Expr_init(void) {
-
+struct Expr Expr_init(void)
+{
     struct Expr expr;
     expr.line_num = 0;
     expr.column_num = 0;
@@ -169,17 +157,18 @@ struct Expr Expr_init(void) {
     expr.prim_type = PrimType_INVALID;
     expr.non_prom_prim_type = PrimType_INVALID;
     return expr;
-
 }
 
 struct Expr Expr_create(unsigned line_num, unsigned column_num,
-        const char *src_start, unsigned src_len, const char *file_path,
-        struct Expr *lhs, struct Expr *rhs, enum PrimitiveType prim_type,
-        enum PrimitiveType non_prom_prim_type, u32 type_idx,
-        unsigned lvls_of_indir,
-        struct ExprPtrList args, u32 int_value, struct ArrayLit array_value,
-        i32 bp_offset, enum ExprType expr_type, bool is_array, u32 array_len) {
-
+                        const char *src_start, unsigned src_len,
+                        const char *file_path, struct Expr *lhs,
+                        struct Expr *rhs, enum PrimitiveType prim_type,
+                        enum PrimitiveType non_prom_prim_type, u32 type_idx,
+                        unsigned lvls_of_indir, struct ExprPtrList args,
+                        u32 int_value, struct ArrayLit array_value,
+                        i32 bp_offset, enum ExprType expr_type, bool is_array,
+                        u32 array_len)
+{
     struct Expr expr;
     expr.line_num = line_num;
     expr.column_num = column_num;
@@ -200,26 +189,26 @@ struct Expr Expr_create(unsigned line_num, unsigned column_num,
     expr.non_prom_prim_type = non_prom_prim_type;
     expr.type_idx = type_idx;
     return expr;
-
 }
 
 struct Expr Expr_create_w_tok(struct Token token, struct Expr *lhs,
-        struct Expr *rhs, enum PrimitiveType prim_type,
-        enum PrimitiveType non_prom_prim_type, u32 type_idx,
-        unsigned lvls_of_indir,
-        struct ExprPtrList args, u32 int_value, struct ArrayLit array_value,
-        i32 bp_offset, enum ExprType expr_type, bool is_array, u32 array_len) {
-
+                              struct Expr *rhs, enum PrimitiveType prim_type,
+                              enum PrimitiveType non_prom_prim_type,
+                              u32 type_idx, unsigned lvls_of_indir,
+                              struct ExprPtrList args, u32 int_value,
+                              struct ArrayLit array_value, i32 bp_offset,
+                              enum ExprType expr_type, bool is_array,
+                              u32 array_len)
+{
     return Expr_create(token.line_num, token.column_num, token.src_start,
-            token.src_len, token.file_path, lhs, rhs, prim_type,
-            non_prom_prim_type, type_idx, lvls_of_indir, args, int_value,
-            array_value, bp_offset,
-            expr_type, is_array, array_len);
-
+                       token.src_len, token.file_path, lhs, rhs, prim_type,
+                       non_prom_prim_type, type_idx, lvls_of_indir, args,
+                       int_value, array_value, bp_offset, expr_type, is_array,
+                       array_len);
 }
 
-void Expr_recur_free_w_self(struct Expr *self) {
-
+void Expr_recur_free_w_self(struct Expr *self)
+{
     if (!self)
         return;
 
@@ -233,12 +222,11 @@ void Expr_recur_free_w_self(struct Expr *self) {
     ExprPtrList_free(&self->args);
     ArrayLit_free(&self->array_value);
     m_free(self);
-
 }
 
 static unsigned func_call_indir(const struct Expr *self,
-        const struct ParVarList *vars) {
-
+                                const struct ParVarList *vars)
+{
     char *expr_src = Expr_src(self);
 
     u32 var_idx = ParVarList_find_var(vars, expr_src);
@@ -248,57 +236,49 @@ static unsigned func_call_indir(const struct Expr *self,
     m_free(expr_src);
 
     return indir;
-
 }
 
-static unsigned regular_expr_indir(const struct Expr *self) {
-
-    unsigned indir = self->rhs == NULL ?
-        self->lhs->lvls_of_indir :
-        m_max(self->lhs->lvls_of_indir, self->rhs->lvls_of_indir);
+static unsigned regular_expr_indir(const struct Expr *self)
+{
+    unsigned indir = self->rhs == NULL ? self->lhs->lvls_of_indir
+                                       : m_max(self->lhs->lvls_of_indir,
+                                               self->rhs->lvls_of_indir);
 
     if (self->expr_type == ExprType_DEREFERENCE ||
-            self->expr_type == ExprType_L_ARR_SUBSCR) {
+        self->expr_type == ExprType_L_ARR_SUBSCR) {
         assert(indir > 0);
         --indir;
-    }
-    else if (self->expr_type == ExprType_REFERENCE)
+    } else if (self->expr_type == ExprType_REFERENCE)
         ++indir;
 
     return indir;
-
 }
 
-unsigned Expr_lvls_of_indir(struct Expr *self, const struct ParVarList *vars) {
-
+unsigned Expr_lvls_of_indir(struct Expr *self, const struct ParVarList *vars)
+{
     if (self->expr_type == ExprType_TYPECAST) {
-    }
-    else if (self->expr_type == ExprType_SIZEOF) {
+    } else if (self->expr_type == ExprType_SIZEOF) {
         self->lvls_of_indir = 0;
-    }
-    else if (self->expr_type == ExprType_MEMBER_ACCESS ||
-            self->expr_type == ExprType_MEMBER_ACCESS_PTR) {
+    } else if (self->expr_type == ExprType_MEMBER_ACCESS ||
+               self->expr_type == ExprType_MEMBER_ACCESS_PTR) {
         self->lvls_of_indir = self->rhs->lvls_of_indir;
-    }
-    else if (self->expr_type == ExprType_FUNC_CALL) {
+    } else if (self->expr_type == ExprType_FUNC_CALL) {
         self->lvls_of_indir = func_call_indir(self, vars);
-    }
-    else if (self->expr_type == ExprType_ARRAY_LIT) {
+    } else if (self->expr_type == ExprType_ARRAY_LIT) {
         /* assume the array is a string */
         self->lvls_of_indir = 1;
-    }
-    else {
+    } else {
         self->lvls_of_indir = regular_expr_indir(self);
     }
 
     return self->lvls_of_indir;
-
 }
 
 /* implements the C arithmetic type converisons */
 static enum PrimitiveType bin_expr_type(struct Expr *self,
-        const struct ParVarList *vars, const struct StructList *structs) {
-
+                                        const struct ParVarList *vars,
+                                        const struct StructList *structs)
+{
     enum PrimitiveType t = PrimType_INVALID;
 
     enum PrimitiveType lhs_prom =
@@ -306,10 +286,10 @@ static enum PrimitiveType bin_expr_type(struct Expr *self,
     enum PrimitiveType rhs_prom =
         PrimitiveType_promote(self->rhs->prim_type, self->rhs->lvls_of_indir);
 
-    u32 lhs_prom_size = PrimitiveType_size(lhs_prom,
-            self->lhs->lvls_of_indir, self->lhs->type_idx, structs);
-    u32 rhs_prom_size = PrimitiveType_size(rhs_prom,
-            self->rhs->lvls_of_indir, self->rhs->type_idx, structs);
+    u32 lhs_prom_size = PrimitiveType_size(lhs_prom, self->lhs->lvls_of_indir,
+                                           self->lhs->type_idx, structs);
+    u32 rhs_prom_size = PrimitiveType_size(rhs_prom, self->rhs->lvls_of_indir,
+                                           self->rhs->type_idx, structs);
 
     if (self->rhs->lvls_of_indir > self->lhs->lvls_of_indir)
         t = rhs_prom;
@@ -331,18 +311,17 @@ static enum PrimitiveType bin_expr_type(struct Expr *self,
 
     /* arrays need to be dereferenced */
     if (self->expr_type == ExprType_L_ARR_SUBSCR &&
-            Expr_lvls_of_indir(self, vars) == 0) {
+        Expr_lvls_of_indir(self, vars) == 0) {
         t = PrimitiveType_promote(t, 0);
     }
 
     return t;
-
 }
 
 /* if the function called is undefined, then it's assumed to be an int func */
 static enum PrimitiveType func_call_type(const struct Expr *self,
-        const struct ParVarList *vars) {
-
+                                         const struct ParVarList *vars)
+{
     char *expr_src = Expr_src(self);
 
     u32 var_idx = ParVarList_find_var(vars, expr_src);
@@ -352,8 +331,7 @@ static enum PrimitiveType func_call_type(const struct Expr *self,
     if (var_idx == m_u32_max) {
         t = PrimType_INT;
         indir = 0;
-    }
-    else {
+    } else {
         t = vars->elems[var_idx].type;
         indir = vars->elems[var_idx].lvls_of_indir;
     }
@@ -364,58 +342,50 @@ static enum PrimitiveType func_call_type(const struct Expr *self,
         t = PrimitiveType_promote(t, indir);
 
     return t;
-
 }
 
-enum PrimitiveType Expr_type(struct Expr *self,
-        const struct ParVarList *vars, const struct StructList *structs) {
-
+enum PrimitiveType Expr_type(struct Expr *self, const struct ParVarList *vars,
+                             const struct StructList *structs)
+{
     if (!self->lhs && !self->rhs) {
         if (self->non_prom_prim_type == PrimType_INVALID)
             Expr_type_no_prom(self, vars);
         return PrimitiveType_promote(self->non_prom_prim_type,
-                self->lvls_of_indir);
+                                     self->lvls_of_indir);
     }
 
     if (self->lhs)
         self->type_idx = self->lhs->type_idx;
 
     if (self->expr_type == ExprType_TYPECAST) {
-    }
-    else if (self->expr_type == ExprType_SIZEOF) {
+    } else if (self->expr_type == ExprType_SIZEOF) {
         self->prim_type = PrimType_ULONG;
-    }
-    else if (self->expr_type == ExprType_MEMBER_ACCESS ||
-            self->expr_type == ExprType_MEMBER_ACCESS_PTR) {
+    } else if (self->expr_type == ExprType_MEMBER_ACCESS ||
+               self->expr_type == ExprType_MEMBER_ACCESS_PTR) {
         self->type_idx = self->rhs->type_idx;
         self->prim_type = PrimitiveType_promote(self->rhs->prim_type,
-                self->rhs->lvls_of_indir);
-    }
-    else if (self->rhs) {
+                                                self->rhs->lvls_of_indir);
+    } else if (self->rhs) {
         self->prim_type = bin_expr_type(self, vars, structs);
-    }
-    else if (self->expr_type == ExprType_FUNC_CALL) {
+    } else if (self->expr_type == ExprType_FUNC_CALL) {
         self->prim_type = func_call_type(self, vars);
-    }
-    else if (self->expr_type == ExprType_ARRAY_LIT) {
+    } else if (self->expr_type == ExprType_ARRAY_LIT) {
         /* assume the array is a string */
         self->prim_type = PrimType_CHAR;
-    }
-    else {
+    } else {
         self->prim_type = PrimitiveType_promote(self->lhs->prim_type,
-                    Expr_lvls_of_indir(self, vars));
+                                                Expr_lvls_of_indir(self, vars));
     }
 
     if (!PrimitiveType_non_prim_type(self->prim_type))
         self->type_idx = 0;
     return self->prim_type;
-
 }
 
 /* if the function called is undefined, then it's assumed to be an int func */
 static enum PrimitiveType func_call_type_no_prom(const struct Expr *self,
-        const struct ParVarList *vars) {
-
+                                                 const struct ParVarList *vars)
+{
     char *expr_src = Expr_src(self);
 
     u32 var_idx = ParVarList_find_var(vars, expr_src);
@@ -425,35 +395,28 @@ static enum PrimitiveType func_call_type_no_prom(const struct Expr *self,
     m_free(expr_src);
 
     return t;
-
 }
 
 enum PrimitiveType Expr_type_no_prom(struct Expr *self,
-        const struct ParVarList *vars) {
-
+                                     const struct ParVarList *vars)
+{
     if (self->lhs)
         self->type_idx = self->lhs->type_idx;
 
     if (self->expr_type == ExprType_TYPECAST) {
-    }
-    else if (self->expr_type == ExprType_SIZEOF) {
+    } else if (self->expr_type == ExprType_SIZEOF) {
         self->non_prom_prim_type = PrimType_ULONG;
-    }
-    else if (self->expr_type == ExprType_MEMBER_ACCESS ||
-            self->expr_type == ExprType_MEMBER_ACCESS_PTR) {
-
+    } else if (self->expr_type == ExprType_MEMBER_ACCESS ||
+               self->expr_type == ExprType_MEMBER_ACCESS_PTR) {
         self->type_idx = self->rhs->type_idx;
         self->non_prom_prim_type = self->rhs->non_prom_prim_type;
 
-    }
-    else if (self->expr_type == ExprType_FUNC_CALL) {
+    } else if (self->expr_type == ExprType_FUNC_CALL) {
         self->non_prom_prim_type = func_call_type_no_prom(self, vars);
-    }
-    else if (self->expr_type == ExprType_ARRAY_LIT) {
+    } else if (self->expr_type == ExprType_ARRAY_LIT) {
         /* assume the array is a string */
         self->non_prom_prim_type = PrimType_CHAR;
-    }
-    else if (self->rhs && self->rhs->lvls_of_indir > self->lhs->lvls_of_indir)
+    } else if (self->rhs && self->rhs->lvls_of_indir > self->lhs->lvls_of_indir)
         self->non_prom_prim_type = self->rhs->non_prom_prim_type;
     else
         self->non_prom_prim_type = self->lhs->non_prom_prim_type;
@@ -461,33 +424,32 @@ enum PrimitiveType Expr_type_no_prom(struct Expr *self,
     if (!PrimitiveType_non_prim_type(self->prim_type))
         self->type_idx = 0;
     return self->non_prom_prim_type;
-
 }
 
-u32 Expr_evaluate(const struct Expr *self, const struct StructList *structs) {
-
-#define m_bin_oper(operation) \
-    do { \
-        if (is_signed) \
-            return (i32)lhs_val operation (i32)rhs_val; \
-        else \
-            return lhs_val operation rhs_val; \
+u32 Expr_evaluate(const struct Expr *self, const struct StructList *structs)
+{
+#define m_bin_oper(operation)                                                  \
+    do {                                                                       \
+        if (is_signed)                                                         \
+            return (i32)lhs_val operation(i32) rhs_val;                        \
+        else                                                                   \
+            return lhs_val operation rhs_val;                                  \
     } while (0)
 
-#define m_unary_oper(operation) \
-    do { \
-        if (is_signed) \
-            return operation (i32)lhs_val; \
-        else \
-            return operation lhs_val; \
+#define m_unary_oper(operation)                                                \
+    do {                                                                       \
+        if (is_signed)                                                         \
+            return operation(i32) lhs_val;                                     \
+        else                                                                   \
+            return operation lhs_val;                                          \
     } while (0)
 
-#define m_postf_unary_oper(operation) \
-    do { \
-        if (is_signed) \
-            return ((i32)lhs_val) operation; \
-        else \
-            return lhs_val operation; \
+#define m_postf_unary_oper(operation)                                          \
+    do {                                                                       \
+        if (is_signed)                                                         \
+            return ((i32)lhs_val)operation;                                    \
+        else                                                                   \
+            return lhs_val operation;                                          \
     } while (0)
 
     u32 lhs_val;
@@ -497,11 +459,14 @@ u32 Expr_evaluate(const struct Expr *self, const struct StructList *structs) {
     if (self->expr_type == ExprType_SIZEOF) {
         u32 mul = self->lhs->is_array ? self->lhs->array_len : 1;
         return PrimitiveType_size(self->lhs->prim_type,
-                self->lhs->lvls_of_indir, self->lhs->type_idx, structs) * mul;
+                                  self->lhs->lvls_of_indir, self->lhs->type_idx,
+                                  structs) *
+               mul;
     }
 
-    lhs_val = self->lhs ? Expr_evaluate(self->lhs, structs) :
-        !self->rhs ? self->int_value : 0;
+    lhs_val = self->lhs    ? Expr_evaluate(self->lhs, structs)
+              : !self->rhs ? self->int_value
+                           : 0;
     rhs_val = self->rhs ? Expr_evaluate(self->rhs, structs) : 0;
 
     is_signed = PrimitiveType_signed(self->prim_type, self->lvls_of_indir);
@@ -509,7 +474,6 @@ u32 Expr_evaluate(const struct Expr *self, const struct StructList *structs) {
     assert(!(!self->lhs && self->rhs));
 
     switch (self->expr_type) {
-
     case ExprType_PLUS:
         m_bin_oper(+);
 
@@ -577,27 +541,24 @@ u32 Expr_evaluate(const struct Expr *self, const struct StructList *structs) {
         fprintf(stderr, "%s, %u,%u\n", self->file_path, self->line_num,
                 self->column_num);
         assert(false);
-
     }
 
 #undef m_bin_oper
 #undef m_unary_oper
 #undef m_postf_unary_oper
-
 }
 
-char* Expr_src(const struct Expr *self) {
-
-    char *str = malloc((self->src_len+1)*sizeof(*str));
+char *Expr_src(const struct Expr *self)
+{
+    char *str = malloc((self->src_len + 1) * sizeof(*str));
     strncpy(str, self->src_start, self->src_len);
     str[self->src_len] = '\0';
 
     return str;
-
 }
 
-void Expr_get_array_lits(const struct Expr *self, struct ArrayLitList *list) {
-
+void Expr_get_array_lits(const struct Expr *self, struct ArrayLitList *list)
+{
     u32 i;
 
     if (self->lhs)
@@ -613,20 +574,19 @@ void Expr_get_array_lits(const struct Expr *self, struct ArrayLitList *list) {
         return;
 
     ArrayLitList_push_back(list, self->array_value);
-
 }
 
-bool Expr_statically_evaluatable(const struct Expr *self) {
-
+bool Expr_statically_evaluatable(const struct Expr *self)
+{
     if (self->expr_type == ExprType_IDENT ||
-            self->expr_type == ExprType_REFERENCE ||
-            self->expr_type == ExprType_DEREFERENCE ||
-            self->expr_type == ExprType_L_ARR_SUBSCR ||
-            ExprType_is_inc_or_dec_operator(self->expr_type) ||
-            self->expr_type == ExprType_FUNC_CALL ||
-            self->expr_type == ExprType_ARRAY_LIT ||
-            self->expr_type == ExprType_MEMBER_ACCESS ||
-            self->expr_type == ExprType_MEMBER_ACCESS_PTR)
+        self->expr_type == ExprType_REFERENCE ||
+        self->expr_type == ExprType_DEREFERENCE ||
+        self->expr_type == ExprType_L_ARR_SUBSCR ||
+        ExprType_is_inc_or_dec_operator(self->expr_type) ||
+        self->expr_type == ExprType_FUNC_CALL ||
+        self->expr_type == ExprType_ARRAY_LIT ||
+        self->expr_type == ExprType_MEMBER_ACCESS ||
+        self->expr_type == ExprType_MEMBER_ACCESS_PTR)
         return false;
 
     else if (self->expr_type == ExprType_SIZEOF)
@@ -638,86 +598,74 @@ bool Expr_statically_evaluatable(const struct Expr *self) {
         return false;
 
     return true;
-
 }
 
-struct ExprNode ExprNode_init(void) {
-
+struct ExprNode ExprNode_init(void)
+{
     struct ExprNode expr_node;
     expr_node.expr = NULL;
     return expr_node;
-
 }
 
-struct ExprNode ExprNode_create(struct Expr *expr) {
-
+struct ExprNode ExprNode_create(struct Expr *expr)
+{
     struct ExprNode expr_node;
     expr_node.expr = expr;
     return expr_node;
-
 }
 
-void ExprNode_free_w_self(struct ExprNode *self) {
-
+void ExprNode_free_w_self(struct ExprNode *self)
+{
     Expr_recur_free_w_self(self->expr);
     m_free(self);
-
 }
 
 void ExprNode_get_array_lits(const struct ExprNode *self,
-        struct ArrayLitList *list) {
-
+                             struct ArrayLitList *list)
+{
     if (self->expr)
         Expr_get_array_lits(self->expr, list);
-
 }
 
-struct BlockNode BlockNode_init(void) {
-
+struct BlockNode BlockNode_init(void)
+{
     struct BlockNode block;
     block.nodes = ASTNodeList_init();
     block.var_bytes = 0;
     return block;
-
 }
 
-struct BlockNode BlockNode_create(struct ASTNodeList nodes, u32 var_bytes) {
-
+struct BlockNode BlockNode_create(struct ASTNodeList nodes, u32 var_bytes)
+{
     struct BlockNode block;
     block.nodes = nodes;
     block.var_bytes = var_bytes;
     return block;
-
 }
 
-void BlockNode_free_w_self(struct BlockNode *self) {
-
+void BlockNode_free_w_self(struct BlockNode *self)
+{
     while (self->nodes.size > 0) {
         ASTNodeList_pop_back(&self->nodes, ASTNode_free);
     }
 
     ASTNodeList_free(&self->nodes);
     m_free(self);
-
 }
 
 void BlockNode_get_array_lits(const struct BlockNode *self,
-        struct ArrayLitList *list) {
-
+                              struct ArrayLitList *list)
+{
     u32 i;
 
     for (i = 0; i < self->nodes.size; i++) {
-
         ASTNode_get_array_lits(&self->nodes.elems[i], list);
-
     }
-
 }
 
-enum ExprType tok_t_to_expr_t(enum TokenType type) {
-
+enum ExprType tok_t_to_expr_t(enum TokenType type)
+{
     switch (type) {
-
     case TokenType_NONE:
         return ExprType_INVALID;
 
@@ -828,15 +776,12 @@ enum ExprType tok_t_to_expr_t(enum TokenType type) {
 
     default:
         assert(false);
-
     }
-
 }
 
-enum TokenType expr_t_to_tok_t(enum ExprType type) {
-
+enum TokenType expr_t_to_tok_t(enum ExprType type)
+{
     switch (type) {
-
     case ExprType_INVALID:
         return TokenType_NONE;
 
@@ -851,7 +796,7 @@ enum TokenType expr_t_to_tok_t(enum ExprType type) {
 
     case ExprType_DIV:
         return TokenType_DIV;
-    
+
     case ExprType_MODULUS:
         return TokenType_MODULUS;
 
@@ -947,13 +892,11 @@ enum TokenType expr_t_to_tok_t(enum ExprType type) {
 
     case ExprType_EQUAL:
         return TokenType_EQUAL;
-
     }
-
 }
 
-struct Declarator Declarator_init(void) {
-
+struct Declarator Declarator_init(void)
+{
     struct Declarator decl;
     decl.value = NULL;
     decl.ident = NULL;
@@ -962,12 +905,12 @@ struct Declarator Declarator_init(void) {
     decl.array_len = 0;
     decl.bp_offset = 0;
     return decl;
-
 }
 
 struct Declarator Declarator_create(struct Expr *value, char *ident,
-        unsigned lvls_of_indir, bool is_array, u32 array_len, u32 bp_offset) {
-
+                                    unsigned lvls_of_indir, bool is_array,
+                                    u32 array_len, u32 bp_offset)
+{
     struct Declarator decl;
     decl.value = value;
     decl.ident = ident;
@@ -976,73 +919,69 @@ struct Declarator Declarator_create(struct Expr *value, char *ident,
     decl.array_len = array_len;
     decl.bp_offset = bp_offset;
     return decl;
-
 }
 
-void Declarator_free(struct Declarator decl) {
-
+void Declarator_free(struct Declarator decl)
+{
     Expr_recur_free_w_self(decl.value);
     m_free(decl.ident);
-
 }
 
 void Declarator_get_array_lits(const struct Declarator *self,
-        struct ArrayLitList *list) {
-
+                               struct ArrayLitList *list)
+{
     if (!self->value)
         return;
 
     Expr_get_array_lits(self->value, list);
-
 }
 
-struct VarDeclNode VarDeclNode_init(void) {
-
+struct VarDeclNode VarDeclNode_init(void)
+{
     struct VarDeclNode node;
     node.decls = DeclList_init();
     node.type = PrimType_INVALID;
     node.type_idx = 0;
     node.mods = TypeModifiers_init();
     return node;
-
 }
 
 struct VarDeclNode VarDeclNode_create(struct DeclList decls,
-        enum PrimitiveType type, u32 type_idx, struct TypeModifiers mods) {
-
+                                      enum PrimitiveType type, u32 type_idx,
+                                      struct TypeModifiers mods)
+{
     struct VarDeclNode node;
     node.decls = decls;
     node.type = type;
     node.type_idx = type_idx;
     node.mods = mods;
     return node;
-
 }
 
-void VarDeclNode_free_w_self(struct VarDeclNode *self) {
-
+void VarDeclNode_free_w_self(struct VarDeclNode *self)
+{
     while (self->decls.size > 0)
         DeclList_pop_back(&self->decls, Declarator_free);
     DeclList_free(&self->decls);
     m_free(self);
-
 }
 
 void VarDeclNode_get_array_lits(const struct VarDeclNode *self,
-        struct ArrayLitList *list) {
-
+                                struct ArrayLitList *list)
+{
     u32 i;
 
     for (i = 0; i < self->decls.size; i++) {
         Declarator_get_array_lits(&self->decls.elems[i], list);
     }
-
 }
 
 bool VarDeclPtrList_equivalent_expr(const struct VarDeclPtrList *self,
-        const struct ExprPtrList *other, const struct ParVarList *vars,
-        const struct StructList *structs, bool self_is_variadic) {
-
+                                    const struct ExprPtrList *other,
+                                    const struct ParVarList *vars,
+                                    const struct StructList *structs,
+                                    bool self_is_variadic)
+{
     u32 i;
 
     if (self_is_variadic && other->size < self->size)
@@ -1054,34 +993,29 @@ bool VarDeclPtrList_equivalent_expr(const struct VarDeclPtrList *self,
         u32 j;
 
         for (j = 0; j < self->elems[i]->decls.size; j++) {
-
-            bool can_convert =
-                PrimitiveType_can_convert_to(self->elems[i]->type,
-                    self->elems[i]->decls.elems[j].lvls_of_indir,
-                    self->elems[i]->type_idx,
-                    other->elems[i]->prim_type,
-                    other->elems[i]->lvls_of_indir,
-                    other->elems[i]->type_idx);
+            bool can_convert = PrimitiveType_can_convert_to(
+                self->elems[i]->type,
+                self->elems[i]->decls.elems[j].lvls_of_indir,
+                self->elems[i]->type_idx, other->elems[i]->prim_type,
+                other->elems[i]->lvls_of_indir, other->elems[i]->type_idx);
 
             if (!can_convert) {
                 /* print stmts for debugging */
                 printf("left indir = %d, right indir = %d.\n",
-                        self->elems[i]->decls.elems[j].lvls_of_indir,
-                        other->elems[i]->lvls_of_indir);
+                       self->elems[i]->decls.elems[j].lvls_of_indir,
+                       other->elems[i]->lvls_of_indir);
                 printf("other type = %d\n",
-                        Expr_type(other->elems[i], vars, structs));
+                       Expr_type(other->elems[i], vars, structs));
                 return false;
             }
         }
-
     }
 
     return true;
-
 }
 
-struct FuncDeclNode FuncDeclNode_init(void) {
-
+struct FuncDeclNode FuncDeclNode_init(void)
+{
     struct FuncDeclNode func_decl;
     func_decl.args = VarDeclPtrList_init();
     func_decl.variadic_args = false;
@@ -1093,15 +1027,16 @@ struct FuncDeclNode FuncDeclNode_init(void) {
     func_decl.body = NULL;
     func_decl.name = NULL;
     return func_decl;
-
 }
 
 struct FuncDeclNode FuncDeclNode_create(struct VarDeclPtrList args,
-        bool variadic_args, bool void_args, unsigned ret_lvls_of_indir,
-        struct TypeModifiers ret_type_mods,
-        enum PrimitiveType ret_type, u32 ret_type_idx, struct BlockNode *body,
-        char *name) {
-
+                                        bool variadic_args, bool void_args,
+                                        unsigned ret_lvls_of_indir,
+                                        struct TypeModifiers ret_type_mods,
+                                        enum PrimitiveType ret_type,
+                                        u32 ret_type_idx,
+                                        struct BlockNode *body, char *name)
+{
     struct FuncDeclNode func_decl;
     func_decl.args = args;
     func_decl.variadic_args = variadic_args;
@@ -1113,11 +1048,10 @@ struct FuncDeclNode FuncDeclNode_create(struct VarDeclPtrList args,
     func_decl.body = body;
     func_decl.name = name;
     return func_decl;
-
 }
 
-void FuncDeclNode_free_w_self(struct FuncDeclNode *self) {
-
+void FuncDeclNode_free_w_self(struct FuncDeclNode *self)
+{
     while (self->args.size > 0) {
         VarDeclPtrList_pop_back(&self->args, VarDeclNode_free_w_self);
     }
@@ -1127,27 +1061,24 @@ void FuncDeclNode_free_w_self(struct FuncDeclNode *self) {
     if (self->body)
         BlockNode_free_w_self(self->body);
     m_free(self);
-
 }
 
 void FuncDeclNode_get_array_lits(const struct FuncDeclNode *self,
-        struct ArrayLitList *list) {
-
+                                 struct ArrayLitList *list)
+{
     if (self->body)
         BlockNode_get_array_lits(self->body, list);
-
 }
 
 bool FuncDeclNode_defined(const struct FuncDeclNode *self,
-        const struct BlockNode *transl_unit) {
-
+                          const struct BlockNode *transl_unit)
+{
     u32 i;
 
     if (self->body)
         return true;
 
     for (i = 0; i < transl_unit->nodes.size; i++) {
-
         const struct FuncDeclNode *func = NULL;
 
         if (transl_unit->nodes.elems[i].type != ASTType_FUNC)
@@ -1160,15 +1091,13 @@ bool FuncDeclNode_defined(const struct FuncDeclNode *self,
 
         if (strcmp(self->name, func->name) == 0)
             return true;
-
     }
 
     return false;
-
 }
 
-struct RetNode RetNode_init(void) {
-
+struct RetNode RetNode_init(void)
+{
     struct RetNode ret_node;
     ret_node.value = NULL;
     ret_node.lvls_of_indir = 0;
@@ -1176,12 +1105,12 @@ struct RetNode RetNode_init(void) {
     ret_node.type_idx = 0;
     ret_node.n_stack_frames_deep = 0;
     return ret_node;
-
 }
 
 struct RetNode RetNode_create(struct Expr *value, unsigned lvls_of_indir,
-        enum PrimitiveType type, u32 type_idx, u32 n_stack_frames_deep) {
-
+                              enum PrimitiveType type, u32 type_idx,
+                              u32 n_stack_frames_deep)
+{
     struct RetNode ret_node;
     ret_node.value = value;
     ret_node.lvls_of_indir = lvls_of_indir;
@@ -1189,26 +1118,23 @@ struct RetNode RetNode_create(struct Expr *value, unsigned lvls_of_indir,
     ret_node.type_idx = type_idx;
     ret_node.n_stack_frames_deep = n_stack_frames_deep;
     return ret_node;
-
 }
 
-void RetNode_free_w_self(struct RetNode *self) {
-
+void RetNode_free_w_self(struct RetNode *self)
+{
     Expr_recur_free_w_self(self->value);
     m_free(self);
-
 }
 
 void RetNode_get_array_lits(const struct RetNode *self,
-        struct ArrayLitList *list) {
-
+                            struct ArrayLitList *list)
+{
     if (self->value)
         Expr_get_array_lits(self->value, list);
-
 }
 
-struct IfNode IfNode_init(void) {
-
+struct IfNode IfNode_init(void)
+{
     struct IfNode node;
     node.expr = NULL;
     node.body = NULL;
@@ -1216,13 +1142,12 @@ struct IfNode IfNode_init(void) {
     node.body_in_block = false;
     node.else_body_in_block = false;
     return node;
-
 }
 
 struct IfNode IfNode_create(struct Expr *expr, struct BlockNode *body,
-        struct BlockNode *else_body, bool body_in_block,
-        bool else_body_in_block) {
-
+                            struct BlockNode *else_body, bool body_in_block,
+                            bool else_body_in_block)
+{
     struct IfNode node;
     node.expr = expr;
     node.body = body;
@@ -1230,11 +1155,10 @@ struct IfNode IfNode_create(struct Expr *expr, struct BlockNode *body,
     node.body_in_block = body_in_block;
     node.else_body_in_block = else_body_in_block;
     return node;
-
 }
 
-void IfNode_free_w_self(struct IfNode *self) {
-
+void IfNode_free_w_self(struct IfNode *self)
+{
     if (self->expr)
         Expr_recur_free_w_self(self->expr);
     if (self->body)
@@ -1242,65 +1166,58 @@ void IfNode_free_w_self(struct IfNode *self) {
     if (self->else_body)
         BlockNode_free_w_self(self->else_body);
     m_free(self);
-
 }
 
-void IfNode_get_array_lits(const struct IfNode *self,
-        struct ArrayLitList *list) {
-
+void IfNode_get_array_lits(const struct IfNode *self, struct ArrayLitList *list)
+{
     if (self->expr)
         Expr_get_array_lits(self->expr, list);
     if (self->body)
         BlockNode_get_array_lits(self->body, list);
     if (self->else_body)
         BlockNode_get_array_lits(self->else_body, list);
-
 }
 
-struct WhileNode WhileNode_init(void) {
-
+struct WhileNode WhileNode_init(void)
+{
     struct WhileNode node;
     node.expr = NULL;
     node.body = NULL;
     node.body_in_block = false;
     return node;
-
 }
 
 struct WhileNode WhileNode_create(struct Expr *expr, struct BlockNode *body,
-        bool body_in_block) {
-
+                                  bool body_in_block)
+{
     struct WhileNode node;
     node.expr = expr;
     node.body = body;
     node.body_in_block = body_in_block;
     return node;
-
 }
 
-void WhileNode_free_w_self(struct WhileNode *self) {
-
+void WhileNode_free_w_self(struct WhileNode *self)
+{
     if (self->expr)
         Expr_recur_free_w_self(self->expr);
     if (self->body)
         BlockNode_free_w_self(self->body);
 
     m_free(self);
-
 }
 
 void WhileNode_get_array_lits(const struct WhileNode *self,
-        struct ArrayLitList *list) {
-
+                              struct ArrayLitList *list)
+{
     if (self->expr)
         Expr_get_array_lits(self->expr, list);
     if (self->body)
         BlockNode_get_array_lits(self->body, list);
-
 }
 
-struct ForNode ForNode_init(void) {
-
+struct ForNode ForNode_init(void)
+{
     struct ForNode node;
     node.init = NULL;
     node.condition = NULL;
@@ -1308,12 +1225,12 @@ struct ForNode ForNode_init(void) {
     node.body = NULL;
     node.body_in_block = false;
     return node;
-
 }
 
 struct ForNode ForNode_create(struct Expr *init, struct Expr *condition,
-        struct Expr *inc, struct BlockNode *body, bool body_in_block) {
-
+                              struct Expr *inc, struct BlockNode *body,
+                              bool body_in_block)
+{
     struct ForNode node;
     node.init = init;
     node.condition = condition;
@@ -1321,11 +1238,10 @@ struct ForNode ForNode_create(struct Expr *init, struct Expr *condition,
     node.body = body;
     node.body_in_block = body_in_block;
     return node;
-
 }
 
-void ForNode_free_w_self(struct ForNode *self) {
-
+void ForNode_free_w_self(struct ForNode *self)
+{
     if (self->init)
         Expr_recur_free_w_self(self->init);
     if (self->condition)
@@ -1337,12 +1253,11 @@ void ForNode_free_w_self(struct ForNode *self) {
         BlockNode_free_w_self(self->body);
 
     m_free(self);
-
 }
 
 void ForNode_get_array_lits(const struct ForNode *self,
-        struct ArrayLitList *list) {
-
+                            struct ArrayLitList *list)
+{
     if (self->init)
         Expr_get_array_lits(self->init, list);
     if (self->condition)
@@ -1352,11 +1267,10 @@ void ForNode_get_array_lits(const struct ForNode *self,
 
     if (self->body)
         BlockNode_get_array_lits(self->body, list);
-
 }
 
 m_define_VectorImpl_funcs(ASTNodeList, struct ASTNode)
-m_define_VectorImpl_funcs(DeclList, struct Declarator)
-m_define_VectorImpl_funcs(VarDeclPtrList, struct VarDeclNode*)
-m_define_VectorImpl_funcs(ExprPtrList, struct Expr*)
-m_define_VectorImpl_funcs(ExprList, struct Expr)
+    m_define_VectorImpl_funcs(DeclList, struct Declarator)
+        m_define_VectorImpl_funcs(VarDeclPtrList, struct VarDeclNode *)
+            m_define_VectorImpl_funcs(ExprPtrList, struct Expr *)
+                m_define_VectorImpl_funcs(ExprList, struct Expr)

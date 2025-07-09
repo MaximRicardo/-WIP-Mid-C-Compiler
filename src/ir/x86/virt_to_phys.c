@@ -1,23 +1,22 @@
 #include "virt_to_phys.h"
-#include "../reg_lifetimes.h"
-#include "phys_reg_val.h"
-#include "../../utils/macros.h"
 #include "../../utils/dyn_str.h"
+#include "../../utils/macros.h"
 #include "../../utils/make_str_cpy.h"
 #include "../../utils/u32_list.h"
+#include "../reg_lifetimes.h"
+#include "phys_reg_val.h"
 #include "reg_states.h"
 #include "remove_alloc_reg.h"
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 
 /* TODO:
  *    verify that loops are handled correctly in init_cpu_reg_vals.
  */
 
 enum CPURegs {
-
     CPUReg_AX,
     CPUReg_BX,
     CPUReg_CX,
@@ -29,26 +28,19 @@ enum CPURegs {
 };
 
 /* must be in the same order as enum CPURegs. */
-static const char *cpu_regs[] = {
-
-    "eax",
-    "ebx",
-    "ecx",
-    "edx",
-    "ebp",
-    "esi",
-    "edi"
+static const char *cpu_regs[] = {"eax", "ebx", "ecx", "edx",
+                                 "ebp", "esi", "edi"
 
 };
 
-static char str_last_c(const char *str) {
-
+static char str_last_c(const char *str)
+{
     u32 i = 0;
-    while (str[i++] != '\0');
+    while (str[i++] != '\0')
+        ;
 
-    assert(str[i-1] == '\0');
-    return str[i-2];
-
+    assert(str[i - 1] == '\0');
+    return str[i - 2];
 }
 
 /* the reg states for every block in the current IRFunc that has been processed
@@ -58,17 +50,17 @@ static struct RegStatesList block_reg_states;
 /* keeps track of spilled registers */
 static struct PhysRegValList reg_stack;
 
-static struct RegStates* RegStates_block_preg_states(
-        const struct IRBasicBlock *block, const struct IRFunc *func) {
-
+static struct RegStates *
+RegStates_block_preg_states(const struct IRBasicBlock *block,
+                            const struct IRFunc *func)
+{
     return &block_reg_states.elems[block - func->blocks.elems];
-
 }
 
 ATTRIBUTE((unused))
 static void print_cpu_reg_vals(const struct IRBasicBlock *cur_block,
-        const struct IRFunc *cur_func) {
-
+                               const struct IRFunc *cur_func)
+{
     u32 i;
 
     struct RegStates *cpu_reg_vals =
@@ -80,12 +72,12 @@ static void print_cpu_reg_vals(const struct IRBasicBlock *cur_block,
         printf("i = %u\n", i);
         printf("%s: %%%s\n", cpu_regs[i], cpu_reg_vals->preg_vals[i].virt_reg);
     }
-
 }
 
 static void init_cpu_reg_vals(const struct IRBasicBlock *cur_block,
-        const struct IRFunc *cur_func, const struct IRRegLTList *vreg_lts) {
-
+                              const struct IRFunc *cur_func,
+                              const struct IRRegLTList *vreg_lts)
+{
     u32 i;
 
     struct RegStates *cpu_reg_vals =
@@ -114,28 +106,25 @@ static void init_cpu_reg_vals(const struct IRBasicBlock *cur_block,
         other = &cur_func->blocks.elems[imm_dom];
 
         RegStates_merge(cpu_reg_vals,
-                RegStates_block_preg_states(other, cur_func),
-                vreg_lts
-                );
+                        RegStates_block_preg_states(other, cur_func), vreg_lts);
     }
-
 }
 
 ATTRIBUTE((unused))
 static bool is_cpu_reg_free(u32 reg, const struct IRBasicBlock *cur_block,
-        const struct IRFunc *cur_func) {
-
+                            const struct IRFunc *cur_func)
+{
     struct RegStates *cpu_reg_vals =
         RegStates_block_preg_states(cur_block, cur_func);
 
     return !cpu_reg_vals->preg_vals[reg].virt_reg;
-
 }
 
 /* returns m_u32_max if there is no preg holding vreg */
 static u32 preg_holding_vreg(const char *vreg,
-        const struct IRBasicBlock *cur_block, const struct IRFunc *cur_func) {
-
+                             const struct IRBasicBlock *cur_block,
+                             const struct IRFunc *cur_func)
+{
     u32 i;
 
     struct RegStates *reg_states =
@@ -150,12 +139,11 @@ static u32 preg_holding_vreg(const char *vreg,
     }
 
     return m_u32_max;
-
 }
 
 /* returns m_u32_max if vreg is not stored on the register stack */
-static u32 reg_stack_holding_vreg(const char *vreg) {
-
+static u32 reg_stack_holding_vreg(const char *vreg)
+{
     u32 i;
 
     for (i = 0; i < reg_stack.size; i++) {
@@ -167,12 +155,11 @@ static u32 reg_stack_holding_vreg(const char *vreg) {
     }
 
     return m_u32_max;
-
 }
 
 /* __esp(x) -> __esp(x+amount) */
-static char* incr_stack_offset(const char *stack_offset, u32 amount) {
-
+static char *incr_stack_offset(const char *stack_offset, u32 amount)
+{
     u32 old_offset;
     struct DynamicStr str = DynamicStr_init();
 
@@ -180,21 +167,19 @@ static char* incr_stack_offset(const char *stack_offset, u32 amount) {
 
     old_offset = strtoul(&stack_offset[6], NULL, 0);
 
-    DynamicStr_append_printf(&str, "__esp(%u)", old_offset+amount);
+    DynamicStr_append_printf(&str, "__esp(%u)", old_offset + amount);
     if (str_last_c(stack_offset) == '&')
         DynamicStr_append(&str, "&");
 
     return str.str;
-
 }
 
 /* increases all the stack ptr offsets by amount */
-static void incr_func_stack_size(struct IRFunc *func, u32 amount) {
-
+static void incr_func_stack_size(struct IRFunc *func, u32 amount)
+{
     u32 i;
 
     for (i = 0; i < func->vregs.size; i++) {
-
         char *new_vreg_name = NULL;
 
         if (strncmp(func->vregs.elems[i], "__esp(", 6) != 0)
@@ -202,14 +187,12 @@ static void incr_func_stack_size(struct IRFunc *func, u32 amount) {
 
         new_vreg_name = incr_stack_offset(func->vregs.elems[i], amount);
         IRFunc_rename_vreg(func, func->vregs.elems[i], new_vreg_name);
-
     }
-
 }
 
-static bool phys_reg_val_is_free(const struct PhysRegVal *preg,
-        u32 instr_idx, const struct IRRegLTList *vreg_lts) {
-
+static bool phys_reg_val_is_free(const struct PhysRegVal *preg, u32 instr_idx,
+                                 const struct IRRegLTList *vreg_lts)
+{
     u32 reg_lt_idx;
 
     if (!preg->virt_reg)
@@ -227,24 +210,21 @@ static bool phys_reg_val_is_free(const struct PhysRegVal *preg,
     }
 
     return false;
-
 }
 
 /* instr_idx is relative to the start of the function */
-static bool preg_is_free(u32 preg_idx,
-        const struct IRBasicBlock *cur_block, const struct IRFunc *cur_func,
-        u32 instr_idx, const struct IRRegLTList *vreg_lts) {
-
+static bool preg_is_free(u32 preg_idx, const struct IRBasicBlock *cur_block,
+                         const struct IRFunc *cur_func, u32 instr_idx,
+                         const struct IRRegLTList *vreg_lts)
+{
     const struct RegStates *reg_states =
         RegStates_block_preg_states(cur_block, cur_func);
 
     const struct PhysRegVal *preg = &reg_states->preg_vals[preg_idx];
 
-    bool is_free =
-        phys_reg_val_is_free(preg, instr_idx, vreg_lts);
+    bool is_free = phys_reg_val_is_free(preg, instr_idx, vreg_lts);
 
     return is_free;
-
 }
 
 /* instr_idx is relative to the start of the function. returns the idx of
@@ -252,9 +232,10 @@ static bool preg_is_free(u32 preg_idx,
  * if the returned idx is an index into the reg stack, *idx_in_reg_stack will
  * be set to true. */
 static u32 alloc_vreg(const char *vreg, struct IRBasicBlock *cur_block,
-        struct IRFunc *cur_func, u32 instr_idx,
-        const struct IRRegLTList *vreg_lts, bool *idx_in_reg_stack) {
-
+                      struct IRFunc *cur_func, u32 instr_idx,
+                      const struct IRRegLTList *vreg_lts,
+                      bool *idx_in_reg_stack)
+{
     u32 i;
     u32 alloc_dest = m_u32_max;
 
@@ -315,7 +296,7 @@ static u32 alloc_vreg(const char *vreg, struct IRBasicBlock *cur_block,
         u32 none_idx = IRFunc_find_none_reg(cur_func);
         if (none_idx == m_u32_max) {
             StringList_push_back(&cur_func->vregs, make_str_copy("__none"));
-            none_idx = cur_func->vregs.size-1;
+            none_idx = cur_func->vregs.size - 1;
         }
 
         /* it's important the alloca instruction goes at the very end of the
@@ -323,22 +304,21 @@ static u32 alloc_vreg(const char *vreg, struct IRBasicBlock *cur_block,
          * alloca instrs can be moved to the top of the function once the pass
          * is complete. */
         IRInstrList_push_back(
-                &IRBasicBlockList_back_ptr(&cur_func->blocks)->instrs,
-                IRInstr_create_alloca(
-                    cur_func->vregs.elems[none_idx],
-                    IRDataType_create(false, 0, 1), 4, 4
-                ));
+            &IRBasicBlockList_back_ptr(&cur_func->blocks)->instrs,
+            IRInstr_create_alloca(cur_func->vregs.elems[none_idx],
+                                  IRDataType_create(false, 0, 1), 4, 4));
     }
 
-    return reg_stack.size-1;
-
+    return reg_stack.size - 1;
 }
 
 /* instr_idx is relative to the start of the function */
 static void virt_to_phys_instr_arg(struct IRInstrArg *arg,
-        struct IRBasicBlock *cur_block, struct IRFunc *cur_func,
-        const struct IRRegLTList *vreg_lts, u32 instr_idx) {
-
+                                   struct IRBasicBlock *cur_block,
+                                   struct IRFunc *cur_func,
+                                   const struct IRRegLTList *vreg_lts,
+                                   u32 instr_idx)
+{
     u32 reg_idx;
     bool on_reg_stack;
     u32 vreg_name_idx;
@@ -352,7 +332,7 @@ static void virt_to_phys_instr_arg(struct IRInstrArg *arg,
         return;
 
     reg_idx = alloc_vreg(arg->value.reg_name, cur_block, cur_func, instr_idx,
-            vreg_lts, &on_reg_stack);
+                         vreg_lts, &on_reg_stack);
 
     new_vreg_name = DynamicStr_init();
 
@@ -363,9 +343,8 @@ static void virt_to_phys_instr_arg(struct IRInstrArg *arg,
          * later we'll need to add an offset to every esp offset from before
          * this pass, and this makes it possible to distinguish the old ones
          * from the new ones. */
-        DynamicStr_append_printf(&new_vreg_name, "__new_esp(%u)", reg_idx*4);
-    }
-    else {
+        DynamicStr_append_printf(&new_vreg_name, "__new_esp(%u)", reg_idx * 4);
+    } else {
         DynamicStr_append_printf(&new_vreg_name, "__%s", cpu_regs[reg_idx]);
     }
 
@@ -374,36 +353,33 @@ static void virt_to_phys_instr_arg(struct IRInstrArg *arg,
      * name */
     if (vreg_name_idx == m_u32_max) {
         StringList_push_back(&cur_func->vregs, new_vreg_name.str);
-        vreg_name_idx = cur_func->vregs.size-1;
-    }
-    else {
+        vreg_name_idx = cur_func->vregs.size - 1;
+    } else {
         DynamicStr_free(new_vreg_name);
     }
     arg->value.reg_name = cur_func->vregs.elems[vreg_name_idx];
-
 }
 
 /* instr_idx is relative to the start of the function */
 static void virt_to_phys_instr(struct IRInstr *instr,
-        struct IRBasicBlock *cur_block, struct IRFunc *cur_func,
-        const struct IRRegLTList *vreg_lts, u32 instr_idx) {
-
+                               struct IRBasicBlock *cur_block,
+                               struct IRFunc *cur_func,
+                               const struct IRRegLTList *vreg_lts,
+                               u32 instr_idx)
+{
     u32 i;
 
     for (i = 0; i < instr->args.size; i++) {
-
         virt_to_phys_instr_arg(&instr->args.elems[i], cur_block, cur_func,
-                vreg_lts, instr_idx);
-
+                               vreg_lts, instr_idx);
     }
-
 }
 
 /* instr_idx is relative to the start of the function */
 static void virt_to_phys_block(struct IRBasicBlock *block,
-        struct IRFunc *cur_func, struct IRRegLTList *vreg_lts,
-        u32 *instr_idx) {
-
+                               struct IRFunc *cur_func,
+                               struct IRRegLTList *vreg_lts, u32 *instr_idx)
+{
     u32 i;
 
     RegStatesList_push_back(&block_reg_states, RegStates_init());
@@ -411,14 +387,13 @@ static void virt_to_phys_block(struct IRBasicBlock *block,
 
     for (i = 0; i < block->instrs.size; i++) {
         virt_to_phys_instr(&block->instrs.elems[i], block, cur_func, vreg_lts,
-                *instr_idx);
+                           *instr_idx);
         ++*instr_idx;
     }
-
 }
 
-static void virt_to_phys_func(struct IRFunc *func) {
-
+static void virt_to_phys_func(struct IRFunc *func)
+{
     u32 i;
     u32 last_block_n_instrs;
     u32 instr_idx = 0;
@@ -427,21 +402,20 @@ static void virt_to_phys_func(struct IRFunc *func) {
     if (!IRFunc_has_body(func))
         return;
 
-    last_block_n_instrs =
-        IRBasicBlockList_back_ptr(&func->blocks)->instrs.size;
+    last_block_n_instrs = IRBasicBlockList_back_ptr(&func->blocks)->instrs.size;
     vreg_lts = IRRegLTList_get_func_lts(func);
     reg_stack = PhysRegValList_init();
 
     for (i = 0; i < func->blocks.size; i++) {
-        virt_to_phys_block(&func->blocks.elems[i], func, &vreg_lts,
-                &instr_idx);
+        virt_to_phys_block(&func->blocks.elems[i], func, &vreg_lts, &instr_idx);
     }
 
     /* each appended alloca instruction will be 4 bytes long, and require a 4
      * byte alignment which esp already has. */
-    incr_func_stack_size(func,
-            (IRBasicBlockList_back_ptr(&func->blocks)->instrs.size -
-                last_block_n_instrs)*4);
+    incr_func_stack_size(
+        func, (IRBasicBlockList_back_ptr(&func->blocks)->instrs.size -
+               last_block_n_instrs) *
+                  4);
 
     for (i = 0; i < func->vregs.size; i++) {
         struct DynamicStr str;
@@ -461,11 +435,10 @@ static void virt_to_phys_func(struct IRFunc *func) {
     IRRegLTList_free(&vreg_lts);
 
     IRFunc_move_allocas_to_top(func);
-
 }
 
-void X86_virt_to_phys(struct IRModule *module) {
-
+void X86_virt_to_phys(struct IRModule *module)
+{
     u32 i;
 
     for (i = 0; i < module->funcs.size; i++) {
@@ -473,5 +446,4 @@ void X86_virt_to_phys(struct IRModule *module) {
     }
 
     X86_remove_alloc_reg(module);
-
 }

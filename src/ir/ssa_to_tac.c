@@ -10,7 +10,8 @@
  * will be replaced with that arg. this is necessary to allow later passes to
  * convert the vreg into a stack offset */
 static const char *phi_dest_reg(const struct IRInstr *instr,
-                                const struct IRFunc *func) {
+                                const struct IRFunc *func)
+{
     u32 i;
 
     const char *final_name = NULL;
@@ -38,7 +39,8 @@ static const char *phi_dest_reg(const struct IRInstr *instr,
         return instr->args.elems[0].value.reg_name;
 }
 
-static void replace_phi_args(struct IRInstr *instr, struct IRFunc *cur_func) {
+static void replace_phi_args(struct IRInstr *instr, struct IRFunc *cur_func)
+{
     u32 i;
 
     u32 dest_vreg =
@@ -65,7 +67,8 @@ static void replace_phi_args(struct IRInstr *instr, struct IRFunc *cur_func) {
 /* returns whether or not it erased instr from cur_block->instrs */
 static bool instr_ssa_to_tac(struct IRInstr *instr,
                              struct IRBasicBlock *cur_block,
-                             struct IRFunc *cur_func) {
+                             struct IRFunc *cur_func)
+{
     u32 block_common_dom;
 
     if (instr->type != IRInstr_PHI)
@@ -94,7 +97,8 @@ static bool instr_ssa_to_tac(struct IRInstr *instr,
 }
 
 static void block_ssa_to_tac(struct IRBasicBlock *block,
-                             struct IRFunc *cur_func) {
+                             struct IRFunc *cur_func)
+{
     u32 i;
 
     for (i = 0; i < block->instrs.size; i++) {
@@ -103,7 +107,8 @@ static void block_ssa_to_tac(struct IRBasicBlock *block,
     }
 }
 
-static void func_ssa_to_tac(struct IRFunc *func) {
+static void func_ssa_to_tac(struct IRFunc *func)
+{
     u32 i;
 
     for (i = 0; i < func->blocks.size; i++) {
@@ -111,7 +116,8 @@ static void func_ssa_to_tac(struct IRFunc *func) {
     }
 }
 
-void IR_ssa_to_tac(struct IRModule *module) {
+void IR_ssa_to_tac(struct IRModule *module)
+{
     u32 i;
 
     for (i = 0; i < module->funcs.size; i++) {

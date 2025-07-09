@@ -2,10 +2,9 @@
 #include "instr.h"
 #include <assert.h>
 
-const char *IR_instr_t_to_str(enum IRInstrType type) {
-
+const char *IR_instr_t_to_str(enum IRInstrType type)
+{
     switch (type) {
-
     case IRInstr_INVALID:
         assert(false);
 
@@ -83,7 +82,5 @@ const char *IR_instr_t_to_str(enum IRInstrType type) {
 
     case IRInstr_COMMENT:
         assert(false);
-
     }
-
 }

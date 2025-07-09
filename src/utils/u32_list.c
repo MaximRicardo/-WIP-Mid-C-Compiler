@@ -2,8 +2,8 @@
 
 m_define_VectorImpl_funcs(U32List, u32)
 
-u32 U32List_find(const struct U32List *self, u32 value) {
-
+    u32 U32List_find(const struct U32List *self, u32 value)
+{
     u32 i;
 
     for (i = 0; i < self->size; i++) {
@@ -12,5 +12,4 @@ u32 U32List_find(const struct U32List *self, u32 value) {
     }
 
     return m_u32_max;
-
 }

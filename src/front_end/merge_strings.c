@@ -3,34 +3,29 @@
 #include "token.h"
 #include <string.h>
 
-void MergeStrings_merge(struct TokenList *token_tbl) {
-
+void MergeStrings_merge(struct TokenList *token_tbl)
+{
     u32 i;
 
-    for (i = 0; token_tbl->size >= 2 && i < token_tbl->size-1; i++) {
-
+    for (i = 0; token_tbl->size >= 2 && i < token_tbl->size - 1; i++) {
         u32 new_len;
 
         if (token_tbl->elems[i].type != TokenType_STR_LIT ||
-                token_tbl->elems[i+1].type != TokenType_STR_LIT)
+            token_tbl->elems[i + 1].type != TokenType_STR_LIT)
             continue;
 
-        new_len = strlen(token_tbl->elems[i].value.string)+
-                     strlen(token_tbl->elems[i+1].value.string);
+        new_len = strlen(token_tbl->elems[i].value.string) +
+                  strlen(token_tbl->elems[i + 1].value.string);
 
-        token_tbl->elems[i].value.string =
-            safe_realloc(
-                    token_tbl->elems[i].value.string,
-                    (new_len+1) * sizeof(*token_tbl->elems[i].value.string)
-                    );
+        token_tbl->elems[i].value.string = safe_realloc(
+            token_tbl->elems[i].value.string,
+            (new_len + 1) * sizeof(*token_tbl->elems[i].value.string));
 
         strcat(token_tbl->elems[i].value.string,
-                token_tbl->elems[i+1].value.string);
+               token_tbl->elems[i + 1].value.string);
 
-        TokenList_erase(token_tbl, i+1, Token_free);
+        TokenList_erase(token_tbl, i + 1, Token_free);
 
         --i;
-
     }
-
 }

@@ -2,8 +2,8 @@
 #include "../type_mods.h"
 #include <string.h>
 
-struct ParserVar ParserVar_init(void) {
-
+struct ParserVar ParserVar_init(void)
+{
     struct ParserVar var;
     var.line_num = 0;
     var.column_num = 0;
@@ -22,17 +22,16 @@ struct ParserVar ParserVar_init(void) {
     var.is_func_arg = false;
     var.parent = NULL;
     return var;
-
 }
 
-struct ParserVar ParserVar_create(unsigned line_num, unsigned column_num,
-        char *name, unsigned lvls_of_indir, struct TypeModifiers mods,
-        enum PrimitiveType type, u32 type_idx,
-        bool is_array, u32 array_len, u32 stack_pos,
-        struct VarDeclPtrList *args, bool variadic_args, bool void_args,
-        bool has_been_defined,
-        bool is_func_arg, void *parent) {
-
+struct ParserVar
+ParserVar_create(unsigned line_num, unsigned column_num, char *name,
+                 unsigned lvls_of_indir, struct TypeModifiers mods,
+                 enum PrimitiveType type, u32 type_idx, bool is_array,
+                 u32 array_len, u32 stack_pos, struct VarDeclPtrList *args,
+                 bool variadic_args, bool void_args, bool has_been_defined,
+                 bool is_func_arg, void *parent)
+{
     struct ParserVar var;
     var.line_num = line_num;
     var.column_num = column_num;
@@ -51,28 +50,25 @@ struct ParserVar ParserVar_create(unsigned line_num, unsigned column_num,
     var.is_func_arg = is_func_arg;
     var.parent = parent;
     return var;
-
 }
 
-void ParserVar_free(struct ParserVar var) {
-
+void ParserVar_free(struct ParserVar var)
+{
     m_free(var.name);
-
 }
 
-u32 ParVarList_find_var(const struct ParVarList *self, char *name) {
-
+u32 ParVarList_find_var(const struct ParVarList *self, char *name)
+{
     u32 i;
 
     /* counting down to start from the current scope. makes variable shadowing
      * work */
-    for (i = self->size-1; i < self->size; i--) {
+    for (i = self->size - 1; i < self->size; i--) {
         if (strcmp(self->elems[i].name, name) == 0)
             return i;
     }
 
     return m_u32_max;
-
 }
 
 m_define_VectorImpl_funcs(ParVarList, struct ParserVar)

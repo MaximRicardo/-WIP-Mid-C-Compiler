@@ -7,8 +7,7 @@
 #include "x86/code_gen.h"
 
 void CodeGen_generate(FILE *output, const struct BlockNode *ast,
-        const struct StructList *structs) {
-
+                      const struct StructList *structs)
+{
     CodeGenArch_generate(output, ast, structs);
-
 }

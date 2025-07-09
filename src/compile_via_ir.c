@@ -3,17 +3,17 @@
 #include "ir/ir_gen.h"
 #include "ir/ir_to_str.h"
 #include "ir/opt_alloca.h"
-#include "ir/opt_unused_vregs.h"
 #include "ir/opt_copy_prop.h"
+#include "ir/opt_unused_vregs.h"
 #include "ir/ssa_to_tac.h"
+#include "ir/x86/alloca_to_esp.h"
 #include "ir/x86/arg_to_esp.h"
 #include "ir/x86/code_gen.h"
-#include "ir/x86/alloca_to_esp.h"
 #include "ir/x86/virt_to_phys.h"
 
-static void output_ir_contents(const struct IRModule *ir,
-        const char *header, FILE *output) {
-
+static void output_ir_contents(const struct IRModule *ir, const char *header,
+                               FILE *output)
+{
     char *str = IRToStr_gen(ir);
 
     fprintf(output, ";--------------------------------------\n");
@@ -23,12 +23,11 @@ static void output_ir_contents(const struct IRModule *ir,
     fflush(output);
 
     m_free(str);
-
 }
 
 void TranslUnit_compile_via_mccir(struct TranslUnit *tu, FILE *mccir_output,
-        FILE *asm_output) {
-
+                                  FILE *asm_output)
+{
     struct IRModule ir = IRGen_generate(tu);
     char *asm_str = NULL;
 
@@ -58,5 +57,4 @@ void TranslUnit_compile_via_mccir(struct TranslUnit *tu, FILE *mccir_output,
 
     m_free(asm_str);
     IRModule_free(ir);
-
 }

@@ -50,7 +50,6 @@ static const char *callee_saved_vregs[] = {
 };
 
 static const char *pregs[][3] = {
-
     {"al", "ax", "eax"},
     {"bl", "bx", "ebx"},
     {"cl", "cx", "ecx"},
@@ -66,7 +65,6 @@ static const char *pregs[][3] = {
  */
 static const char *n_bytes_preg(const char *preg, u32 n)
 {
-
     u32 i;
 
     u32 version = log2_u32_up(n);
@@ -85,7 +83,6 @@ static const char *n_bytes_preg(const char *preg, u32 n)
 
 static char str_last_c(const char *str)
 {
-
     u32 i = 0;
     while (str[i++] != '\0')
         ;
@@ -97,13 +94,11 @@ static char str_last_c(const char *str)
 /* stuff like __eax, __ebx, etc. */
 static bool is_virt_preg(const char *vreg)
 {
-
     return strncmp(vreg, "__", 2) == 0;
 }
 
 static const char *vreg_to_preg(const char *vreg)
 {
-
     assert(is_virt_preg(vreg));
 
     return &vreg[2];
@@ -111,26 +106,22 @@ static const char *vreg_to_preg(const char *vreg)
 
 static bool reg_is_stack_offset(const char *reg)
 {
-
     return strncmp(reg, "esp(", 4) == 0 || strncmp(reg, "__esp(", 6) == 0;
 }
 
 static bool reg_is_stack_offset_ref(const char *reg)
 {
-
     return reg_is_stack_offset(reg) && str_last_c(reg) == '&';
 }
 
 /* offset should be in either esp(x) or esp(x)& format */
 static u32 get_stack_offset_value(const char *offset)
 {
-
     return strtoul(&offset[4], NULL, 0);
 }
 
 static char *create_esp_offset(u32 offset, bool is_reference, bool make_vreg)
 {
-
     struct DynamicStr str = DynamicStr_init();
 
     if (make_vreg)
@@ -148,13 +139,11 @@ static char *create_esp_offset(u32 offset, bool is_reference, bool make_vreg)
  * an effect on the offset of the function arguments. */
 static void args_account_for_saved_regs(u32 n_pushed, struct IRFunc *func)
 {
-
     u32 i;
 
     u32 stack_size = IRFunc_get_stack_size(func);
 
     for (i = 0; i < func->vregs.size; i++) {
-
         char *vreg = func->vregs.elems[i];
         char *new_vreg = NULL;
         const char *preg = NULL;
@@ -182,7 +171,6 @@ static void args_account_for_saved_regs(u32 n_pushed, struct IRFunc *func)
 static void push_callee_saved_regs(struct DynamicStr *output,
                                    struct IRFunc *func)
 {
-
     u32 i;
     u32 n_pushed = 0;
     struct ConstStringList vregs = X86_func_get_changed_vregs(func);
@@ -206,7 +194,6 @@ static void push_callee_saved_regs(struct DynamicStr *output,
 static void pop_callee_saved_regs(struct DynamicStr *output,
                                   const struct IRFunc *func)
 {
-
     u32 i;
     u32 n = m_arr_size(callee_saved_vregs);
     struct ConstStringList vregs = X86_func_get_changed_vregs(func);
@@ -227,7 +214,6 @@ static void pop_callee_saved_regs(struct DynamicStr *output,
 /* increments n pushed bytes by 12 */
 static void push_caller_saved_regs(struct DynamicStr *output)
 {
-
     m_push_reg("eax");
     m_push_reg("ecx");
     m_push_reg("edx");
@@ -236,7 +222,6 @@ static void push_caller_saved_regs(struct DynamicStr *output)
 /* decrements n pushed bytes by 12 */
 static void pop_caller_saved_regs(struct DynamicStr *output)
 {
-
     m_pop_reg("edx");
     m_pop_reg("ecx");
     m_pop_reg("eax");
@@ -253,7 +238,6 @@ static void emit_stack_offset_to_nasm(struct DynamicStr *output,
                                       const char *offset, const char *index_reg,
                                       u32 index, u32 index_width)
 {
-
     u32 offset_val;
 
     assert(strncmp(offset, "esp(", 4) == 0);
@@ -277,7 +261,6 @@ static void emit_instr_arg(struct DynamicStr *output,
                            const struct IRInstrArg *arg, bool emit_size_spec,
                            u32 width)
 {
-
     if (width == 0)
         width = IRDataType_real_width(&arg->data_type);
 
@@ -309,7 +292,6 @@ static void emit_instr_arg(struct DynamicStr *output,
 static void emit_mem_instr_address(struct DynamicStr *output,
                                    const struct IRInstr *instr)
 {
-
     const struct IRInstrArg *lhs_arg = NULL;
     const struct IRInstrArg *rhs_arg = NULL;
 
@@ -421,7 +403,6 @@ static void gen_from_mov_instr(struct DynamicStr *output,
 static void gen_from_bin_op(struct DynamicStr *output,
                             const struct IRInstr *instr)
 {
-
     const struct IRInstrArg *self_arg = NULL;
     const struct IRInstrArg *lhs_arg = NULL;
     const struct IRInstrArg *rhs_arg = NULL;
@@ -448,7 +429,6 @@ static void gen_from_bin_op(struct DynamicStr *output,
 
         if (lhs_arg->type != IRInstrArg_REG ||
             strcmp(lhs_arg->value.reg_name, "__eax") != 0) {
-
             DynamicStr_append_printf(output, "mov %s, ",
                                      n_bytes_preg("eax", lhs_size));
             emit_instr_arg(output, lhs_arg, true, 0);
@@ -509,7 +489,6 @@ static void gen_from_bin_op(struct DynamicStr *output,
 static void gen_from_div_op(struct DynamicStr *output,
                             const struct IRInstr *instr)
 {
-
     const char *self_reg = NULL;
     const char *rhs_reg = NULL;
     const struct IRInstrArg *self_arg = NULL;
@@ -579,7 +558,6 @@ static void gen_from_div_op(struct DynamicStr *output,
 static void gen_from_store_instr(struct DynamicStr *output,
                                  const struct IRInstr *instr)
 {
-
     u32 store_width;
     const struct IRInstrArg *self_arg = NULL;
     const struct IRInstrArg *lhs_arg = NULL;
@@ -624,7 +602,6 @@ static void gen_from_store_instr(struct DynamicStr *output,
 static void gen_from_load_instr(struct DynamicStr *output,
                                 const struct IRInstr *instr)
 {
-
     u32 load_width;
     u32 res_width;
 
@@ -680,7 +657,6 @@ static void gen_cmp_instr(struct DynamicStr *output,
                           const struct IRInstrArg *cmp_lhs,
                           const struct IRInstrArg *cmp_rhs)
 {
-
     bool pushed_eax =
         cmp_lhs->type != IRInstrArg_REG && cmp_rhs->type != IRInstrArg_REG;
 
@@ -707,7 +683,6 @@ static void gen_cmp_instr(struct DynamicStr *output,
 static void gen_from_cond_jmp(struct DynamicStr *output,
                               const struct IRInstr *instr)
 {
-
     assert(instr->args.size == 4);
 
     gen_cmp_instr(output, &instr->args.elems[0], &instr->args.elems[1]);
@@ -721,7 +696,6 @@ static void gen_from_cond_jmp(struct DynamicStr *output,
 static void gen_from_uncond_jmp(struct DynamicStr *output,
                                 const struct IRInstr *instr)
 {
-
     assert(instr->args.size == 1);
 
     DynamicStr_append_printf(output, "jmp .%s\n",
@@ -733,7 +707,6 @@ static void gen_from_ret_instr(struct DynamicStr *output,
                                const struct IRFunc *cur_func,
                                u32 func_stack_size)
 {
-
     const struct IRInstrArg *self_arg = NULL;
 
     assert(instr->args.size == 1);
@@ -758,7 +731,6 @@ static void gen_from_ret_instr(struct DynamicStr *output,
 static void gen_from_cmp_oper(struct DynamicStr *output,
                               const struct IRInstr *instr)
 {
-
     bool pushed_eax = false;
 
     const struct IRInstrArg *self_arg = NULL;
@@ -801,7 +773,6 @@ static void gen_from_cmp_oper(struct DynamicStr *output,
 static void gen_from_call_instr(struct DynamicStr *output,
                                 const struct IRInstr *instr)
 {
-
     u32 i;
     u32 arg_bytes = 0;
 
@@ -812,7 +783,6 @@ static void gen_from_call_instr(struct DynamicStr *output,
 
     /* arguments get pushed in right to left order */
     for (i = instr->args.size - 1; i >= 2; i--) {
-
         const struct IRInstrArg *arg = &instr->args.elems[i];
 
         DynamicStr_append(output, "push ");
@@ -838,7 +808,6 @@ static void gen_x86_from_instr(struct DynamicStr *output,
                                const struct IRFunc *cur_func,
                                u32 func_stack_size)
 {
-
     if (instr->type == IRInstr_DIV) {
         gen_from_div_op(output, instr);
     } else if (IRInstrType_is_cmp_op(instr->type)) {
@@ -878,7 +847,6 @@ static void gen_x86_from_block(struct DynamicStr *output,
     DynamicStr_append_printf(output, ".%s:\n", block->label);
 
     for (i = 0; i < block->instrs.size; i++) {
-
         gen_x86_from_instr(output, &block->instrs.elems[i], cur_func,
                            func_stack_size);
     }
@@ -933,7 +901,6 @@ static void gen_x86_from_func(struct DynamicStr *output, struct IRFunc *func)
         DynamicStr_append_printf(output, "sub esp, %u\n", stack_size);
 
     for (i = 0; i < func->blocks.size; i++) {
-
         gen_x86_from_block(output, &func->blocks.elems[i], func, stack_size);
     }
 

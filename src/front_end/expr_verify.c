@@ -1,10 +1,10 @@
-#include "ast.h"
-#include "../utils/bool.h"
 #include "../comp_dependent/ints.h"
-#include "parser_var.h"
-#include "../prim_type.h"
-#include "../utils/safe_mem.h"
 #include "../err_msg.h"
+#include "../prim_type.h"
+#include "../utils/bool.h"
+#include "../utils/safe_mem.h"
+#include "ast.h"
+#include "parser_var.h"
 #include <assert.h>
 #include <stdio.h>
 
@@ -13,58 +13,59 @@
  *                      expression and false if it's nested inside it.
  */
 static bool verify_func_call(const struct Expr *expr,
-        const struct ParVarList *vars, const struct StructList *structs,
-        bool is_root) {
-
+                             const struct ParVarList *vars,
+                             const struct StructList *structs, bool is_root)
+{
     bool error = false;
     char *func_name = Expr_src(expr);
     u32 var_idx = ParVarList_find_var(vars, func_name);
     assert(var_idx != m_u32_max);
 
     if (!is_root && vars->elems[var_idx].type == PrimType_VOID &&
-            vars->elems[var_idx].lvls_of_indir == 0) {
+        vars->elems[var_idx].lvls_of_indir == 0) {
         ErrMsg_print(ErrMsg_on, &error, expr->file_path,
-                "cannot use the function '%s' in an expression, due to it"
-                " being of type 'void'. line %u, column %u.\n", func_name,
-                expr->line_num, expr->column_num);
+                     "cannot use the function '%s' in an expression, due to it"
+                     " being of type 'void'. line %u, column %u.\n",
+                     func_name, expr->line_num, expr->column_num);
     }
 
     if ((vars->elems[var_idx].void_args && expr->args.size > 0) ||
-            (vars->elems[var_idx].args->size > 0 &&
-            !VarDeclPtrList_equivalent_expr(vars->elems[var_idx].args,
-                &expr->args, vars, structs,
-                vars->elems[var_idx].variadic_args))) {
+        (vars->elems[var_idx].args->size > 0 &&
+         !VarDeclPtrList_equivalent_expr(vars->elems[var_idx].args, &expr->args,
+                                         vars, structs,
+                                         vars->elems[var_idx].variadic_args))) {
         ErrMsg_print(ErrMsg_on, &error, expr->file_path,
-                "mismatching arguments for the call to '%s' on line %u,"
-                " column %u.\n", func_name, expr->line_num, expr->column_num);
+                     "mismatching arguments for the call to '%s' on line %u,"
+                     " column %u.\n",
+                     func_name, expr->line_num, expr->column_num);
     }
 
     m_free(func_name);
     return error;
-
 }
 
-static bool verify_unary_ptr_operation(const struct Expr *expr) {
-
+static bool verify_unary_ptr_operation(const struct Expr *expr)
+{
     if (!ExprType_is_valid_unary_ptr_operation(expr->expr_type)) {
         char *expr_src = Expr_src(expr);
 
-        ErrMsg_print(ErrMsg_on, NULL, expr->file_path,
-                "cannot perform unary operation '%s' on a pointer. line %u,"
-                " column %u.\n", expr_src, expr->line_num, expr->column_num);
+        ErrMsg_print(
+            ErrMsg_on, NULL, expr->file_path,
+            "cannot perform unary operation '%s' on a pointer. line %u,"
+            " column %u.\n",
+            expr_src, expr->line_num, expr->column_num);
 
         m_free(expr_src);
 
         return true;
-    }
-    else if (expr->expr_type == ExprType_DEREFERENCE &&
-            expr->lhs->lvls_of_indir == 1 &&
-            expr->lhs->prim_type == PrimType_VOID) {
+    } else if (expr->expr_type == ExprType_DEREFERENCE &&
+               expr->lhs->lvls_of_indir == 1 &&
+               expr->lhs->prim_type == PrimType_VOID) {
         char *expr_src = Expr_src(expr);
 
         ErrMsg_print(ErrMsg_on, NULL, expr->file_path,
-                "cannot dereference a void pointer. line %u, column %u.\n",
-                expr->line_num, expr->column_num);
+                     "cannot dereference a void pointer. line %u, column %u.\n",
+                     expr->line_num, expr->column_num);
 
         m_free(expr_src);
 
@@ -72,19 +73,18 @@ static bool verify_unary_ptr_operation(const struct Expr *expr) {
     }
 
     return false;
-
 }
 
 /* for when both operands are pointers */
-static bool verify_ptr_operation(const struct Expr *expr) {
-
+static bool verify_ptr_operation(const struct Expr *expr)
+{
     if (!ExprType_is_valid_ptr_operation(expr->expr_type)) {
         char *expr_src = Expr_src(expr);
 
         ErrMsg_print(ErrMsg_on, NULL, expr->file_path,
-                "cannot perform operation '%s' on a pointer and a"
-                " pointer. line %u, column %u\n", expr_src, expr->line_num,
-                expr->column_num);
+                     "cannot perform operation '%s' on a pointer and a"
+                     " pointer. line %u, column %u\n",
+                     expr_src, expr->line_num, expr->column_num);
 
         m_free(expr_src);
 
@@ -92,19 +92,18 @@ static bool verify_ptr_operation(const struct Expr *expr) {
     }
 
     return false;
-
 }
 
 /* for when only the left operand is a pointer */
-static bool verify_single_ptr_operation(const struct Expr *expr) {
-
+static bool verify_single_ptr_operation(const struct Expr *expr)
+{
     if (!ExprType_is_valid_single_ptr_operation(expr->expr_type)) {
         char *expr_src = Expr_src(expr);
 
         ErrMsg_print(ErrMsg_on, NULL, expr->file_path,
-                "cannot perform operation '%s' on a pointer and a"
-                " non-pointer. line %u, column %u\n", expr_src, expr->line_num,
-                expr->column_num);
+                     "cannot perform operation '%s' on a pointer and a"
+                     " non-pointer. line %u, column %u\n",
+                     expr_src, expr->line_num, expr->column_num);
 
         m_free(expr_src);
 
@@ -112,74 +111,72 @@ static bool verify_single_ptr_operation(const struct Expr *expr) {
     }
 
     return false;
-
 }
 
-static bool verify_reference(const struct Expr *expr) {
-
+static bool verify_reference(const struct Expr *expr)
+{
     if (expr->lhs->expr_type != ExprType_IDENT &&
-            expr->lhs->expr_type != ExprType_MEMBER_ACCESS &&
-            expr->lhs->expr_type != ExprType_MEMBER_ACCESS_PTR &&
-            expr->lhs->expr_type != ExprType_L_ARR_SUBSCR &&
-            /* makes sure it's not a func call */
-            expr->lhs->args.size == 0 &&
-            expr->lhs->expr_type != ExprType_DEREFERENCE) {
+        expr->lhs->expr_type != ExprType_MEMBER_ACCESS &&
+        expr->lhs->expr_type != ExprType_MEMBER_ACCESS_PTR &&
+        expr->lhs->expr_type != ExprType_L_ARR_SUBSCR &&
+        /* makes sure it's not a func call */
+        expr->lhs->args.size == 0 &&
+        expr->lhs->expr_type != ExprType_DEREFERENCE) {
         ErrMsg_print(ErrMsg_on, NULL, expr->file_path,
-                "cannot reference an operand with no address. line %u,"
-                " column %u.\n", expr->line_num, expr->column_num);
+                     "cannot reference an operand with no address. line %u,"
+                     " column %u.\n",
+                     expr->line_num, expr->column_num);
         return true;
     }
 
     return false;
-
 }
 
-static bool verify_member_access(const struct Expr *expr) {
-
+static bool verify_member_access(const struct Expr *expr)
+{
     if (expr->lhs->lvls_of_indir != 0) {
-        ErrMsg_print(ErrMsg_on, NULL, expr->file_path,
-                "can not access members of a pointer. line %u, column %u.\n",
-                expr->line_num, expr->column_num);
+        ErrMsg_print(
+            ErrMsg_on, NULL, expr->file_path,
+            "can not access members of a pointer. line %u, column %u.\n",
+            expr->line_num, expr->column_num);
         return true;
     }
 
     return false;
-
 }
 
-static bool verify_member_access_ptr(const struct Expr *expr) {
-
+static bool verify_member_access_ptr(const struct Expr *expr)
+{
     if (expr->lhs->lvls_of_indir != 1) {
         ErrMsg_print(ErrMsg_on, NULL, expr->file_path,
-                "can not use operator '->' on line %u, column %u.\n",
-                expr->line_num, expr->column_num);
+                     "can not use operator '->' on line %u, column %u.\n",
+                     expr->line_num, expr->column_num);
         return true;
     }
 
     return false;
-
 }
 
-static bool verify_array_lit(const struct Expr *expr, bool is_initializer) {
-
+static bool verify_array_lit(const struct Expr *expr, bool is_initializer)
+{
     bool is_str = expr->array_value.elem_size == 1;
 
     if (!is_initializer && !is_str) {
         /* an elem size of 0 means the array isn't a string literal */
         ErrMsg_print(ErrMsg_on, NULL, expr->file_path,
-                "cannot use array literals outside of initializers."
-                " line num = %u, column num = %u.\n", expr->line_num,
-                expr->column_num);
+                     "cannot use array literals outside of initializers."
+                     " line num = %u, column num = %u.\n",
+                     expr->line_num, expr->column_num);
         return true;
     }
 
     return false;
-
 }
 
 static bool verify_expr(const struct Expr *expr, const struct ParVarList *vars,
-        const struct StructList *structs, bool is_root, bool is_initializer) {
-
+                        const struct StructList *structs, bool is_root,
+                        bool is_initializer)
+{
     bool error = false;
     u32 i;
 
@@ -193,36 +190,30 @@ static bool verify_expr(const struct Expr *expr, const struct ParVarList *vars,
 
     if (expr->expr_type == ExprType_FUNC_CALL) {
         error |= verify_func_call(expr, vars, structs, is_root);
-    }
-    else if (expr->expr_type == ExprType_REFERENCE) {
+    } else if (expr->expr_type == ExprType_REFERENCE) {
         error |= verify_reference(expr);
-    }
-    else if (expr->lhs->lvls_of_indir > 0 &&
-            ExprType_is_unary_operator(expr->expr_type)) {
+    } else if (expr->lhs->lvls_of_indir > 0 &&
+               ExprType_is_unary_operator(expr->expr_type)) {
         error |= verify_unary_ptr_operation(expr);
     }
     /*already checked if the child node is a pointer */
     else if (expr->expr_type == ExprType_DEREFERENCE) {
         ErrMsg_print(ErrMsg_on, &error, expr->file_path,
-                "can not dereference a non-pointer. line %u,"
-                " column %u.\n", expr->line_num, expr->column_num);
+                     "can not dereference a non-pointer. line %u,"
+                     " column %u.\n",
+                     expr->line_num, expr->column_num);
         error = true;
-    }
-    else if (expr->expr_type == ExprType_MEMBER_ACCESS) {
+    } else if (expr->expr_type == ExprType_MEMBER_ACCESS) {
         error |= verify_member_access(expr);
-    }
-    else if (expr->expr_type == ExprType_MEMBER_ACCESS_PTR) {
+    } else if (expr->expr_type == ExprType_MEMBER_ACCESS_PTR) {
         error |= verify_member_access_ptr(expr);
-    }
-    else if (expr->lhs->lvls_of_indir > 0 && expr->rhs->lvls_of_indir > 0 &&
-            ExprType_is_bin_operator(expr->expr_type)) {
+    } else if (expr->lhs->lvls_of_indir > 0 && expr->rhs->lvls_of_indir > 0 &&
+               ExprType_is_bin_operator(expr->expr_type)) {
         error |= verify_ptr_operation(expr);
-    }
-    else if (expr->lhs->lvls_of_indir > 0 &&
-            ExprType_is_bin_operator(expr->expr_type)) {
+    } else if (expr->lhs->lvls_of_indir > 0 &&
+               ExprType_is_bin_operator(expr->expr_type)) {
         error |= verify_single_ptr_operation(expr);
-    }
-    else if (expr->expr_type == ExprType_ARRAY_LIT) {
+    } else if (expr->expr_type == ExprType_ARRAY_LIT) {
         error |= verify_array_lit(expr, is_initializer);
     }
 
@@ -231,12 +222,10 @@ static bool verify_expr(const struct Expr *expr, const struct ParVarList *vars,
     }
 
     return error;
-
 }
 
 bool Expr_verify(const struct Expr *expr, const struct ParVarList *vars,
-        const struct StructList *structs, bool is_initializer) {
-
+                 const struct StructList *structs, bool is_initializer)
+{
     return verify_expr(expr, vars, structs, true, is_initializer);
-
 }

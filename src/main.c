@@ -20,8 +20,8 @@
 
 #define m_build_bug_on(condition) ((void)sizeof(char[1 - 2 * !!(condition)]))
 
-static char *read_file(const char *file_path) {
-
+static char *read_file(const char *file_path)
+{
     char *contents = NULL;
     FILE *file = fopen(file_path, "r");
     if (!file) {
@@ -35,8 +35,8 @@ static char *read_file(const char *file_path) {
 }
 
 static void free_macros(struct PreProcMacroList *macros,
-                        struct MacroInstList *macro_insts) {
-
+                        struct MacroInstList *macro_insts)
+{
     while (macro_insts->size > 0)
         MacroInstList_pop_back(macro_insts, MacroInstance_free);
     MacroInstList_free(macro_insts);
@@ -46,8 +46,8 @@ static void free_macros(struct PreProcMacroList *macros,
     PreProcMacroList_free(macros);
 }
 
-static void process_tokens(struct Lexer *lexer) {
-
+static void process_tokens(struct Lexer *lexer)
+{
     MergeStrings_merge(&lexer->token_tbl);
     BinToUnary_convert(&lexer->token_tbl);
     PreToPostFix_convert(&lexer->token_tbl);
@@ -55,8 +55,8 @@ static void process_tokens(struct Lexer *lexer) {
 
 /* preprocessing */
 static void compile(char *src, FILE *output, FILE *mccir_output,
-                    bool *error_occurred) {
-
+                    bool *error_occurred)
+{
     struct PreProcMacroList macros;
     struct MacroInstList macro_insts;
 
@@ -97,8 +97,8 @@ free_macros_ret:
     free_macros(&macros, &macro_insts);
 }
 
-static FILE *get_asm_out_file(bool *error_occurred) {
-
+static FILE *get_asm_out_file(bool *error_occurred)
+{
     FILE *f = NULL;
 
     if (CompArgs_args.asm_out_path) {
@@ -113,8 +113,8 @@ static FILE *get_asm_out_file(bool *error_occurred) {
     return f;
 }
 
-static FILE *get_mccir_out_file(bool *error_occurred) {
-
+static FILE *get_mccir_out_file(bool *error_occurred)
+{
     FILE *f = NULL;
 
     if (CompArgs_args.mccir_out_path) {
@@ -129,8 +129,8 @@ static FILE *get_mccir_out_file(bool *error_occurred) {
     return f;
 }
 
-int main(int argc, char *argv[]) {
-
+int main(int argc, char *argv[])
+{
     char *src = NULL;
     FILE *output = NULL;
     FILE *mccir_output = NULL;

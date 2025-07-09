@@ -7,8 +7,8 @@ bool ErrMsg_on = true;
 bool WarnMsg_on = true;
 
 void ErrMsg_print(bool print_err, bool *err_occurred, const char *file_path,
-        const char *fmt, ...) {
-
+                  const char *fmt, ...)
+{
     va_list args;
     va_start(args, fmt);
 
@@ -20,12 +20,11 @@ void ErrMsg_print(bool print_err, bool *err_occurred, const char *file_path,
     }
 
     va_end(args);
-
 }
 
 void WarnMsg_print(bool print_warn, bool *err_occurred, const char *file_path,
-        const char *fmt, ...) {
-
+                   const char *fmt, ...)
+{
     va_list args;
     va_start(args, fmt);
 
@@ -34,12 +33,10 @@ void WarnMsg_print(bool print_warn, bool *err_occurred, const char *file_path,
             *err_occurred = true;
         fprintf(stderr, "%s: error: ", file_path);
         vfprintf(stderr, fmt, args);
-    }
-    else if (print_warn) {
+    } else if (print_warn) {
         fprintf(stderr, "%s: warning: ", file_path);
         vfprintf(stderr, fmt, args);
     }
 
     va_end(args);
-
 }

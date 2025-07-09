@@ -1,13 +1,13 @@
 #include "structs.h"
 #include "comp_dependent/ints.h"
 #include "prim_type.h"
-#include "utils/safe_mem.h"
 #include "type_mods.h"
+#include "utils/safe_mem.h"
 #include "utils/vector_impl.h"
 #include <string.h>
 
-struct StructField StructField_init(void) {
-
+struct StructField StructField_init(void)
+{
     struct StructField field;
     field.name = NULL;
     field.offset = 0;
@@ -18,13 +18,14 @@ struct StructField StructField_init(void) {
     field.is_array = false;
     field.array_len = 0;
     return field;
-
 }
 
 struct StructField StructField_create(char *name, u32 offset,
-        enum PrimitiveType type, u32 type_idx, unsigned lvls_of_indir,
-        struct TypeModifiers mods, bool is_array, u32 array_len) {
-
+                                      enum PrimitiveType type, u32 type_idx,
+                                      unsigned lvls_of_indir,
+                                      struct TypeModifiers mods, bool is_array,
+                                      u32 array_len)
+{
     struct StructField field;
     field.name = name;
     field.offset = offset;
@@ -35,17 +36,15 @@ struct StructField StructField_create(char *name, u32 offset,
     field.is_array = is_array;
     field.array_len = array_len;
     return field;
-
 }
 
-void StructField_free(struct StructField field) {
-
+void StructField_free(struct StructField field)
+{
     m_free(field.name);
-
 }
 
-struct Struct Struct_init(void) {
-
+struct Struct Struct_init(void)
+{
     struct Struct x;
     x.name = NULL;
     x.members = StructFieldList_init();
@@ -55,13 +54,12 @@ struct Struct Struct_init(void) {
     x.size = 0;
     x.alignment = 0;
     return x;
-
 }
 
 struct Struct Struct_create(char *name, struct StructFieldList members,
-        bool defined, unsigned def_line_num, const char *def_file_path,
-        u32 size, u32 alignment) {
-
+                            bool defined, unsigned def_line_num,
+                            const char *def_file_path, u32 size, u32 alignment)
+{
     struct Struct x;
     x.name = name;
     x.members = members;
@@ -71,21 +69,19 @@ struct Struct Struct_create(char *name, struct StructFieldList members,
     x.size = size;
     x.alignment = alignment;
     return x;
-
 }
 
-void Struct_free(struct Struct x) {
-
+void Struct_free(struct Struct x)
+{
     m_free(x.name);
 
     while (x.members.size > 0)
         StructFieldList_pop_back(&x.members, StructField_free);
     StructFieldList_free(&x.members);
-
 }
 
-u32 Struct_field_idx(struct Struct *x, const char *name) {
-
+u32 Struct_field_idx(struct Struct *x, const char *name)
+{
     u32 i;
 
     for (i = 0; i < x->members.size; i++) {
@@ -94,11 +90,10 @@ u32 Struct_field_idx(struct Struct *x, const char *name) {
     }
 
     return m_u32_max;
-
 }
 
-u32 StructList_find_struct(const struct StructList *self, const char *name) {
-
+u32 StructList_find_struct(const struct StructList *self, const char *name)
+{
     u32 i;
 
     for (i = 0; i < self->size; i++) {
@@ -107,8 +102,7 @@ u32 StructList_find_struct(const struct StructList *self, const char *name) {
     }
 
     return m_u32_max;
-
 }
 
 m_define_VectorImpl_funcs(StructFieldList, struct StructField)
-m_define_VectorImpl_funcs(StructList, struct Struct)
+    m_define_VectorImpl_funcs(StructList, struct Struct)

@@ -10,7 +10,6 @@ static u32 func_arg_idx(const char *vreg, const struct IRFunc *func)
     u32 i;
 
     for (i = 0; i < func->args.size; i++) {
-
         if (strcmp(func->args.elems[i].name, vreg) == 0)
             return i;
     }
@@ -27,7 +26,6 @@ static u32 func_arg_esp_offset(const struct IRFunc *func, const char *arg)
     u32 offset = stack_size + 4;
 
     for (i = 0; i < func->args.size; i++) {
-
         const struct IRFuncArg *cur_arg = &func->args.elems[i];
 
         if (strcmp(cur_arg->name, arg) == 0)
@@ -89,40 +87,33 @@ static void instr_args_to_esp(struct IRInstr *instr, struct IRFunc *func)
     u32 i;
 
     for (i = 0; i < instr->args.size; i++) {
-
         instrarg_args_to_esp(&instr->args.elems[i], func);
     }
 }
 
 static void block_args_to_esp(struct IRBasicBlock *block, struct IRFunc *func)
 {
-
     u32 i;
 
     for (i = 0; i < block->instrs.size; i++) {
-
         instr_args_to_esp(&block->instrs.elems[i], func);
     }
 }
 
 static void func_args_to_esp(struct IRFunc *func)
 {
-
     u32 i;
 
     for (i = 0; i < func->blocks.size; i++) {
-
         block_args_to_esp(&func->blocks.elems[i], func);
     }
 }
 
 void X86_arg_to_esp(struct IRModule *module)
 {
-
     u32 i;
 
     for (i = 0; i < module->funcs.size; i++) {
-
         func_args_to_esp(&module->funcs.elems[i]);
     }
 }

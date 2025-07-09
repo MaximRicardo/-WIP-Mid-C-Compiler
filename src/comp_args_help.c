@@ -11,5 +11,4 @@ char *CompArgs_help_str[] = {
     "--pedantic               Warns about usage of non-standard extensions.\n"
     "--skip-ir                DEPRECATED! Skips using the IR, and instead\n"
     "                         compiles directly to assembly. Disables all\n"
-    "                         optimizations.\n"
-};
+    "                         optimizations.\n"};

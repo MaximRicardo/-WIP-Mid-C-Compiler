@@ -1,10 +1,9 @@
 #include "instrs.h"
 #include <assert.h>
 
-const char* X86_get_instr(enum IRInstrType type, struct IRDataType d_type) {
-
+const char *X86_get_instr(enum IRInstrType type, struct IRDataType d_type)
+{
     switch (type) {
-
     case IRInstr_INVALID:
         assert(false);
 
@@ -78,7 +77,5 @@ const char* X86_get_instr(enum IRInstrType type, struct IRDataType d_type) {
 
     case IRInstr_COMMENT:
         assert(false);
-
     };
-
 }
